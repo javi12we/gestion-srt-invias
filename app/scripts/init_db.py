@@ -35,7 +35,7 @@ def main():
     # Resumen de conteos
     db = obtener_base_datos()
     print("Conteos por colección:")
-    for nombre in ["usuarios", "roles", "permisos", "sesiones"]:
+    for nombre in ["usuarios", "roles", "permisos", "sesiones", "opciones_configuracion"]:
         try:
             print(f" - {nombre}: {db[nombre].count_documents({})}")
         except Exception as e:

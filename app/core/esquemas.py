@@ -69,3 +69,32 @@ ESQUEMA_SESIONES = {
         "duracion_segundos": {"bsonType": ["int", "long", "null"]},
     },
 }
+
+ESQUEMA_OPCIONES_CONFIGURACION = {
+    "bsonType": "object",
+    "required": ["categoria", "opciones"],
+    "properties": {
+        "categoria": {
+            "enum": ["tipo", "grupo", "clase_correspondencia", "estados"],
+            "description": "Define a qué desplegable pertenece",
+        },
+        "opciones": {
+            "bsonType": "array",
+            "items": {
+                "bsonType": "object",
+                "required": ["clave", "etiqueta", "activo"],
+                "properties": {
+                    "clave": {
+                        "bsonType": "string",
+                        "description": "Valor técnico (slug)",
+                    },
+                    "etiqueta": {
+                        "bsonType": "string",
+                        "description": "Valor visual",
+                    },
+                    "activo": {"bsonType": "bool"},
+                },
+            },
+        },
+    },
+}
