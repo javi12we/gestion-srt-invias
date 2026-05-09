@@ -6,6 +6,7 @@ from app.core.esquemas import (
     ESQUEMA_SESIONES,
     ESQUEMA_USUARIOS,
     ESQUEMA_OPCIONES_CONFIGURACION,
+    ESQUEMA_CORRESPONDENCIA,
 )
 from app.db.mongo import obtener_base_datos
 
@@ -20,6 +21,7 @@ class MongoBootstrapService:
         self._asegurar_coleccion("permisos", ESQUEMA_PERMISOS)
         self._asegurar_coleccion("sesiones", ESQUEMA_SESIONES)
         self._asegurar_coleccion("opciones_configuracion", ESQUEMA_OPCIONES_CONFIGURACION)
+        self._asegurar_coleccion("correspondencia", ESQUEMA_CORRESPONDENCIA)
 
         self.db["usuarios"].create_index("usuario", unique=True, name="idx_usuarios_usuario_unico")
         self.db["usuarios"].create_index("activo", name="idx_usuarios_activo")
@@ -31,6 +33,9 @@ class MongoBootstrapService:
         self.db["sesiones"].create_index("estado", name="idx_sesiones_estado")
         self.db["sesiones"].create_index("fecha_inicio", name="idx_sesiones_fecha_inicio")
         self.db["opciones_configuracion"].create_index("categoria", unique=True, name="idx_opciones_categoria_unico")
+        self.db["correspondencia"].create_index("numero_radicado", unique=True, name="idx_correspondencia_radicado")
+        self.db["correspondencia"].create_index("estado_actual", name="idx_correspondencia_estado")
+        self.db["correspondencia"].create_index("responsable_actual.usuario_id", name="idx_correspondencia_responsable")
 
     def _asegurar_coleccion(self, nombre: str, esquema: dict) -> None:
         if nombre not in self.db.list_collection_names():

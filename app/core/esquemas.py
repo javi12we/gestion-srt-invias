@@ -98,3 +98,87 @@ ESQUEMA_OPCIONES_CONFIGURACION = {
         },
     },
 }
+
+ESQUEMA_CORRESPONDENCIA = {
+    "bsonType": "object",
+    "required": [
+        "numero_radicado", 
+        "asunto", 
+        "peticionario", 
+        "estado_actual", 
+        "fecha_radicacion", 
+        "fecha_vencimiento", 
+        "tipo", 
+        "grupo", 
+        "trazabilidad"
+    ],
+    "properties": {
+        "numero_radicado": {
+            "bsonType": "string",
+            "description": "Debe ser un string y es obligatorio (Ej: RE26-0001)"
+        },
+        "asunto": {
+            "bsonType": "string",
+            "description": "Descripción del contenido del radicado"
+        },
+        "peticionario": {
+            "bsonType": "string",
+            "description": "Nombre de la persona o entidad que envía"
+        },
+        "estado_actual": {
+            "enum": ["pendiente", "en_tramite", "en_revision", "respondido", "archivado", "traslado_competencia"],
+            "description": "Solo puede ser uno de los estados definidos"
+        },
+        "fecha_radicacion": {
+            "bsonType": "date",
+            "description": "Fecha y hora de ingreso al sistema"
+        },
+        "fecha_vencimiento": {
+            "bsonType": "date",
+            "description": "Fecha límite para dar respuesta oportuna"
+        },
+        "tipo": { "bsonType": "string" },
+        "grupo": { "bsonType": "string" },
+        "clase": { "bsonType": "string" },
+        "responsable_actual": {
+            "bsonType": "object",
+            "required": ["usuario_id", "nombre", "fecha_asignacion"],
+            "properties": {
+                "usuario_id": { "bsonType": "string" },
+                "nombre": { "bsonType": "string" },
+                "fecha_asignacion": { "bsonType": "date" }
+            },
+            "description": "Opcional: No existe hasta que un coordinador lo asigne"
+        },
+        "respuesta": {
+            "bsonType": "object",
+            "properties": {
+                "numero_oficio": { "bsonType": "string" },
+                "fecha_salida": { "bsonType": "date" }
+            },
+            "description": "Opcional: Solo se completa al finalizar el trámite"
+        },
+        "observaciones_generales": { "bsonType": "string" },
+        "metadatos_adicionales": { "bsonType": "object" },
+        "trazabilidad": {
+            "bsonType": "array",
+            "minItems": 1,
+            "items": {
+                "bsonType": "object",
+                "required": ["fecha", "tipo_evento", "usuario_ejecutor", "estado_nuevo"],
+                "properties": {
+                    "fecha": { "bsonType": "date" },
+                    "tipo_evento": { 
+                        "enum": ["radicacion", "asignacion", "reasignacion", "cambio_estado", "carga_respuesta", "cierre"] 
+                    },
+                    "usuario_ejecutor": { "bsonType": "string" },
+                    "estado_anterior": { "bsonType": ["string", "null"] },
+                    "estado_nuevo": { "bsonType": "string" },
+                    "responsable_anterior": { "bsonType": ["string", "null"] },
+                    "responsable_nuevo": { "bsonType": ["string", "null"] },
+                    "comentario": { "bsonType": ["string", "null"] }
+                }
+            }
+        }
+    }
+}
