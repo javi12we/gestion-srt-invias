@@ -13,12 +13,17 @@ class CorrespondenciaRepositorio:
     def buscar_por_radicado(self, numero_radicado: str):
         return self.coleccion.find_one({"numero_radicado": numero_radicado})
 
-    def listar_todas(self):
-        # En una aplicación real usaríamos paginación, aquí retornamos todas (o limitamos)
-        return list(self.coleccion.find().sort("fecha_radicacion", -1))
+    def listar_todas(self, skip: int = 0, limit: int = 10):
+        return list(self.coleccion.find().sort("fecha_radicacion", -1).skip(skip).limit(limit))
         
-    def listar_por_responsable(self, id_usuario: str):
-        return list(self.coleccion.find({"responsable_actual.usuario_id": id_usuario}).sort("fecha_radicacion", -1))
+    def contar_todas(self):
+        return self.coleccion.count_documents({})
+        
+    def listar_por_responsable(self, id_usuario: str, skip: int = 0, limit: int = 10):
+        return list(self.coleccion.find({"responsable_actual.usuario_id": id_usuario}).sort("fecha_radicacion", -1).skip(skip).limit(limit))
+
+    def contar_por_responsable(self, id_usuario: str):
+        return self.coleccion.count_documents({"responsable_actual.usuario_id": id_usuario})
 
     def crear(self, datos: dict):
         return self.coleccion.insert_one(datos).inserted_id

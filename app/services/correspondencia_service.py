@@ -9,16 +9,17 @@ class CorrespondenciaService:
     def __init__(self) -> None:
         self.repo = CorrespondenciaRepositorio()
 
-    def listar_correspondencia(self, id_usuario: Optional[str] = None, ver_todas: bool = False) -> List[Dict]:
+    def listar_correspondencia(self, id_usuario: Optional[str] = None, ver_todas: bool = False, skip: int = 0, limit: int = 10) -> tuple[List[Dict], int]:
         """
         Lista las correspondencias. Si ver_todas es True, devuelve todas.
         Si ver_todas es False y se provee id_usuario, devuelve las asignadas a ese usuario.
+        Retorna una tupla: (lista_documentos, total_documentos)
         """
         if ver_todas:
-            return self.repo.listar_todas()
+            return self.repo.listar_todas(skip, limit), self.repo.contar_todas()
         if id_usuario:
-            return self.repo.listar_por_responsable(id_usuario)
-        return []
+            return self.repo.listar_por_responsable(id_usuario, skip, limit), self.repo.contar_por_responsable(id_usuario)
+        return [], 0
 
     def buscar_por_id(self, id_correspondencia: str) -> Optional[Dict]:
         return self.repo.buscar_por_id(id_correspondencia)
