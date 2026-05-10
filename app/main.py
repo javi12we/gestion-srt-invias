@@ -1,5 +1,11 @@
-import streamlit as st
+import sys
+import os
 
+# Asegurar que el directorio raíz del proyecto esté en el PYTHONPATH
+# Esto soluciona el "ModuleNotFoundError: No module named 'app'" en Streamlit Cloud
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import streamlit as st
 from app.core.sesion import cerrar_sesion, iniciar_sesion, obtener_sesion, sesion_activa
 from app.services.catalogo_service import CatalogoService
 from app.services.mongo_bootstrap_service import MongoBootstrapService
