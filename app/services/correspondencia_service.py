@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 from bson import ObjectId
 
@@ -9,25 +9,65 @@ class CorrespondenciaService:
     def __init__(self) -> None:
         self.repo = CorrespondenciaRepositorio()
 
-    def listar_correspondencia(self, id_usuario: Optional[str] = None, ver_todas: bool = False, skip: int = 0, limit: int = 10) -> tuple[List[Dict], int]:
+    def listar_correspondencia(self, id_usuario: Optional[str] = None, ver_todas: bool = False, skip: int = 0, limit: int = 10, filtros: dict = None) -> tuple[List[Dict], int]:
         """
         Lista las correspondencias. Si ver_todas es True, devuelve todas.
         Si ver_todas es False y se provee id_usuario, devuelve las asignadas a ese usuario.
         Retorna una tupla: (lista_documentos, total_documentos)
         """
-        if ver_todas:
-            return self.repo.listar_todas(skip, limit), self.repo.contar_todas()
-        if id_usuario:
-            return self.repo.listar_por_responsable(id_usuario, skip, limit), self.repo.contar_por_responsable(id_usuario)
-        return [], 0
+        query = {}
+        if not ver_todas and id_usuario:
+            query["responsable_actual.usuario_id"] = id_usuario
+            
+        if filtros:
+            # Estado
+            if "estado" in filtros and filtros["estado"] != "Todos":
+                query["estado_actual"] = filtros["estado"]
+            
+            # Vencimiento (Solo aplica para activas si es que no hemos filtrado por estado ya cerrado)
+            if "vencimiento" in filtros and filtros["vencimiento"] != "Todos":
+                hoy_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                hoy = datetime.strptime(hoy_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                
+                # Para filtros de vencimiento, excluimos los cerrados si el usuario no especificó un estado
+                if "estado" not in filtros or filtros["estado"] == "Todos":
+                    query["estado_actual"] = {"$nin": ["respondido", "archivado", "traslado_competencia"]}
+                    
+                venc_filtro = filtros["vencimiento"]
+                if venc_filtro == "Vencidas":
+                    query["fecha_vencimiento"] = {"$lt": hoy}
+                elif venc_filtro == "Vencen Hoy":
+                    query["fecha_vencimiento"] = {"$gte": hoy, "$lt": hoy + timedelta(days=1)}
+                elif venc_filtro == "Próximas a Vencer":
+                    query["fecha_vencimiento"] = {"$gte": hoy + timedelta(days=1), "$lte": hoy + timedelta(days=3)}
+                elif venc_filtro == "A Tiempo":
+                    query["fecha_vencimiento"] = {"$gt": hoy + timedelta(days=3)}
+
+        return self.repo.listar(query, skip, limit), self.repo.contar(query)
 
     def buscar_por_id(self, id_correspondencia: str) -> Optional[Dict]:
         return self.repo.buscar_por_id(id_correspondencia)
 
+    def _agregar_dias_habiles(self, fecha_inicial: datetime, dias: int) -> datetime:
+        fecha_actual = fecha_inicial
+        dias_agregados = 0
+        while dias_agregados < dias:
+            fecha_actual += timedelta(days=1)
+            # 0 = Lunes, ..., 4 = Viernes
+            if fecha_actual.weekday() < 5:
+                dias_agregados += 1
+        return fecha_actual
+
     def crear_correspondencia(self, datos: dict, usuario_ejecutor_nombre: str) -> str:
         fecha_actual = datetime.now(timezone.utc)
         
-        datos["fecha_radicacion"] = fecha_actual
+        # Si no se provee fecha_radicacion, usar la actual
+        if "fecha_radicacion" not in datos or not datos["fecha_radicacion"]:
+            datos["fecha_radicacion"] = fecha_actual
+            
+        # Calcular fecha de vencimiento sumando 10 días hábiles
+        datos["fecha_vencimiento"] = self._agregar_dias_habiles(datos["fecha_radicacion"], 10)
+        
         datos["estado_actual"] = "pendiente"
         
         # Generar trazabilidad inicial
@@ -40,7 +80,7 @@ class CorrespondenciaService:
             "comentario": "Ingreso de correspondencia al sistema"
         }
         datos["trazabilidad"] = [evento_trazabilidad]
-
+        
         # Validamos que no tenga responsable todavía o respuesta
         if "responsable_actual" in datos:
             del datos["responsable_actual"]
