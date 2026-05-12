@@ -360,25 +360,31 @@ with tab_gestion:
     if "page_correspondencia" not in st.session_state:
         st.session_state["page_correspondencia"] = 1
         
-    page_size = 10
+    page_size = 50
+
     current_page = st.session_state["page_correspondencia"]
     skip = (current_page - 1) * page_size
     
     datos_corr, total_docs = cargar_datos(skip=skip, limit=page_size, filtros=filtros)
     total_pages = max(1, (total_docs + page_size - 1) // page_size)
     
-    # Renderizar controles de paginación
-    col_prev, col_info, col_next = st.columns([1, 2, 1])
-    with col_prev:
-        if st.button("⬅️ Anterior", disabled=(current_page <= 1)):
-            st.session_state["page_correspondencia"] -= 1
-            st.rerun()
-    with col_info:
-        st.markdown(f"<div style='text-align: center; padding-top: 5px;'>Página {current_page} de {total_pages} (Total: {total_docs})</div>", unsafe_allow_html=True)
-    with col_next:
-        if st.button("Siguiente ➡️", disabled=(current_page >= total_pages)):
-            st.session_state["page_correspondencia"] += 1
-            st.rerun()
+    # Función interna para renderizar controles de paginación
+    def render_paginacion(posicion):
+        c_prev, c_info, c_next = st.columns([1, 2, 1])
+        with c_prev:
+            if st.button("⬅️ Anterior", disabled=(current_page <= 1), key=f"btn_prev_{posicion}"):
+                st.session_state["page_correspondencia"] -= 1
+                st.rerun()
+        with c_info:
+            st.markdown(f"<div style='text-align: center; padding-top: 5px;'>Página {current_page} de {total_pages} (Total: {total_docs})</div>", unsafe_allow_html=True)
+        with c_next:
+            if st.button("Siguiente ➡️", disabled=(current_page >= total_pages), key=f"btn_next_{posicion}"):
+                st.session_state["page_correspondencia"] += 1
+                st.rerun()
+
+    # Renderizar paginación superior
+    render_paginacion("top")
+
             
     st.write("")
     
@@ -428,14 +434,19 @@ with tab_gestion:
             
         df = pd.DataFrame(tabla_datos)
         
+        # Calcular altura para evitar scroll interno (aprox 35px por fila + cabecera)
+        altura_dinamica = (len(df) + 1) * 35 + 3
+        
         # Renderizar dataframe interactivo
         event = st.dataframe(
             df.drop(columns=["_id"]), 
             use_container_width=True, 
             hide_index=True,
             on_select="rerun",
-            selection_mode="single-row"
+            selection_mode="single-row",
+            height=altura_dinamica
         )
+
         
         if event.selection.rows:
             idx = event.selection.rows[0]
@@ -443,3 +454,8 @@ with tab_gestion:
             corr_sel = next((c for c in datos_corr if str(c["_id"]) == id_sel), None)
             if corr_sel:
                 modal_gestion_correspondencia(corr_sel)
+        
+        # Renderizar paginación inferior
+        st.write("")
+        render_paginacion("bottom")
+
