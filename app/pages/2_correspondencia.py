@@ -48,12 +48,20 @@ if not tipos_dict: tipos_dict = {"memorando": "Memorando", "oficio": "Oficio", "
 if not grupos_dict: grupos_dict = {"permisos": "Permisos", "solicitudes": "Solicitudes", "otros": "Otros"}
 if not clases_dict: clases_dict = {"informes": "Informes", "peticiones": "Peticiones", "quejas": "Quejas"}
 
+# Definir quiénes pueden ver toda la correspondencia por defecto
+puede_ver_todo = is_admin or is_asignacion or is_coordinador or is_lider
+
+
 def cargar_datos(skip=0, limit=10, filtros=None):
-    # asignacion ve TODA la correspondencia, los demas solo la asignada a ellos
-    if is_asignacion:
+    # Si puede ver todo y NO ha marcado el checkbox de "ver solo lo mío"
+    solo_mio = st.session_state.get("filtro_ver_solo_mio", False)
+    
+    if puede_ver_todo and not solo_mio:
         return service.listar_correspondencia(ver_todas=True, skip=skip, limit=limit, filtros=filtros)
     else:
+        # En cualquier otro caso, o si forzó "ver solo lo mío", filtramos por su ID
         return service.listar_correspondencia(id_usuario=id_usuario_actual, ver_todas=False, skip=skip, limit=limit, filtros=filtros)
+
 
 def formatear_fecha(fecha):
     if not fecha:
@@ -327,7 +335,18 @@ with tab_gestion:
     filtro_vencimiento = col_f2.selectbox("Filtrar por Vencimiento (Solo Activas)", options=opciones_venc, key="filtro_vencimiento", on_change=on_filter_change)
     
     filtros = {"estado": filtro_estado, "vencimiento": filtro_vencimiento}
+    
+    # Checkbox para ver solo lo propio (solo para usuarios que pueden ver todo)
+    if puede_ver_todo:
+        st.checkbox(
+            "🔍 Ver solo mis radicados asignados", 
+            key="filtro_ver_solo_mio", 
+            on_change=on_filter_change,
+            help="Si se marca, solo verás la correspondencia donde tú eres el responsable."
+        )
+    
     st.divider()
+
 
     # --- Paginación ---
     if "page_correspondencia" not in st.session_state:
