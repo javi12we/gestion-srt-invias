@@ -235,3 +235,29 @@ class CorrespondenciaService:
 
         resultado = self.repo.actualizar_con_trazabilidad(id_correspondencia, campos_actualizar, evento_trazabilidad)
         return resultado.modified_count > 0
+
+    def obtener_metricas_dashboard(self, id_usuario: Optional[str] = None) -> dict:
+        """Obtiene métricas rápidas para el dashboard del usuario o generales."""
+        hoy = datetime.now(timezone.utc)
+        
+        # Base de consulta (si hay usuario, solo lo asignado a él; si no, todo lo activo)
+        query_activos = {"estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]}}
+        if id_usuario:
+            query_activos["responsable_actual.usuario_id"] = id_usuario
+            
+        # Vencidos o por vencer en menos de 3 días
+        query_urgentes = query_activos.copy()
+        query_urgentes["fecha_vencimiento"] = {"$lte": hoy + timedelta(days=3)}
+        
+        # Recién asignados (últimas 48h)
+        hace_48h = hoy - timedelta(days=2)
+        query_recientes = query_activos.copy()
+        # Nota: La fecha de radicación es la que tenemos más a mano
+        query_recientes["fecha_radicacion"] = {"$gte": hace_48h}
+
+        return {
+            "pendientes": self.repo.contar(query_activos),
+            "urgentes": self.repo.contar(query_urgentes),
+            "recientes": self.repo.contar(query_recientes)
+        }
+
