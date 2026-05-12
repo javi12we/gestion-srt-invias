@@ -237,15 +237,65 @@ def modal_gestion_correspondencia(corr_actual):
                             
     # --- TRAZABILIDAD ---
     st.write("---")
-    st.subheader("Trazabilidad (Historial)")
+    st.subheader("📜 Historial de Trazabilidad")
     trazabilidad = corr_actual.get("trazabilidad", [])
-    for evento in reversed(trazabilidad): # Mostrar más recientes primero
+    
+    for evento in reversed(trazabilidad):
+        tipo = evento.get('tipo_evento', '').lower()
+        fecha = formatear_fecha(evento.get('fecha'))
+        ejecutor = evento.get('usuario_ejecutor', 'Sistema')
+        
+        # Configuración visual según tipo de evento
+        icon = "⚪"
+        titulo = tipo.replace("_", " ").title()
+        color = "grey"
+        
+        if tipo == "radicacion":
+            icon = "📝"
+            titulo = "Radicación del Documento"
+        elif tipo == "asignacion":
+            icon = "👤"
+            titulo = "Asignación Inicial"
+        elif tipo == "reasignacion":
+            icon = "🔄"
+            titulo = "Reasignación de Responsable"
+        elif tipo == "carga_respuesta":
+            icon = "📩"
+            titulo = "Respuesta Registrada"
+        elif tipo == "cierre":
+            icon = "🔒"
+            titulo = "Trámite Finalizado"
+        elif tipo == "cambio_estado":
+            icon = "⚡"
+            titulo = "Actualización de Estado"
+
         with st.container(border=True):
-            st.write(f"**{formatear_fecha(evento.get('fecha'))} - {evento.get('tipo_evento').upper()}**")
-            st.write(f"Ejecutor: {evento.get('usuario_ejecutor')}")
-            st.write(f"Estado: {evento.get('estado_anterior', 'N/A')} ➡️ {evento.get('estado_nuevo')}")
-            if evento.get('comentario'):
-                st.info(evento.get('comentario'))
+            # Usamos columnas para una mejor alineación
+            c_icon, c_info = st.columns([0.1, 0.9])
+            with c_icon:
+                st.markdown(f"### {icon}")
+            with c_info:
+                st.markdown(f"**{titulo}** — {fecha}")
+                st.markdown(f"Ejecutado por: **{ejecutor}**")
+                
+                # Lógica detallada para traslados
+                if tipo in ["asignacion", "reasignacion"]:
+                    resp_n = evento.get("responsable_nuevo", "N/A")
+                    resp_a = evento.get("responsable_anterior")
+                    if resp_a:
+                        st.write(f"De: `{resp_a}` ➡️ Asignado a: **{resp_n}**")
+                    else:
+                        st.write(f"Asignado a: **{resp_n}**")
+                
+                # Mostrar cambios de estado
+                est_ant = evento.get("estado_anterior")
+                est_nue = evento.get("estado_nuevo")
+                if est_ant and est_nue and est_ant != est_nue:
+                    st.caption(f"Estado cambió de `{est_ant}` a `{est_nue}`")
+                
+                if evento.get('comentario'):
+                    st.info(f"💬 {evento.get('comentario')}")
+
 
 
 # Construir pestañas
