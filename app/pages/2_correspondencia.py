@@ -308,7 +308,12 @@ tabs = st.tabs(tabs_names)
 # Renderizar pestaña "Nueva Correspondencia" si tiene acceso
 if is_asignacion:
     with tabs[1]:
+        # Inicializar cronómetro de diligenciamiento si no existe
+        if "inicio_creacion_radicado" not in st.session_state:
+            st.session_state["inicio_creacion_radicado"] = datetime.now(timezone.utc)
+            
         st.subheader("Registrar Nuevo Radicado")
+
         with st.form("form_nueva_correspondencia", clear_on_submit=True):
             col1, col2 = st.columns(2)
             with col1:
@@ -342,6 +347,11 @@ if is_asignacion:
                 if not numero_radicado or not asunto or not peticionario:
                     st.error("Los campos marcados con * son obligatorios.")
                 else:
+                    # Calcular tiempo de diligenciamiento
+                    tiempo_final = datetime.now(timezone.utc)
+                    inicio = st.session_state.get("inicio_creacion_radicado", tiempo_final)
+                    duracion_seg = (tiempo_final - inicio).total_seconds()
+                    
                     datos = {
                         "numero_radicado": numero_radicado,
                         "asunto": asunto,
@@ -350,13 +360,21 @@ if is_asignacion:
                         "tipo": tipo,
                         "grupo": grupo,
                         "clase": clase,
-                        "observaciones_generales": observaciones
+                        "observaciones_generales": observaciones,
+                        "metadatos": {
+                            "tiempo_creacion_seg": round(duracion_seg, 2)
+                        }
                     }
                     try:
                         id_nuevo = service.crear_correspondencia(datos, nombre_usuario_actual)
                         if is_traslado:
                             service.cambiar_estado(id_nuevo, "traslado_competencia", nombre_usuario_actual, "Traslado por competencia inicial")
                             st.success(f"Correspondencia {numero_radicado} creada y trasladada por competencia.")
+                            
+                            # Limpiar cronómetro y recargar
+                            st.session_state.pop("inicio_creacion_radicado", None)
+                            st.rerun()
+
                         else:
                             service.asignar_correspondencia(
                                 id_nuevo,
@@ -366,6 +384,11 @@ if is_asignacion:
                                 "Asignación inicial en radicación"
                             )
                             st.success(f"Correspondencia {numero_radicado} creada y asignada exitosamente.")
+                        
+                        # Limpiar cronómetro y recargar
+                        st.session_state.pop("inicio_creacion_radicado", None)
+                        st.rerun()
+
                     except Exception as e:
                         st.error(f"Error al crear: {str(e)}")
 
