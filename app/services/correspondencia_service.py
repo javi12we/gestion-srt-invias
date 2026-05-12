@@ -39,9 +39,15 @@ class CorrespondenciaService:
                 elif venc_filtro == "Vencen Hoy":
                     query["fecha_vencimiento"] = {"$gte": hoy, "$lt": hoy + timedelta(days=1)}
                 elif venc_filtro == "Próximas a Vencer":
-                    query["fecha_vencimiento"] = {"$gte": hoy + timedelta(days=1), "$lte": hoy + timedelta(days=3)}
+                    # Ahora es hasta 5 días
+                    query["fecha_vencimiento"] = {"$gte": hoy + timedelta(days=1), "$lte": hoy + timedelta(days=5)}
                 elif venc_filtro == "A Tiempo":
-                    query["fecha_vencimiento"] = {"$gt": hoy + timedelta(days=3)}
+                    query["fecha_vencimiento"] = {"$gt": hoy + timedelta(days=5)}
+
+            # Filtro por responsable (para coordinadores/admin)
+            if "responsable_id" in filtros and filtros["responsable_id"] != "Todos":
+                query["responsable_actual.usuario_id"] = filtros["responsable_id"]
+
 
         return self.repo.listar(query, skip, limit), self.repo.contar(query)
 
@@ -245,9 +251,10 @@ class CorrespondenciaService:
         if id_usuario:
             query_activos["responsable_actual.usuario_id"] = id_usuario
             
-        # Vencidos o por vencer en menos de 3 días
+        # Vencidos o por vencer en menos de 5 días
         query_urgentes = query_activos.copy()
-        query_urgentes["fecha_vencimiento"] = {"$lte": hoy + timedelta(days=3)}
+        query_urgentes["fecha_vencimiento"] = {"$lte": hoy + timedelta(days=5)}
+
         
         # Recién asignados (últimas 48h)
         hace_48h = hoy - timedelta(days=2)

@@ -408,14 +408,41 @@ with tab_gestion:
     def on_filter_change():
         st.session_state["page_correspondencia"] = 1
         
-    col_f1, col_f2 = st.columns(2)
+    # Definir columnas de filtros
+    if puede_ver_todo:
+        col_f1, col_f2, col_f3 = st.columns(3)
+    else:
+        col_f1, col_f2 = st.columns(2)
+        col_f3 = None
+
     opciones_estado = ["Todos", "pendiente", "en_tramite", "en_revision", "respondido", "archivado", "traslado_competencia"]
     filtro_estado = col_f1.selectbox("Filtrar por Estado", options=opciones_estado, format_func=lambda x: x.replace("_", " ").title(), key="filtro_estado", on_change=on_filter_change)
     
     opciones_venc = ["Todos", "Vencidas", "Vencen Hoy", "Próximas a Vencer", "A Tiempo"]
-    filtro_vencimiento = col_f2.selectbox("Filtrar por Vencimiento (Solo Activas)", options=opciones_venc, key="filtro_vencimiento", on_change=on_filter_change)
+    filtro_vencimiento = col_f2.selectbox("Filtrar por Vencimiento (Solo Activas)", options=opciones_venc, key="filtro_vencimiento", on_change=on_filter_change, help="Próximas a Vencer considera radicados que vencen en los próximos 5 días.")
     
-    filtros = {"estado": filtro_estado, "vencimiento": filtro_vencimiento}
+    filtro_responsable = "Todos"
+    if col_f3:
+        usuarios_list = usuario_service.listar_usuarios()
+        usuarios_f_opts = {"Todos": "Todos los responsables"}
+        for u in usuarios_list:
+            if u.get("activo", True):
+                usuarios_f_opts[str(u["_id"])] = f"{u.get('nombre_completo', u['usuario'])}"
+        
+        filtro_responsable = col_f3.selectbox(
+            "Filtrar por Responsable", 
+            options=list(usuarios_f_opts.keys()), 
+            format_func=lambda x: usuarios_f_opts[x],
+            key="filtro_responsable",
+            on_change=on_filter_change
+        )
+
+    filtros = {
+        "estado": filtro_estado, 
+        "vencimiento": filtro_vencimiento,
+        "responsable_id": filtro_responsable
+    }
+
     
     # Checkbox para ver solo lo propio (solo para usuarios que pueden ver todo)
     if puede_ver_todo:
@@ -488,8 +515,9 @@ with tab_gestion:
                         tiempo_restante = f"🛑 {-dias_restantes} d. atraso"
                     elif dias_restantes == 0:
                         tiempo_restante = "⚠️ Vence hoy"
-                    elif dias_restantes <= 3:
+                    elif dias_restantes <= 5:
                         tiempo_restante = f"⚠️ {dias_restantes} d. restantes"
+
                     else:
                         tiempo_restante = f"⏳ {dias_restantes} d. restantes"
             elif not fecha_venc_dt and not es_finalizado:
