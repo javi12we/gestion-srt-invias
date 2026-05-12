@@ -38,10 +38,18 @@ tiempos_resp = reporte_service.analisis_tiempos_respuesta()
 # --- 1. Resumen Ejecutivo ---
 st.markdown("### 📈 Indicadores de Gestión")
 m1, m2, m3, m4 = st.columns(4)
+
+vencidos = resumen["vencidos_criticos"]
 m1.metric("Trámites Activos", resumen["tramites_activos"])
-m2.metric("Vencidos Críticos", resumen["vencidos_criticos"], delta=f"{resumen['vencidos_criticos']} hoy", delta_color="inverse")
+m2.metric(
+    "Vencidos Críticos", 
+    vencidos, 
+    delta=f"{vencidos} hoy" if vencidos > 0 else None, 
+    delta_color="inverse"
+)
 m3.metric("Finalizados", resumen["tramites_finalizados"])
 m4.metric("% Cumplimiento", f"{resumen['porcentaje_cumplimiento']}%")
+
 
 st.divider()
 
