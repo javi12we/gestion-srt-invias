@@ -37,41 +37,8 @@ def pantalla_login() -> None:
         st.rerun()
 
 
-def pantalla_principal() -> None:
+def pantalla_dashboard() -> None:
     sesion = obtener_sesion()
-    servicio_sesiones = SesionService()
-    st.sidebar.title("Menú")
-    st.sidebar.success(f"Sesión: {sesion['usuario']}")
-
-    # Menú condicional basado en permisos
-    st.sidebar.subheader("Módulos")
-    col1, col2, col3 = st.sidebar.columns(3)
-    
-    with col1:
-        if "usuario.ver" in sesion.get("permisos", []):
-            st.page_link("pages/1_admin_usuarios.py", label="👥 Usuarios")
-    
-    with col2:
-        if "rol.ver" in sesion.get("permisos", []):
-            st.page_link("pages/3_admin_roles.py", label="🔐 Roles")
-    with col3:
-        if "reporte.ver" in sesion.get("permisos", []):
-            st.page_link("pages/4_reportes.py", label="📊 Reportes")
-    
-    st.sidebar.divider()
-    st.sidebar.subheader("Personal")
-    col3, col4 = st.sidebar.columns(2)
-    with col3:
-        st.page_link("pages/2_mi_perfil.py", label="👤 Perfil")
-    with col4:
-        st.page_link("pages/2_correspondencia.py", label="📬 Correspondencia")
-    
-    st.sidebar.divider()
-    if st.sidebar.button("🚪 Cerrar sesión", key="cerrar_sesion"):
-        servicio_sesiones.cerrar_sesion(sesion.get("id_sesion"), sesion, "logout")
-        cerrar_sesion()
-        st.rerun()
-
     roles = sesion.get("roles", [])
     es_admin = any(rol in {"admin", "administrador"} for rol in roles)
 
@@ -113,11 +80,64 @@ def pantalla_principal() -> None:
     st.caption("Usa el menú lateral para entrar a los módulos disponibles según tu rol.")
 
 
-MongoBootstrapService().asegurar_estructura()
-CatalogoService().asegurar_catalogos_base()
-UsuarioService().asegurar_usuario_admin_inicial()
+def logout():
+    sesion = obtener_sesion()
+    servicio_sesiones = SesionService()
+    if sesion:
+        servicio_sesiones.cerrar_sesion(sesion.get("id_sesion"), sesion, "logout")
+    cerrar_sesion()
+    st.rerun()
+
+
+@st.cache_resource
+def inicializar_aplicacion():
+    """Ejecuta las tareas de inicialización de la base de datos una sola vez."""
+    MongoBootstrapService().asegurar_estructura()
+    CatalogoService().asegurar_catalogos_base()
+    UsuarioService().asegurar_usuario_admin_inicial()
+
+
+# Inicializar la aplicación (usará caché si ya se ejecutó)
+inicializar_aplicacion()
+
 
 if not sesion_activa():
     pantalla_login()
 else:
-    pantalla_principal()
+    sesion = obtener_sesion()
+    
+    # Definición de páginas
+    page_dashboard = st.Page(pantalla_dashboard, title="Inicio", icon="🏠", default=True)
+    page_perfil = st.Page("pages/2_mi_perfil.py", title="Mi Perfil", icon="👤")
+    page_correspondencia = st.Page("pages/2_correspondencia.py", title="Correspondencia", icon="📬")
+    
+    # Páginas de administración
+    admin_pages = []
+    if "usuario.ver" in sesion.get("permisos", []):
+        admin_pages.append(st.Page("pages/1_admin_usuarios.py", title="Usuarios", icon="👥"))
+    if "rol.ver" in sesion.get("permisos", []):
+        admin_pages.append(st.Page("pages/3_admin_roles.py", title="Roles", icon="🔐"))
+    if "reporte.ver" in sesion.get("permisos", []):
+        admin_pages.append(st.Page("pages/4_reportes.py", title="Reportes", icon="📊"))
+    
+    # Agrupar páginas
+    menu_dict = {
+        "Principal": [page_dashboard, page_correspondencia, page_perfil],
+    }
+    
+    if admin_pages:
+        menu_dict["Administración"] = admin_pages
+        
+    pg = st.navigation(menu_dict)
+    
+    # Personalización del sidebar
+    st.sidebar.title("Menú")
+    st.sidebar.success(f"Sesión: {sesion['usuario']}")
+    
+    with st.sidebar:
+        st.divider()
+        if st.button("🚪 Cerrar sesión", key="logout_btn", use_container_width=True):
+            logout()
+            
+    pg.run()
+

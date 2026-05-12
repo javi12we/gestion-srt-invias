@@ -7,7 +7,7 @@ from app.services.correspondencia_service import CorrespondenciaService
 from app.services.opciones_service import OpcionesService
 from app.services.usuario_service import UsuarioService
 
-st.set_page_config(page_title="Correspondencia", layout="wide")
+
 
 st.title("Correspondencia")
 sesion = obtener_sesion()
