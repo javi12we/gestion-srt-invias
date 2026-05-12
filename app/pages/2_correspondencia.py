@@ -207,15 +207,24 @@ def modal_gestion_correspondencia(corr_actual):
                     if estado_actual not in ["respondido", "archivado", "traslado_competencia"]:
                         st.write("Cargar Respuesta")
                         with st.form(f"form_resp_{id_seleccionado}"):
-                            num_oficio = st.text_input("Número de Oficio")
+                            col_resp1, col_resp2 = st.columns(2)
+                            with col_resp1:
+                                num_oficio = st.text_input("Número de Oficio *")
+                            with col_resp2:
+                                fecha_resp = st.date_input("Fecha de Respuesta", value=datetime.now(timezone.utc))
+                                
                             comentario_resp = st.text_input("Comentario", value="Se da respuesta")
+                            
                             if st.form_submit_button("Marcar como Respondido"):
                                 if num_oficio:
-                                    service.dar_respuesta(id_seleccionado, num_oficio, nombre_usuario_actual, comentario_resp)
+                                    # Convertir fecha de date a datetime
+                                    f_resp_dt = datetime.combine(fecha_resp, datetime.min.time()).replace(tzinfo=timezone.utc)
+                                    service.dar_respuesta(id_seleccionado, num_oficio, nombre_usuario_actual, comentario_resp, fecha_respuesta=f_resp_dt)
                                     st.success("Respuesta registrada")
                                     st.rerun()
                                 else:
                                     st.error("El número de oficio es obligatorio")
+
                     
                     if estado_actual not in ["archivado", "traslado_competencia"]:
                         st.write("Archivar Radicado")
@@ -523,15 +532,22 @@ with tab_gestion:
             elif not fecha_venc_dt and not es_finalizado:
                 tiempo_restante = "N/A"
 
+            # Formatear fecha de radicación simplificada
+            f_rad = c.get("fecha_radicacion")
+            f_rad_str = f_rad.strftime("%Y-%m-%d") if isinstance(f_rad, datetime) else str(f_rad)[:10]
+
             tabla_datos.append({
                 "_id": str(c["_id"]),
                 "Radicado": c.get("numero_radicado", ""),
+                "F. Radicado": f_rad_str,
                 "Peticionario": c.get("peticionario", ""),
                 "Asunto": c.get("asunto", ""),
                 "Estado": estado.replace("_", " ").title(),
                 "Tiempo": tiempo_restante,
-                "Responsable": responsable
+                "Responsable": responsable,
+                "R. Respuesta": c.get("respuesta", {}).get("numero_oficio", "-")
             })
+
             
         df = pd.DataFrame(tabla_datos)
         

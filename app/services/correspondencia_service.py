@@ -188,13 +188,15 @@ class CorrespondenciaService:
         id_correspondencia: str, 
         numero_oficio: str, 
         usuario_ejecutor_nombre: str, 
-        comentario: str = "Se dio respuesta al radicado"
+        comentario: str = "Se dio respuesta al radicado",
+        fecha_respuesta: Optional[datetime] = None
     ) -> bool:
         correspondencia = self.repo.buscar_por_id(id_correspondencia)
         if not correspondencia:
             return False
 
         fecha_actual = datetime.now(timezone.utc)
+        fecha_salida = fecha_respuesta if fecha_respuesta else fecha_actual
         estado_anterior = correspondencia.get("estado_actual")
         nuevo_estado = "respondido"
         
@@ -202,9 +204,10 @@ class CorrespondenciaService:
             "estado_actual": nuevo_estado,
             "respuesta": {
                 "numero_oficio": numero_oficio,
-                "fecha_salida": fecha_actual
+                "fecha_salida": fecha_salida
             }
         }
+
         
         evento_trazabilidad = {
             "fecha": fecha_actual,
