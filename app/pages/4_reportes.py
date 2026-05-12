@@ -4,8 +4,8 @@ import streamlit as st
 from app.core.autorizacion import validar_permiso, ValidacionAutorizacion
 from app.core.sesion import obtener_sesion
 from app.core.streamlit_compat import show_dataframe
-from app.core.zona_horaria import formato_fecha_bogota, formato_duracion
 from app.services.reporte_service import ReporteService
+
 
 
 col_title1, col_title2 = st.columns([4, 1])
@@ -28,48 +28,90 @@ except ValidacionAutorizacion:
     st.stop()
 
 reporte_service = ReporteService()
-resumen = reporte_service.resumen_general(dias=30)
-por_usuario = reporte_service.por_usuario(dias=30)
-linea_tiempo = reporte_service.linea_tiempo(dias=30)
-ultimas = reporte_service.ultimas_sesiones(limite=20)
+resumen = reporte_service.resumen_operativo()
+dist_estado = reporte_service.distribucion_por_estado()
+carga_usuarios = reporte_service.carga_por_usuario()
+vencimientos = reporte_service.analisis_vencimiento()
+tendencia_d = reporte_service.tendencia_diaria(dias=30)
+tiempos_resp = reporte_service.analisis_tiempos_respuesta()
 
-st.subheader("Resumen general - últimos 30 días")
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Sesiones totales", resumen["sesiones_total"])
-col2.metric("Activas ahora", resumen["sesiones_activas"])
-col3.metric("Cerradas", resumen["sesiones_cerradas"])
-col4.metric("Duración promedio", formato_duracion(int(resumen["duracion_promedio_segundos"]) if resumen["duracion_promedio_segundos"] else 0))
-
-st.divider()
-st.subheader("Actividad por usuario")
-if por_usuario.empty:
-    st.info("Todavía no hay actividad suficiente para mostrar el gráfico.")
-else:
-    st.bar_chart(por_usuario.set_index("usuario")[["sesiones"]])
-    show_dataframe(por_usuario, hide_index=True)
+# --- 1. Resumen Ejecutivo ---
+st.markdown("### 📈 Indicadores de Gestión")
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("Trámites Activos", resumen["tramites_activos"])
+m2.metric("Vencidos Críticos", resumen["vencidos_criticos"], delta=f"{resumen['vencidos_criticos']} hoy", delta_color="inverse")
+m3.metric("Finalizados", resumen["tramites_finalizados"])
+m4.metric("% Cumplimiento", f"{resumen['porcentaje_cumplimiento']}%")
 
 st.divider()
-st.subheader("Línea de tiempo de actividad")
-if linea_tiempo.empty:
-    st.info("Todavía no hay eventos para la línea de tiempo.")
-else:
-    st.line_chart(linea_tiempo.set_index("fecha")[["cantidad"]])
+
+# --- 2. Distribución y Carga ---
+col_izq, col_der = st.columns([1, 1])
+
+with col_izq:
+    st.subheader("📌 Estado de la Correspondencia")
+    if not dist_estado.empty:
+        st.bar_chart(dist_estado.set_index("estado"), color="#0056b3")
+    else:
+        st.info("Sin datos para mostrar.")
+
+with col_der:
+    st.subheader("👥 Carga por Responsable")
+    if not carga_usuarios.empty:
+        # Usamos tabla para evitar el desorden visual con muchos usuarios
+        st.dataframe(
+            carga_usuarios.rename(columns={"usuario": "Responsable", "cantidad": "Radicados Pendientes"}), 
+            hide_index=True, 
+            use_container_width=True
+        )
+    else:
+        st.info("No hay trámites activos asignados.")
 
 st.divider()
-st.subheader("Últimas sesiones cerradas")
-if not ultimas:
-    st.info("Sin sesiones cerradas registradas aún.")
+
+# --- 3. Eficiencia y Tendencias ---
+col_eff, col_trend = st.columns(2)
+
+with col_eff:
+    st.subheader("⏱️ Tiempo de Respuesta (Días)")
+    if not tiempos_resp.empty:
+        # Gráfico de eficiencia en verde
+        st.bar_chart(tiempos_resp.set_index("Tipo"), color="#28a745")
+    else:
+        st.info("Histórico insuficiente para promediar tiempos.")
+
+with col_trend:
+    st.subheader("📅 Tendencia Diaria (Radicados)")
+    if not tendencia_d.empty:
+        st.area_chart(tendencia_d.set_index("fecha"), color="#17a2b8")
+    else:
+        st.info("Sin registros en los últimos 30 días.")
+
+st.divider()
+
+# --- 4. Semáforo de Vencimientos ---
+st.subheader("🚨 Semáforo de Vencimientos (Activos)")
+if not vencimientos.empty:
+    import altair as alt
+    
+    # Crear el gráfico con Altair para control total de colores
+    chart = alt.Chart(vencimientos).mark_bar().encode(
+        x=alt.X('categoria:N', title="Estado de Vencimiento", sort=['Vencidos', 'Urgentes (0-5d)', 'A Tiempo (>5d)']),
+        y=alt.Y('cantidad:Q', title="Cantidad de Radicados"),
+        color=alt.Color('categoria:N', scale=alt.Scale(
+            domain=['Vencidos', 'Urgentes (0-5d)', 'A Tiempo (>5d)'],
+            range=['#dc3545', '#ffc107', '#28a745'] # Rojo, Amarillo, Verde
+        ), legend=None),
+        tooltip=['categoria', 'cantidad']
+    ).properties(height=350)
+    
+    st.altair_chart(chart, use_container_width=True)
 else:
-    tabla = pd.DataFrame(
-        [
-            {
-                "Usuario": s.get("usuario"),
-                "Inicio": formato_fecha_bogota(s.get("fecha_inicio")),
-                "Cierre": formato_fecha_bogota(s.get("fecha_cierre")),
-                "Duración": formato_duracion(s.get("duracion_segundos")),
-                "Motivo": s.get("motivo_cierre"),
-            }
-            for s in ultimas
-        ]
-    )
-    show_dataframe(tabla, hide_index=True)
+    st.info("Sin trámites activos.")
+
+
+
+st.write("")
+st.info("💡 **Nota:** El tiempo de respuesta se calcula desde la fecha de radicación hasta la fecha de la última acción de cierre (respuesta o archivo).")
+
+
