@@ -166,10 +166,18 @@ def modal_gestion_correspondencia(corr_actual):
                             except Exception as e:
                                 st.error(f"Error: {e}")
 
+        # Determinar si el usuario es el responsable actual del radicado
+        es_responsable = corr_actual.get("responsable_actual", {}).get("usuario_id") == id_usuario_actual
+
         # Acción 2: Asignar (Traslado a otro usuario)
-        if can_assign:
+        # Los administradores y personal de asignación pueden asignar todo.
+        # Los líderes y coordinadores SOLO pueden reasignar lo que ellos tienen asignado.
+        puedo_reasignar = is_asignacion or (can_assign and es_responsable)
+
+        if puedo_reasignar:
             with col_acc2 if is_asignacion else col_acc1:
                 with st.popover("👥 Asignar / Reasignar", use_container_width=True):
+
                     st.write("Asignar a un usuario")
                     usuarios = usuario_service.listar_usuarios()
                     usuarios_opts = {str(u["_id"]): f"{u.get('nombre_completo', u['usuario'])}" for u in usuarios if u.get("activo", True)}
@@ -192,8 +200,8 @@ def modal_gestion_correspondencia(corr_actual):
                                 st.error(f"Error: {e}")
 
         # Acción 3: Dar Respuesta / Archivar / Traslado por Competencia
-        es_responsable = corr_actual.get("responsable_actual", {}).get("usuario_id") == id_usuario_actual
         if es_responsable or is_asignacion:
+
             with col_acc3 if is_asignacion else (col_acc2 if can_assign else col_acc1):
                 with st.popover("✅ Responder / Cerrar", use_container_width=True):
                     if estado_actual not in ["respondido", "archivado", "traslado_competencia"]:
