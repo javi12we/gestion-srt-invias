@@ -17,7 +17,7 @@ if not sesion:
     st.stop()
 
 roles = sesion.get("roles", [])
-id_usuario_actual = sesion.get("id_usuario")
+id_usuario_actual = sesion.get("id")
 nombre_usuario_actual = sesion.get("nombre_completo") or sesion.get("usuario")
 
 # Definir permisos basados en los roles descritos por el usuario

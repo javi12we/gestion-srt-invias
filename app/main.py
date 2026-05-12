@@ -46,8 +46,9 @@ def pantalla_dashboard() -> None:
     
     # Obtener métricas reales (siempre personales según lo solicitado)
     servicio_corr = CorrespondenciaService()
-    id_filtro = sesion.get("id_usuario")
+    id_filtro = sesion.get("id")
     metricas = servicio_corr.obtener_metricas_dashboard(id_usuario=id_filtro)
+
 
     st.title("Gestión de Correspondencia")
     st.subheader(f"Bienvenido(a), {sesion.get('nombre_completo') or sesion['usuario']}.")
