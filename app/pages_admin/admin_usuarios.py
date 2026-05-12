@@ -38,7 +38,13 @@ def render(sesion=None):
             }
         )
 
-    st.subheader("Listado de usuarios")
+    col_h1, col_h2 = st.columns([3, 1])
+    with col_h1:
+        st.subheader("Listado de usuarios")
+    with col_h2:
+        if st.button("🔄 Actualizar", use_container_width=True, key="refresh_usuarios"):
+            st.rerun()
+
     show_dataframe(pd.DataFrame(datos), hide_index=True)
 
     if not usuarios:

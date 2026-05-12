@@ -307,7 +307,13 @@ if is_asignacion:
 tab_gestion = tabs[0]
 
 with tab_gestion:
-    st.subheader("Listado de Correspondencia")
+    col_header1, col_header2 = st.columns([3, 1])
+    with col_header1:
+        st.subheader("Listado de Correspondencia")
+    with col_header2:
+        if st.button("🔄 Actualizar Datos", use_container_width=True, help="Recarga la lista de correspondencia"):
+            st.rerun()
+
     
     # --- Filtros ---
     def on_filter_change():

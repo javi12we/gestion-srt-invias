@@ -37,7 +37,13 @@ def render(sesion=None):
             "permisos": ", ".join(rol.get("permisos", [])),
         })
 
-    st.subheader("Listado de roles")
+    col_r1, col_r2 = st.columns([3, 1])
+    with col_r1:
+        st.subheader("Listado de roles")
+    with col_r2:
+        if st.button("🔄 Actualizar", use_container_width=True, key="refresh_roles"):
+            st.rerun()
+
     show_dataframe(pd.DataFrame(datos), hide_index=True)
 
     if not roles:

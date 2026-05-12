@@ -8,7 +8,13 @@ from app.core.zona_horaria import formato_fecha_bogota, formato_duracion
 from app.services.reporte_service import ReporteService
 
 
-st.title("Reportes")
+col_title1, col_title2 = st.columns([4, 1])
+with col_title1:
+    st.title("Reportes")
+with col_title2:
+    if st.button("🔄 Actualizar", use_container_width=True, key="refresh_reportes"):
+        st.rerun()
+
 sesion = obtener_sesion()
 
 if not sesion:
