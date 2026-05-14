@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
+import holidays
 from bson import ObjectId
 
 from app.repositories.correspondencia_repo import CorrespondenciaRepositorio
@@ -8,6 +9,7 @@ from app.repositories.correspondencia_repo import CorrespondenciaRepositorio
 class CorrespondenciaService:
     def __init__(self) -> None:
         self.repo = CorrespondenciaRepositorio()
+        self.festivos_co = holidays.CO()
 
     def listar_correspondencia(self, id_usuario: Optional[str] = None, ver_todas: bool = False, skip: int = 0, limit: int = 10, filtros: dict = None) -> tuple[List[Dict], int]:
         """
@@ -57,10 +59,15 @@ class CorrespondenciaService:
     def _agregar_dias_habiles(self, fecha_inicial: datetime, dias: int) -> datetime:
         fecha_actual = fecha_inicial
         dias_agregados = 0
+        
+        # Si el día de inicio es hábil, se cuenta como el primer día
+        if fecha_actual.weekday() < 5 and fecha_actual not in self.festivos_co:
+            dias_agregados = 1
+            
         while dias_agregados < dias:
             fecha_actual += timedelta(days=1)
-            # 0 = Lunes, ..., 4 = Viernes
-            if fecha_actual.weekday() < 5:
+            # 0 = Lunes, ..., 4 = Viernes. Además se verifica si es festivo en Colombia
+            if fecha_actual.weekday() < 5 and fecha_actual not in self.festivos_co:
                 dias_agregados += 1
         return fecha_actual
 
