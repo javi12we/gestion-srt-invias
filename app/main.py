@@ -16,27 +16,160 @@ from app.services.correspondencia_service import CorrespondenciaService
 
 
 
-st.set_page_config(page_title="Gestión de Correspondencia", layout="wide")
+st.set_page_config(
+    page_title="Gestión de Correspondencia", 
+    layout="wide", 
+    page_icon="app/assets/invias_fav_ico_3.ico"
+)
+
+# --- LÓGICA DE TEMA (MODO OSCURO/CLARO) ---
+if "tema" not in st.session_state:
+    st.session_state.tema = "Claro"
+
+def aplicar_tema():
+    if st.session_state.tema == "Oscuro":
+        st.markdown("""
+            <style>
+            /* Estilos modo oscuro */
+            .stApp {
+                background-color: #0E1117 !important;
+                color: #FAFAFA !important;
+            }
+            [data-testid="stSidebar"] {
+                background-color: #1A1C24 !important;
+            }
+            [data-testid="stHeader"] {
+                background-color: rgba(14, 17, 23, 0.8) !important;
+            }
+            .stMarkdown, .stText, p, h1, h2, h3, h4, h5, h6, span, label {
+                color: #FAFAFA !important;
+            }
+            /* Ajuste para inputs y forms en modo oscuro */
+            .stTextInput>div>div>input, .stTextArea>div>div>textarea {
+                color: #FAFAFA !important;
+                background-color: #262730 !important;
+            }
+            /* --- BOTONES UNIVERSALES EN MODO OSCURO --- */
+            /* Selector agresivo para capturar todos los tipos de botones */
+            .stApp button, 
+            .stApp [data-testid="stBaseButton-secondary"], 
+            .stApp [data-testid="stBaseButton-primary"],
+            .stApp [data-testid="stFormSubmitButton"] button {
+                background-color: #262730 !important;
+                color: #FAFAFA !important;
+                border: 1px solid #444 !important;
+                border-radius: 8px !important;
+                transition: all 0.3s ease !important;
+            }
+
+            /* Botones primarios (Accento INVIAS) */
+            .stApp button[kind="primary"],
+            .stApp [data-testid="stBaseButton-primary"] {
+                background-color: #FDB913 !important;
+                color: #000000 !important;
+                border: none !important;
+                font-weight: 600 !important;
+            }
+
+            /* Efectos hover para botones normales */
+            .stApp button:not([kind="primary"]):hover,
+            .stApp [data-testid="stBaseButton-secondary"]:hover {
+                border-color: #FDB913 !important;
+                color: #FDB913 !important;
+                background-color: #31333F !important;
+            }
+
+            /* Efectos hover para botones primarios */
+            .stApp button[kind="primary"]:hover,
+            .stApp [data-testid="stBaseButton-primary"]:hover {
+                background-color: #E5A711 !important;
+                color: #000000 !important;
+                transform: translateY(-1px) !important;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+            }
+
+            /* Tooltips (Descripciones emergentes) */
+            div[data-testid="stTooltipContent"] {
+                background-color: #262730 !important;
+                color: #FAFAFA !important;
+                border: 1px solid #444 !important;
+                border-radius: 4px !important;
+            }
+
+            hr {
+                border-color: #444 !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+            <style>
+            /* Estilos modo claro (limpio) */
+            .stApp {
+                background-color: #FFFFFF !important;
+                color: #262730 !important;
+            }
+            [data-testid="stSidebar"] {
+                background-color: #F8F9FA !important;
+            }
+            /* Botones en modo claro */
+            .stButton>button {
+                border-radius: 8px !important;
+                transition: all 0.3s ease !important;
+            }
+            .stButton>button[kind="primary"] {
+                background-color: #FDB913 !important;
+                color: #000000 !important;
+                border: none !important;
+            }
+            /* Tooltips en modo claro */
+            div[data-testid="stTooltipContent"] {
+                background-color: #FFFFFF !important;
+                color: #262730 !important;
+                border: 1px solid #E9ECEF !important;
+                border-radius: 4px !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+aplicar_tema()
 
 
 def pantalla_login() -> None:
-    st.title("Gestión de Correspondencia")
-    st.subheader("Inicio de sesión")
+    # Crear un diseño centrado usando columnas
+    col1, col2, col3 = st.columns([1, 1, 1])
+    
+    with col2:
+        # Espacio superior para separar del borde
+        st.write("")
+        st.write("")
+        st.write("")
+        
+        # Logo de la empresa (opcional)
+        logo_path = os.path.join("app", "assets", "logo_invias.png")
+        if os.path.exists(logo_path):
+            # Centrar el logo usando columnas internas o markdown
+            c_logo1, c_logo2, c_logo3 = st.columns([1, 2, 1])
+            with c_logo2:
+                st.image(logo_path, use_container_width=True)
+        
+        st.markdown("<h1 style='text-align: center;'>Gestión de Correspondencia</h1>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center; font-weight: normal;'>Inicio de sesión</h3>", unsafe_allow_html=True)
 
-    with st.form("form_login", clear_on_submit=False):
-        usuario = st.text_input("Usuario")
-        password = st.text_input("Contraseña", type="password")
-        enviar = st.form_submit_button("Ingresar")
+        with st.form("form_login", clear_on_submit=False):
+            usuario = st.text_input("Usuario")
+            password = st.text_input("Contraseña", type="password")
+            enviar = st.form_submit_button("Ingresar", use_container_width=True, type="primary")
 
-    if enviar:
-        servicio = AuthService()
-        sesion, error = servicio.iniciar_sesion(usuario.strip(), password)
-        if error:
-            st.error(error)
-            return
+        if enviar:
+            servicio = AuthService()
+            sesion, error = servicio.iniciar_sesion(usuario.strip(), password)
+            if error:
+                st.error(error)
+                return
 
-        iniciar_sesion(sesion)
-        st.rerun()
+            iniciar_sesion(sesion)
+            st.rerun()
 
 
 def pantalla_dashboard() -> None:
@@ -169,6 +302,15 @@ else:
         
     pg = st.navigation(menu_dict)
     
+    # --- CABECERA SUPERIOR (MODO OSCURO/CLARO) ---
+    col_t1, col_t2 = st.columns([10, 2])
+    with col_t2:
+        es_oscuro = st.toggle("Modo Oscuro 🌙", value=(st.session_state.tema == "Oscuro"))
+        nuevo_tema = "Oscuro" if es_oscuro else "Claro"
+        if nuevo_tema != st.session_state.tema:
+            st.session_state.tema = nuevo_tema
+            st.rerun()
+
     # Personalización del sidebar
     st.sidebar.title("Menú")
     st.sidebar.success(f"Sesión: {sesion['usuario']}")
