@@ -30,7 +30,7 @@ def aplicar_tema():
     if st.session_state.tema == "Oscuro":
         st.markdown("""
             <style>
-            /* Estilos modo oscuro */
+            /* --- ESTILOS MODO OSCURO (REFUERZO NUCLEAR) --- */
             .stApp {
                 background-color: #0E1117 !important;
                 color: #FAFAFA !important;
@@ -41,25 +41,30 @@ def aplicar_tema():
             [data-testid="stHeader"] {
                 background-color: rgba(14, 17, 23, 0.8) !important;
             }
-            .stMarkdown, .stText, p, h1, h2, h3, h4, h5, h6, span, label {
+
+            /* 1. TIPOGRAFÍA Y ETIQUETAS (GLOBAL) */
+            .stApp, .stMarkdown, .stText, p, h1, h2, h3, h4, h5, h6, span, label, li, 
+            [data-testid="stWidgetLabel"] p, [data-testid="stMarkdownContainer"] p {
                 color: #FAFAFA !important;
             }
-            /* Ajuste para inputs y forms en modo oscuro */
-            .stTextInput>div>div>input, .stTextArea>div>div>textarea {
-                color: #FAFAFA !important;
-                background-color: #262730 !important;
-            }
-            /* --- BOTONES UNIVERSALES EN MODO OSCURO --- */
-            /* Selector agresivo para capturar todos los tipos de botones */
+
+            /* 2. BOTONES (REFUERZO NUCLEAR DE ESTADO BASE) */
+            /* Forzar el estado inicial de TODOS los botones en la App */
             .stApp button, 
-            .stApp [data-testid="stBaseButton-secondary"], 
+            .stApp [data-testid="stBaseButton-secondary"],
             .stApp [data-testid="stBaseButton-primary"],
-            .stApp [data-testid="stFormSubmitButton"] button {
+            .stApp div[data-testid="stPopover"] > button,
+            div[data-testid="stColumn"] button {
                 background-color: #262730 !important;
                 color: #FAFAFA !important;
                 border: 1px solid #444 !important;
                 border-radius: 8px !important;
-                transition: all 0.3s ease !important;
+            }
+
+            /* Forzar que el contenido interno (texto, iconos) sea blanco desde el inicio */
+            .stApp button p, .stApp button span, .stApp button div, .stApp button svg {
+                color: #FAFAFA !important;
+                fill: #FAFAFA !important;
             }
 
             /* Botones primarios (Accento INVIAS) */
@@ -68,37 +73,85 @@ def aplicar_tema():
                 background-color: #FDB913 !important;
                 color: #000000 !important;
                 border: none !important;
-                font-weight: 600 !important;
             }
 
-            /* Efectos hover para botones normales */
-            .stApp button:not([kind="primary"]):hover,
-            .stApp [data-testid="stBaseButton-secondary"]:hover {
+            /* 3. HOVER (Mantener lo funcional) */
+            .stApp button:hover {
                 border-color: #FDB913 !important;
                 color: #FDB913 !important;
                 background-color: #31333F !important;
             }
 
-            /* Efectos hover para botones primarios */
-            .stApp button[kind="primary"]:hover,
-            .stApp [data-testid="stBaseButton-primary"]:hover {
-                background-color: #E5A711 !important;
-                color: #000000 !important;
-                transform: translateY(-1px) !important;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+            /* 4. CONTENEDORES (DIÁLOGOS, POPOVERS Y FORMULARIOS) */
+            div[data-testid="stDialog"] > div:first-child {
+                background-color: rgba(0, 0, 0, 0.7) !important;
+            }
+            
+            div[role="dialog"], 
+            div[data-testid="stDialog"] div[role="dialog"],
+            div[data-testid="stPopoverBody"], 
+            div[data-testid="stPopoverContent"],
+            div[data-testid="stForm"],
+            div[data-testid="stVerticalBlockBorderWrapper"] {
+                background-color: #1A1C24 !important;
+                color: #FAFAFA !important;
+                border: 1px solid #444 !important;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
             }
 
-            /* Tooltips (Descripciones emergentes) */
+            /* 5. ENTRADAS DE DATOS (INPUTS, SELECTS) */
+            .stApp input, .stApp textarea, .stApp select,
+            .stApp div[data-baseweb="select"],
+            .stApp div[data-baseweb="input"],
+            .stApp div[data-baseweb="select"] > div {
+                background-color: #262730 !important;
+                color: #FAFAFA !important;
+                border-color: #444 !important;
+            }
+
+            /* Forzar color de texto en selectboxes y sus opciones seleccionadas */
+            .stApp div[data-baseweb="select"] span, 
+            .stApp div[data-baseweb="select"] div {
+                color: #FAFAFA !important;
+            }
+
+            /* --- REFUERZO PARA DESPLEGABLES (MENÚS PORTAL) --- */
+            /* Estos elementos suelen estar fuera de .stApp al final del body */
+            div[data-baseweb="popover"], 
+            div[data-baseweb="menu"], 
+            div[data-baseweb="listbox"],
+            div[role="listbox"],
+            [data-testid="stVirtualDropdown"] {
+                background-color: #1A1C24 !important;
+                color: #FAFAFA !important;
+                border: 1px solid #444 !important;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
+            }
+
+            div[data-baseweb="popover"] *, 
+            div[data-baseweb="menu"] *, 
+            div[role="option"],
+            div[role="listbox"] * {
+                background-color: #1A1C24 !important;
+                color: #FAFAFA !important;
+            }
+
+            /* Hover en opciones de listas */
+            div[role="option"]:hover, 
+            li[role="option"]:hover,
+            [data-testid="stVirtualDropdown"] li:hover {
+                background-color: #31333F !important;
+                color: #FDB913 !important;
+            }
+
+            /* 6. OTROS */
             div[data-testid="stTooltipContent"] {
                 background-color: #262730 !important;
                 color: #FAFAFA !important;
                 border: 1px solid #444 !important;
-                border-radius: 4px !important;
             }
-
-            hr {
-                border-color: #444 !important;
-            }
+            hr { border-color: #444 !important; }
+            </style>
             </style>
         """, unsafe_allow_html=True)
     else:
@@ -136,6 +189,15 @@ aplicar_tema()
 
 
 def pantalla_login() -> None:
+    # Ocultar header y sidebar mediante CSS
+    st.markdown("""
+        <style>
+        [data-testid="stHeader"], [data-testid="stSidebar"] {
+            display: none !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     # Crear un diseño centrado usando columnas
     col1, col2, col3 = st.columns([1, 1, 1])
     

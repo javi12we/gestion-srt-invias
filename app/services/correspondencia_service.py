@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 import holidays
+import re
 from bson import ObjectId
 
 from app.repositories.correspondencia_repo import CorrespondenciaRepositorio
@@ -26,6 +27,10 @@ class CorrespondenciaService:
             if "estado" in filtros and filtros["estado"] != "Todos":
                 query["estado_actual"] = filtros["estado"]
             
+            # Grupo
+            if "grupo" in filtros and filtros["grupo"] != "Todos":
+                query["grupo"] = filtros["grupo"]
+            
             # Vencimiento (Solo aplica para activas si es que no hemos filtrado por estado ya cerrado)
             if "vencimiento" in filtros and filtros["vencimiento"] != "Todos":
                 hoy_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -49,6 +54,10 @@ class CorrespondenciaService:
             # Filtro por responsable (para coordinadores/admin)
             if "responsable_id" in filtros and filtros["responsable_id"] != "Todos":
                 query["responsable_actual.usuario_id"] = filtros["responsable_id"]
+
+            if "busqueda" in filtros and filtros["busqueda"]:
+                busqueda_escapada = re.escape(filtros["busqueda"])
+                query["numero_radicado"] = {"$regex": busqueda_escapada, "$options": "i"}
 
 
         return self.repo.listar(query, skip, limit), self.repo.contar(query)
@@ -104,6 +113,13 @@ class CorrespondenciaService:
         
     def editar_correspondencia(self, id_correspondencia: str, datos_actualizados: dict, usuario_ejecutor_nombre: str) -> bool:
         """Permite editar campos básicos del radicado."""
+        # Obtener el radicado actual para conocer su estado y validar existencia
+        correspondencia = self.repo.buscar_por_id(id_correspondencia)
+        if not correspondencia:
+            return False
+            
+        estado_actual = correspondencia.get("estado_actual", "pendiente")
+        
         # Solo se permite actualizar campos básicos, no estado ni trazabilidad
         campos_permitidos = ["numero_radicado", "asunto", "peticionario", "fecha_vencimiento", "tipo", "grupo", "clase", "observaciones_generales"]
         campos_a_actualizar = {k: v for k, v in datos_actualizados.items() if k in campos_permitidos}
@@ -113,10 +129,10 @@ class CorrespondenciaService:
             
         evento_trazabilidad = {
             "fecha": datetime.now(timezone.utc),
-            "tipo_evento": "cambio_estado", # No hay un evento "edicion", usamos uno genérico o adaptamos si el schema cambia
+            "tipo_evento": "cambio_estado", 
             "usuario_ejecutor": usuario_ejecutor_nombre,
-            "estado_anterior": None, # No cambia el estado
-            "estado_nuevo": None,    # No cambia el estado
+            "estado_anterior": estado_actual,
+            "estado_nuevo": estado_actual, # Mantener el mismo estado para cumplir con el esquema (string requerido)
             "comentario": "Se actualizaron los datos básicos del radicado"
         }
         

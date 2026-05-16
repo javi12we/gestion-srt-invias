@@ -416,40 +416,68 @@ with tab_gestion:
     # --- Filtros ---
     def on_filter_change():
         st.session_state["page_correspondencia"] = 1
-        
-    # Definir columnas de filtros
-    if puede_ver_todo:
-        col_f1, col_f2, col_f3 = st.columns(3)
-    else:
-        col_f1, col_f2 = st.columns(2)
-        col_f3 = None
 
-    opciones_estado = ["Todos", "pendiente", "en_tramite", "en_revision", "respondido", "archivado", "traslado_competencia"]
-    filtro_estado = col_f1.selectbox("Filtrar por Estado", options=opciones_estado, format_func=lambda x: x.replace("_", " ").title(), key="filtro_estado", on_change=on_filter_change)
-    
-    opciones_venc = ["Todos", "Vencidas", "Vencen Hoy", "Próximas a Vencer", "A Tiempo"]
-    filtro_vencimiento = col_f2.selectbox("Filtrar por Vencimiento (Solo Activas)", options=opciones_venc, key="filtro_vencimiento", on_change=on_filter_change, help="Próximas a Vencer considera radicados que vencen en los próximos 5 días.")
-    
+    # Fila 1: Búsqueda y Responsable
+    if puede_ver_todo:
+        col_busq, col_resp_f = st.columns([2, 1])
+    else:
+        col_busq = st.columns([2, 1])[0] # Ocupa el mismo espacio que si hubiera otro
+        col_resp_f = None
+
+    with col_busq:
+        busqueda_radicado = st.text_input(
+            "🔍 Buscador de radicados", 
+            placeholder="Ej: 2024-EXT-001", 
+            on_change=on_filter_change,
+            help="Permite buscar por el número completo o parcial del radicado. Permite copiar y pegar."
+        )
+
     filtro_responsable = "Todos"
-    if col_f3:
-        usuarios_list = usuario_service.listar_usuarios()
-        usuarios_f_opts = {"Todos": "Todos los responsables"}
-        for u in usuarios_list:
-            if u.get("activo", True):
-                usuarios_f_opts[str(u["_id"])] = f"{u.get('nombre_completo', u['usuario'])}"
-        
-        filtro_responsable = col_f3.selectbox(
-            "Filtrar por Responsable", 
-            options=list(usuarios_f_opts.keys()), 
-            format_func=lambda x: usuarios_f_opts[x],
-            key="filtro_responsable",
+    if puede_ver_todo and col_resp_f:
+        with col_resp_f:
+            usuarios_list = usuario_service.listar_usuarios()
+            usuarios_f_opts = {"Todos": "Todos los responsables"}
+            for u in usuarios_list:
+                if u.get("activo", True):
+                    usuarios_f_opts[str(u["_id"])] = f"{u.get('nombre_completo', u['usuario'])}"
+            
+            filtro_responsable = st.selectbox(
+                "Filtrar por Responsable", 
+                options=list(usuarios_f_opts.keys()), 
+                format_func=lambda x: usuarios_f_opts[x],
+                key="filtro_responsable",
+                on_change=on_filter_change
+            )
+
+    # Fila 2: Estado, Grupo y Vencimiento
+    col_f1, col_f2, col_f3 = st.columns(3)
+
+    with col_f1:
+        opciones_estado = ["Todos", "pendiente", "en_tramite", "en_revision", "respondido", "archivado", "traslado_competencia"]
+        filtro_estado = st.selectbox("Filtrar por Estado", options=opciones_estado, format_func=lambda x: x.replace("_", " ").title(), key="filtro_estado", on_change=on_filter_change)
+    
+    with col_f2:
+        # Preparar opciones de grupo con "Todos"
+        grupos_opts = {"Todos": "Todos los grupos"}
+        grupos_opts.update(grupos_dict)
+        filtro_grupo = st.selectbox(
+            "Filtrar por Grupo", 
+            options=list(grupos_opts.keys()), 
+            format_func=lambda x: grupos_opts[x], 
+            key="filtro_grupo", 
             on_change=on_filter_change
         )
 
+    with col_f3:
+        opciones_venc = ["Todos", "Vencidas", "Vencen Hoy", "Próximas a Vencer", "A Tiempo"]
+        filtro_vencimiento = st.selectbox("Filtrar por Vencimiento (Solo Activas)", options=opciones_venc, key="filtro_vencimiento", on_change=on_filter_change, help="Próximas a Vencer considera radicados que vencen en los próximos 5 días.")
+
     filtros = {
         "estado": filtro_estado, 
+        "grupo": filtro_grupo,
         "vencimiento": filtro_vencimiento,
-        "responsable_id": filtro_responsable
+        "responsable_id": filtro_responsable,
+        "busqueda": busqueda_radicado.strip()
     }
 
     
@@ -463,6 +491,26 @@ with tab_gestion:
         )
     
     st.divider()
+
+    # --- Estilo CSS para forzar el centrado de cabeceras ---
+    st.markdown("""
+        <style>
+            /* Intentar centrar las cabeceras del dataframe interactivo */
+            [data-testid="stDataFrame"] div[class*="StyledDataGridHeaderCell"] {
+                justify-content: center !important;
+                text-align: center !important;
+            }
+            [data-testid="stDataFrame"] div[role="columnheader"] > div {
+                justify-content: center !important;
+                text-align: center !important;
+            }
+            /* Refuerzo para el texto dentro de la cabecera */
+            [data-testid="stDataFrame"] div[role="columnheader"] span {
+                text-align: center !important;
+                width: 100%;
+            }
+        </style>
+    """, unsafe_allow_html=True)
 
 
     # --- Paginación ---
@@ -513,6 +561,7 @@ with tab_gestion:
             estado = c.get("estado_actual", "")
             es_finalizado = estado in ["respondido", "archivado", "traslado_competencia"]
             
+            dias_restantes_val = None
             tiempo_restante = "✅ Cerrado"
             if not es_finalizado and fecha_venc_dt:
                 if isinstance(fecha_venc_dt, datetime):
@@ -520,13 +569,13 @@ with tab_gestion:
                         fecha_venc_dt = fecha_venc_dt.replace(tzinfo=timezone.utc)
                     hoy = datetime.now(timezone.utc)
                     dias_restantes = (fecha_venc_dt - hoy).days
+                    dias_restantes_val = dias_restantes
                     if dias_restantes < 0:
                         tiempo_restante = f"🛑 {-dias_restantes} d. atraso"
                     elif dias_restantes == 0:
                         tiempo_restante = "⚠️ Vence hoy"
                     elif dias_restantes <= 5:
                         tiempo_restante = f"⚠️ {dias_restantes} d. restantes"
-
                     else:
                         tiempo_restante = f"⏳ {dias_restantes} d. restantes"
             elif not fecha_venc_dt and not es_finalizado:
@@ -545,7 +594,8 @@ with tab_gestion:
                 "Estado": estado.replace("_", " ").title(),
                 "Tiempo": tiempo_restante,
                 "Responsable": responsable,
-                "R. Respuesta": c.get("respuesta", {}).get("numero_oficio", "-")
+                "R. Respuesta": c.get("respuesta", {}).get("numero_oficio", "-"),
+                "_dias_num": dias_restantes_val
             })
 
             
@@ -554,14 +604,70 @@ with tab_gestion:
         # Calcular altura para evitar scroll interno (aprox 35px por fila + cabecera)
         altura_dinamica = (len(df) + 1) * 35 + 3
         
+        # Configuración de columnas con títulos en negrita Unicode y centrado
+        column_config = {
+            "Radicado": st.column_config.TextColumn("𝐑𝐚𝐝𝐢𝐜𝐚𝐝𝐨", alignment="center", help="Número único de identificación del radicado"),
+            "F. Radicado": st.column_config.TextColumn("𝐅. 𝐑𝐚𝐝𝐢𝐜𝐚𝐝𝐨", alignment="center", help="Fecha en que se recibió el documento"),
+            "Peticionario": st.column_config.TextColumn("𝐏𝐞𝐭𝐢𝐜𝐢𝐨𝐧𝐚𝐫𝐢𝐨", alignment="center"),
+            "Asunto": st.column_config.TextColumn("𝐀𝐬𝐮𝐧𝐭𝐨", alignment="center"),
+            "Estado": st.column_config.TextColumn("𝐄𝐬𝐭𝐚𝐝𝐨", alignment="center"),
+            "Tiempo": st.column_config.TextColumn("𝐓𝐢𝐞𝐦𝐩𝐨", alignment="center", help="Tiempo restante para el vencimiento"),
+            "Responsable": st.column_config.TextColumn("𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐚𝐛𝐥𝐞", alignment="center"),
+            "R. Respuesta": st.column_config.TextColumn("𝐑. 𝐑𝐞𝐬𝐩𝐮𝐞𝐬𝐭𝐚", alignment="center", help="Referencia de la respuesta emitida"),
+            "_dias_num": None # Ocultar columna auxiliar
+        }
+
+        # Función para aplicar colores según el tiempo restante y el estado
+        def style_rows(row):
+            styles = [""] * len(row)
+            
+            # --- PALETA DE COLORES TENUES ---
+            ROJO_TENUE = "background-color: #FFEBEE; color: #B71C1C;"
+            AMARILLO_TENUE = "background-color: #FFFDE7; color: #F57F17;"
+            VERDE_TENUE = "background-color: #E8F5E9; color: #1B5E20;"
+            GRIS_TENUE = "background-color: #F5F5F5; color: #616161;"
+
+            # --- Estilo para columna TIEMPO ---
+            dias = row["_dias_num"]
+            idx_tiempo = row.index.get_loc("Tiempo")
+            if row["Tiempo"] == "✅ Cerrado":
+                styles[idx_tiempo] = VERDE_TENUE
+            elif not pd.isna(dias):
+                if dias <= 10:
+                    styles[idx_tiempo] = ROJO_TENUE
+                elif dias <= 15:
+                    styles[idx_tiempo] = AMARILLO_TENUE
+                else:
+                    styles[idx_tiempo] = VERDE_TENUE
+            
+            # --- Estilo para columna ESTADO ---
+            estado_texto = row["Estado"].lower()
+            idx_estado = row.index.get_loc("Estado")
+            
+            if "pendiente" in estado_texto:
+                styles[idx_estado] = ROJO_TENUE
+            elif "tramite" in estado_texto or "revision" in estado_texto:
+                styles[idx_estado] = AMARILLO_TENUE
+            elif "respondido" in estado_texto or "archivado" in estado_texto:
+                styles[idx_estado] = VERDE_TENUE
+            elif "traslado" in estado_texto:
+                styles[idx_estado] = GRIS_TENUE
+                
+            return styles
+
+        # Aplicar el estilo al dataframe (excluyendo _id para visualización pero manteniéndolo en df original para selección)
+        df_display = df.drop(columns=["_id"])
+        styled_df = df_display.style.apply(style_rows, axis=1)
+
         # Renderizar dataframe interactivo
         event = st.dataframe(
-            df.drop(columns=["_id"]), 
+            styled_df, 
             use_container_width=True, 
             hide_index=True,
             on_select="rerun",
             selection_mode="single-row",
-            height=altura_dinamica
+            height=altura_dinamica,
+            column_config=column_config
         )
 
         
