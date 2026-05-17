@@ -364,20 +364,17 @@ else:
         
     pg = st.navigation(menu_dict)
     
-    # --- CABECERA SUPERIOR (MODO OSCURO/CLARO) ---
-    col_t1, col_t2 = st.columns([10, 2])
-    with col_t2:
-        es_oscuro = st.toggle("Modo Oscuro 🌙", value=(st.session_state.tema == "Oscuro"))
-        nuevo_tema = "Oscuro" if es_oscuro else "Claro"
-        if nuevo_tema != st.session_state.tema:
-            st.session_state.tema = nuevo_tema
-            st.rerun()
-
     # Personalización del sidebar
     st.sidebar.title("Menú")
     st.sidebar.success(f"Sesión: {sesion['usuario']}")
     
     with st.sidebar:
+        st.divider()
+        es_oscuro = st.toggle("Modo Oscuro 🌙", value=(st.session_state.tema == "Oscuro"))
+        nuevo_tema = "Oscuro" if es_oscuro else "Claro"
+        if nuevo_tema != st.session_state.tema:
+            st.session_state.tema = nuevo_tema
+            st.rerun()
         st.divider()
         if st.button("🚪 Cerrar sesión", key="logout_btn", use_container_width=True):
             logout()
