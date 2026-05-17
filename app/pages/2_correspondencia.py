@@ -7,6 +7,19 @@ from app.services.correspondencia_service import CorrespondenciaService
 from app.services.opciones_service import OpcionesService
 from app.services.usuario_service import UsuarioService
 
+# --- LÓGICA DE REINICIO DE FORMULARIO ---
+if "form_key_idx" not in st.session_state:
+    st.session_state["form_key_idx"] = 0
+
+form_key = st.session_state["form_key_idx"]
+
+# --- MOSTRAR MENSAJES PERSISTENTES ---
+mensaje_placeholder = st.empty()
+if "mensaje_exito" in st.session_state:
+    mensaje_placeholder.success(st.session_state.pop("mensaje_exito"))
+if "mensaje_error" in st.session_state:
+    mensaje_placeholder.error(st.session_state.pop("mensaje_error"))
+
 
 
 st.title("Correspondencia")
@@ -38,13 +51,48 @@ service = CorrespondenciaService()
 opciones_service = OpcionesService()
 usuario_service = UsuarioService()
 
-# Cargar opciones para los selects
-tipos_dict = {op["clave"]: op["etiqueta"] for op in opciones_service.obtener_opciones("tipo")}
+# Inicializar estados de formulario si no existen
+if f"form_tipo_{form_key}" not in st.session_state:
+    st.session_state[f"form_tipo_{form_key}"] = ""
+if f"form_manual_tipo_{form_key}" not in st.session_state:
+    st.session_state[f"form_manual_tipo_{form_key}"] = False
+
+import re
+
+def determinar_tipo_por_radicado(radicado):
+    """Lógica para determinar el tipo basado en el radicado usando Regex."""
+    if not radicado:
+        return ""
+    
+    # Búsqueda de VUVRAZ o VURAZ (OFICIO)
+    if re.search(r"-VUV?RAZ-", radicado, re.I):
+        return "oficios"
+    
+    # Búsqueda de VUVR (PQRD)
+    if re.search(r"-VUVR-", radicado, re.I):
+        return "pqrds"
+    
+    # Cualquier otro caso o código diferente
+    return "memorandos"
+
+def on_radicado_change():
+    """Callback cuando cambia el número de radicado."""
+    fk = st.session_state.get("form_key_idx", 0)
+    if not st.session_state.get(f"form_manual_tipo_{fk}", False):
+        nuevo_tipo = determinar_tipo_por_radicado(st.session_state.get(f"form_numero_radicado_{fk}", ""))
+        st.session_state[f"form_tipo_{fk}"] = nuevo_tipo
+
+# Definir categorías fijas según requerimiento del usuario (ignorando catálogo incompleto en DB)
+tipos_dict = {
+    "": "Seleccione tipo...",
+    "memorandos": "MEMORANDO",
+    "oficios": "OFICIO",
+    "pqrds": "PQRD"
+}
+
+# Cargar el resto de opciones desde la DB
 grupos_dict = {op["clave"]: op["etiqueta"] for op in opciones_service.obtener_opciones("grupo")}
 clases_dict = {op["clave"]: op["etiqueta"] for op in opciones_service.obtener_opciones("clase_correspondencia")}
-
-# Si no hay opciones, usar unas por defecto
-if not tipos_dict: tipos_dict = {"memorando": "Memorando", "oficio": "Oficio", "pqrd": "PQRD"}
 if not grupos_dict: grupos_dict = {"permisos": "Permisos", "solicitudes": "Solicitudes", "otros": "Otros"}
 if not clases_dict: clases_dict = {"informes": "Informes", "peticiones": "Peticiones", "quejas": "Quejas"}
 
@@ -323,39 +371,56 @@ if is_asignacion:
             
         st.subheader("Registrar Nuevo Radicado")
 
-        with st.form("form_nueva_correspondencia", clear_on_submit=True):
+        with st.container(border=True):
             col1, col2 = st.columns(2)
             with col1:
-                numero_radicado = st.text_input("Número de Radicado *")
-                peticionario = st.text_input("Peticionario *")
-                fecha_radicacion = st.date_input("Fecha de Radicación *")
+                numero_radicado = st.text_input(
+                    "Número de Radicado *", 
+                    key=f"form_numero_radicado_{form_key}", 
+                    on_change=on_radicado_change
+                )
+                peticionario = st.text_input("Peticionario *", key=f"form_peticionario_{form_key}")
+                fecha_radicacion = st.date_input("Fecha de Radicación *", key=f"form_fecha_radicacion_{form_key}")
             with col2:
-                asunto = st.text_area("Asunto *", height=115)
+                asunto = st.text_area("Asunto *", height=115, key=f"form_asunto_{form_key}")
             
             col3, col4, col5 = st.columns(3)
             with col3:
-                tipo = st.selectbox("Tipo", options=list(tipos_dict.keys()), format_func=lambda x: tipos_dict.get(x, x))
+                manual = st.checkbox("Manual en caso de Contingencia", key=f"form_manual_tipo_{form_key}")
+                tipo = st.selectbox(
+                    "Tipo", 
+                    options=list(tipos_dict.keys()), 
+                    format_func=lambda x: tipos_dict.get(x, x),
+                    key=f"form_tipo_{form_key}",
+                    disabled=not manual
+                )
             with col4:
-                grupo = st.selectbox("Grupo", options=list(grupos_dict.keys()), format_func=lambda x: grupos_dict.get(x, x))
+                grupo = st.selectbox("Grupo", options=list(grupos_dict.keys()), format_func=lambda x: grupos_dict.get(x, x), key=f"form_grupo_{form_key}")
             with col5:
-                clase = st.selectbox("Clase", options=list(clases_dict.keys()), format_func=lambda x: clases_dict.get(x, x))
+                clase = st.selectbox("Clase", options=list(clases_dict.keys()), format_func=lambda x: clases_dict.get(x, x), key=f"form_clase_{form_key}")
                 
-            observaciones = st.text_area("Observaciones Generales (Opcional)")
+            observaciones = st.text_area("Observaciones Generales (Opcional)", key=f"form_observaciones_{form_key}")
             
             usuarios = usuario_service.listar_usuarios()
             usuarios_opts = {str(u["_id"]): f"{u.get('nombre_completo', u['usuario'])}" for u in usuarios if u.get("activo", True)}
             
-            is_traslado = st.checkbox("Es Traslado por Competencia (Cierra el radicado sin asignar)")
+            is_traslado = st.checkbox("Es Traslado por Competencia (Cierra el radicado sin asignar)", key=f"form_is_traslado_{form_key}")
             asignado_a = None
             if not is_traslado:
-                asignado_a = st.selectbox("Asignar a *", options=list(usuarios_opts.keys()), format_func=lambda x: usuarios_opts[x])
+                asignado_a = st.selectbox("Asignar a *", options=list(usuarios_opts.keys()), format_func=lambda x: usuarios_opts[x], key=f"form_asignado_a_{form_key}")
             
-            submit_btn = st.form_submit_button("Crear Correspondencia", type="primary")
+            submit_btn = st.button("Crear Correspondencia", type="primary", use_container_width=True)
             
             if submit_btn:
-                if not numero_radicado or not asunto or not peticionario:
-                    st.error("Los campos marcados con * son obligatorios.")
+                # Usar los valores de session_state o variables locales
+                if not numero_radicado or not asunto or not peticionario or not tipo:
+                    st.error("Los campos marcados con * son obligatorios. Asegúrese de que el tipo de correspondencia esté definido.")
                 else:
+                    # Función para limpiar el formulario (reseteando el key de los widgets)
+                    def limpiar_formulario():
+                        st.session_state["form_key_idx"] = st.session_state.get("form_key_idx", 0) + 1
+                        st.session_state.pop("inicio_creacion_radicado", None)
+
                     # Calcular tiempo de diligenciamiento
                     tiempo_final = datetime.now(timezone.utc)
                     inicio = st.session_state.get("inicio_creacion_radicado", tiempo_final)
@@ -378,11 +443,9 @@ if is_asignacion:
                         id_nuevo = service.crear_correspondencia(datos, nombre_usuario_actual)
                         if is_traslado:
                             service.cambiar_estado(id_nuevo, "traslado_competencia", nombre_usuario_actual, "Traslado por competencia inicial")
-                            st.success(f"Correspondencia {numero_radicado} creada y trasladada por competencia.")
-                            
-                            # Limpiar cronómetro y recargar
-                            st.session_state.pop("inicio_creacion_radicado", None)
-                            st.rerun()
+                            st.session_state["mensaje_exito"] = f"Correspondencia {numero_radicado} creada y trasladada por competencia."
+                            limpiar_formulario()
+                            st.rerun() 
 
                         else:
                             service.asignar_correspondencia(
@@ -392,14 +455,14 @@ if is_asignacion:
                                 nombre_usuario_actual,
                                 "Asignación inicial en radicación"
                             )
-                            st.success(f"Correspondencia {numero_radicado} creada y asignada exitosamente.")
+                            st.session_state["mensaje_exito"] = f"Correspondencia {numero_radicado} creada y asignada exitosamente."
                         
-                        # Limpiar cronómetro y recargar
-                        st.session_state.pop("inicio_creacion_radicado", None)
+                        limpiar_formulario()
                         st.rerun()
 
                     except Exception as e:
-                        st.error(f"Error al crear: {str(e)}")
+                        st.session_state["mensaje_error"] = f"Error al crear: {str(e)}"
+                        st.rerun()
 
 # Pestaña Búsqueda y Gestión
 tab_gestion = tabs[0]
@@ -674,9 +737,13 @@ with tab_gestion:
         if event.selection.rows:
             idx = event.selection.rows[0]
             id_sel = df.iloc[idx]["_id"]
-            corr_sel = next((c for c in datos_corr if str(c["_id"]) == id_sel), None)
-            if corr_sel:
-                modal_gestion_correspondencia(corr_sel)
+            if st.session_state.get("last_opened_id") != id_sel:
+                st.session_state["last_opened_id"] = id_sel
+                corr_sel = next((c for c in datos_corr if str(c["_id"]) == id_sel), None)
+                if corr_sel:
+                    modal_gestion_correspondencia(corr_sel)
+        else:
+            st.session_state["last_opened_id"] = None
         
         # Renderizar paginación inferior
         st.write("")

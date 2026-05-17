@@ -7,6 +7,7 @@ OPCIONES_BASE = [
         "categoria": "tipo",
         "opciones": [
             {"clave": "memorandos", "etiqueta": "Memorandos", "activo": True},
+            {"clave": "oficios", "etiqueta": "Oficios", "activo": True},
             {"clave": "pqrds", "etiqueta": "PQRDS", "activo": True},
         ],
     },

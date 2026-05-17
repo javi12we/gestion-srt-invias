@@ -111,6 +111,10 @@ class CorrespondenciaService:
 
         return str(self.repo.crear(datos))
         
+    def existe_radicado(self, numero_radicado):
+        """Verifica si un número de radicado ya existe en la base de datos."""
+        return self.repo.buscar_por_radicado(numero_radicado) is not None
+        
     def editar_correspondencia(self, id_correspondencia: str, datos_actualizados: dict, usuario_ejecutor_nombre: str) -> bool:
         """Permite editar campos básicos del radicado."""
         # Obtener el radicado actual para conocer su estado y validar existencia
