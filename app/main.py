@@ -91,12 +91,16 @@ def aplicar_tema():
             div[data-testid="stDialog"] div[role="dialog"],
             div[data-testid="stPopoverBody"], 
             div[data-testid="stPopoverContent"],
-            div[data-testid="stForm"],
-            div[data-testid="stVerticalBlockBorderWrapper"] {
+            div[data-testid="stForm"] {
                 background-color: #1A1C24 !important;
                 color: #FAFAFA !important;
                 border: 1px solid #444 !important;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
+            }
+
+            /* Estilo para los contenedores que explícitamente tienen borde (border=True) sin alterar los contenedores invisibles/transparentes */
+            div[data-testid="stVerticalBlockBorderWrapper"] {
+                border-color: #444 !important;
             }
 
             /* 5. ENTRADAS DE DATOS (INPUTS, SELECTS) */
