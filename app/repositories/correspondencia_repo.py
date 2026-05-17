@@ -11,7 +11,10 @@ class CorrespondenciaRepositorio:
         return self.coleccion.find_one({"_id": ObjectId(id_correspondencia)})
     
     def buscar_por_radicado(self, numero_radicado: str):
-        return self.coleccion.find_one({"numero_radicado": numero_radicado})
+        import re
+        return self.coleccion.find_one({
+            "numero_radicado": {"$regex": f"^{re.escape(numero_radicado)}$", "$options": "i"}
+        })
 
     def listar(self, query: dict = None, skip: int = 0, limit: int = 10):
         q = query or {}

@@ -374,11 +374,30 @@ if is_asignacion:
         with st.container(border=True):
             col1, col2 = st.columns(2)
             with col1:
-                numero_radicado = st.text_input(
+                raw_radicado = st.text_input(
                     "Número de Radicado *", 
                     key=f"form_numero_radicado_{form_key}", 
                     on_change=on_radicado_change
                 )
+                
+                # Sanitizar el valor para almacenamiento e indicador de existencia
+                numero_radicado = raw_radicado.replace(" ", "").upper()
+                
+                radicado_valido = True
+                if raw_radicado:
+                    # Validar caracteres permitidos
+                    if not re.match(r"^[A-Za-z0-9\-_.]+$", raw_radicado.replace(" ", "")):
+                        st.error("❌ **Error de formato:** Solo se permiten letras, números, guiones (`-`), guiones bajos (`_`) y puntos (`.`).")
+                        radicado_valido = False
+                    
+                    # Alerta si contiene espacios
+                    if " " in raw_radicado:
+                        st.warning("⚠️ **Aviso:** Se eliminarán los espacios automáticamente.")
+                    
+                    # Alerta de duplicados (búsqueda insensible a mayúsculas/minúsculas)
+                    if radicado_valido:
+                        if service.existe_radicado(numero_radicado):
+                            st.warning("⚠️ **Aviso:** Este número de radicado ya está registrado en el sistema (incluso con diferente combinación de mayúsculas/minúsculas).")
                 peticionario = st.text_input("Peticionario *", key=f"form_peticionario_{form_key}")
                 fecha_radicacion = st.date_input("Fecha de Radicación *", key=f"form_fecha_radicacion_{form_key}")
             with col2:
@@ -415,6 +434,8 @@ if is_asignacion:
                 # Usar los valores de session_state o variables locales
                 if not numero_radicado or not asunto or not peticionario or not tipo:
                     st.error("Los campos marcados con * son obligatorios. Asegúrese de que el tipo de correspondencia esté definido.")
+                elif not re.match(r"^[A-Z0-9\-_.]+$", numero_radicado):
+                    st.error("❌ **Error de formato:** El número de radicado contiene caracteres no válidos. Solo se permiten letras, números, guiones (`-`), guiones bajos (`_`) y puntos (`.`).")
                 else:
                     # Función para limpiar el formulario (reseteando el key de los widgets)
                     def limpiar_formulario():
@@ -686,6 +707,7 @@ with tab_gestion:
             
             # --- PALETA DE COLORES TENUES ---
             ROJO_TENUE = "background-color: #FFEBEE; color: #B71C1C;"
+            NARANJA_TENUE = "background-color: #FFF3E0; color: #E65100;"
             AMARILLO_TENUE = "background-color: #FFFDE7; color: #F57F17;"
             VERDE_TENUE = "background-color: #E8F5E9; color: #1B5E20;"
             GRIS_TENUE = "background-color: #F5F5F5; color: #616161;"
@@ -696,12 +718,14 @@ with tab_gestion:
             if row["Tiempo"] == "✅ Cerrado":
                 styles[idx_tiempo] = VERDE_TENUE
             elif not pd.isna(dias):
-                if dias <= 10:
-                    styles[idx_tiempo] = ROJO_TENUE
-                elif dias <= 15:
-                    styles[idx_tiempo] = AMARILLO_TENUE
+                if dias < 0:
+                    styles[idx_tiempo] = ROJO_TENUE        # Vencido (Atrasado)
+                elif dias <= 5:
+                    styles[idx_tiempo] = NARANJA_TENUE     # Urgente (0-5 días restantes)
+                elif dias <= 10:
+                    styles[idx_tiempo] = AMARILLO_TENUE    # Preventivo (6-10 días restantes)
                 else:
-                    styles[idx_tiempo] = VERDE_TENUE
+                    styles[idx_tiempo] = VERDE_TENUE       # Cómodo (> 10 días restantes)
             
             # --- Estilo para columna ESTADO ---
             estado_texto = row["Estado"].lower()

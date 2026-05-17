@@ -83,6 +83,13 @@ class CorrespondenciaService:
     def crear_correspondencia(self, datos: dict, usuario_ejecutor_nombre: str) -> str:
         fecha_actual = datetime.now(timezone.utc)
         
+        # Sanitizar y validar número de radicado a nivel de servicio
+        if "numero_radicado" in datos and datos["numero_radicado"]:
+            radicado_limpio = datos["numero_radicado"].replace(" ", "").upper()
+            if not re.match(r"^[A-Z0-9\-_.]+$", radicado_limpio):
+                raise ValueError("El número de radicado contiene caracteres no válidos. Solo se permiten letras, números, '-', '_' y '.'.")
+            datos["numero_radicado"] = radicado_limpio
+
         # Si no se provee fecha_radicacion, usar la actual
         if "fecha_radicacion" not in datos or not datos["fecha_radicacion"]:
             datos["fecha_radicacion"] = fecha_actual
