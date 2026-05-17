@@ -6,16 +6,56 @@ from app.core.sesion import obtener_sesion
 from app.core.streamlit_compat import show_dataframe
 from app.services.reporte_service import ReporteService
 
-
-
-col_title1, col_title2 = st.columns([4, 1])
-with col_title1:
-    st.title("Reportes")
-with col_title2:
-    if st.button("🔄 Actualizar", use_container_width=True, key="refresh_reportes"):
-        st.rerun()
+from app.services.pdf_report_service import PDFReportService
+import datetime
 
 sesion = obtener_sesion()
+
+col_title1, col_title2, col_title3 = st.columns([3, 1, 1])
+with col_title1:
+    st.title("Reportes")
+
+is_admin = False
+if sesion:
+    is_admin = "admin" in sesion.get("roles", [])
+
+with col_title2:
+    if is_admin:
+        if st.button("📄 Reporte PDF", use_container_width=True, key="gen_pdf"):
+            with st.spinner("Generando PDFs..."):
+                try:
+                    pdf_service = PDFReportService()
+                    st.session_state["pdf_pqrd"] = pdf_service.generar_pdf_pqrd()
+                    st.session_state["pdf_conglomerado"] = pdf_service.generar_pdf_conglomerado()
+                    st.session_state["show_pdf_downloads"] = True
+                except Exception as e:
+                    st.error(f"Error generando PDF: {e}")
+
+with col_title3:
+    if st.button("🔄 Actualizar", use_container_width=True, key="refresh_reportes"):
+        st.session_state.pop("show_pdf_downloads", None)
+        st.rerun()
+
+if st.session_state.get("show_pdf_downloads", False):
+    st.info("✅ Reportes generados con éxito. Descárgalos aquí:")
+    col_d1, col_d2 = st.columns(2)
+    fecha_hoy = datetime.datetime.now().strftime("%Y-%m-%d")
+    with col_d1:
+        st.download_button(
+            label="⬇️ Descargar Reporte PQRD",
+            data=st.session_state.get("pdf_pqrd", b""),
+            file_name=f"Reporte_VUVR_PQRD_{fecha_hoy}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+    with col_d2:
+        st.download_button(
+            label="⬇️ Descargar Reporte Conglomerado",
+            data=st.session_state.get("pdf_conglomerado", b""),
+            file_name=f"Reporte_Correspondencia_{fecha_hoy}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
 
 if not sesion:
     st.warning("Debes iniciar sesión.")
