@@ -386,14 +386,14 @@ if is_asignacion:
             
             col3, col4, col5 = st.columns(3)
             with col3:
-                manual = st.checkbox("Manual en caso de Contingencia", key=f"form_manual_tipo_{form_key}")
                 tipo = st.selectbox(
                     "Tipo", 
                     options=list(tipos_dict.keys()), 
                     format_func=lambda x: tipos_dict.get(x, x),
                     key=f"form_tipo_{form_key}",
-                    disabled=not manual
+                    disabled=not st.session_state.get(f"form_manual_tipo_{form_key}", False)
                 )
+                manual = st.checkbox("Manual en caso de Contingencia", key=f"form_manual_tipo_{form_key}")
             with col4:
                 grupo = st.selectbox("Grupo", options=list(grupos_dict.keys()), format_func=lambda x: grupos_dict.get(x, x), key=f"form_grupo_{form_key}")
             with col5:
@@ -669,14 +669,14 @@ with tab_gestion:
         
         # Configuración de columnas con títulos en negrita Unicode y centrado
         column_config = {
-            "Radicado": st.column_config.TextColumn("𝐑𝐚𝐝𝐢𝐜𝐚𝐝𝐨", alignment="center", help="Número único de identificación del radicado"),
-            "F. Radicado": st.column_config.TextColumn("𝐅. 𝐑𝐚𝐝𝐢𝐜𝐚𝐝𝐨", alignment="center", help="Fecha en que se recibió el documento"),
-            "Peticionario": st.column_config.TextColumn("𝐏𝐞𝐭𝐢𝐜𝐢𝐨𝐧𝐚𝐫𝐢𝐨", alignment="center"),
-            "Asunto": st.column_config.TextColumn("𝐀𝐬𝐮𝐧𝐭𝐨", alignment="center"),
-            "Estado": st.column_config.TextColumn("𝐄𝐬𝐭𝐚𝐝𝐨", alignment="center"),
-            "Tiempo": st.column_config.TextColumn("𝐓𝐢𝐞𝐦𝐩𝐨", alignment="center", help="Tiempo restante para el vencimiento"),
-            "Responsable": st.column_config.TextColumn("𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐚𝐛𝐥𝐞", alignment="center"),
-            "R. Respuesta": st.column_config.TextColumn("𝐑. 𝐑𝐞𝐬𝐩𝐮𝐞𝐬𝐭𝐚", alignment="center", help="Referencia de la respuesta emitida"),
+            "Radicado": st.column_config.TextColumn("𝐑𝐚𝐝𝐢𝐜𝐚𝐝𝐨", help="Número único de identificación del radicado"),
+            "F. Radicado": st.column_config.TextColumn("𝐅. 𝐑𝐚𝐝𝐢𝐜𝐚𝐝𝐨", help="Fecha en que se recibió el documento"),
+            "Peticionario": st.column_config.TextColumn("𝐏𝐞𝐭𝐢𝐜𝐢𝐨𝐧𝐚𝐫𝐢𝐨"),
+            "Asunto": st.column_config.TextColumn("𝐀𝐬𝐮𝐧𝐭𝐨"),
+            "Estado": st.column_config.TextColumn("𝐄𝐬𝐭𝐚𝐝𝐨"),
+            "Tiempo": st.column_config.TextColumn("𝐓𝐢𝐞𝐦𝐩𝐨", help="Tiempo restante para el vencimiento"),
+            "Responsable": st.column_config.TextColumn("𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐚𝐛𝐥𝐞"),
+            "R. Respuesta": st.column_config.TextColumn("𝐑. 𝐑𝐞𝐬𝐩𝐮𝐞𝐬𝐭𝐚", help="Referencia de la respuesta emitida"),
             "_dias_num": None # Ocultar columna auxiliar
         }
 
