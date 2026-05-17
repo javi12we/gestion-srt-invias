@@ -5,3 +5,4 @@ bcrypt>=4.1,<5
 pandas>=2.2,<3
 holidays>=0.48
 reportlab>=4.2
+xlsxwriter>=3.1

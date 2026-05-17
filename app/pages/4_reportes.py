@@ -7,11 +7,12 @@ from app.core.streamlit_compat import show_dataframe
 from app.services.reporte_service import ReporteService
 
 from app.services.pdf_report_service import PDFReportService
+from app.services.excel_report_service import ExcelReportService
 import datetime
 
 sesion = obtener_sesion()
 
-col_title1, col_title2, col_title3 = st.columns([3, 1, 1])
+col_title1, col_title2, col_title3, col_title4 = st.columns([2.5, 1.5, 1, 1])
 with col_title1:
     st.title("Reportes")
 
@@ -20,6 +21,19 @@ if sesion:
     is_admin = "admin" in sesion.get("roles", [])
 
 with col_title2:
+    if is_admin:
+        if st.button("📗 Evidencia KAWAK", use_container_width=True, key="gen_excel"):
+            with st.spinner("Generando Excel..."):
+                try:
+                    excel_service = ExcelReportService()
+                    buffer, nombre = excel_service.generar_excel_kawak()
+                    st.session_state["excel_kawak_buffer"] = buffer
+                    st.session_state["excel_kawak_name"] = nombre
+                    st.session_state["show_excel_download"] = True
+                except Exception as e:
+                    st.error(f"Error generando Excel: {e}")
+
+with col_title3:
     if is_admin:
         if st.button("📄 Reporte PDF", use_container_width=True, key="gen_pdf"):
             with st.spinner("Generando PDFs..."):
@@ -31,13 +45,24 @@ with col_title2:
                 except Exception as e:
                     st.error(f"Error generando PDF: {e}")
 
-with col_title3:
+with col_title4:
     if st.button("🔄 Actualizar", use_container_width=True, key="refresh_reportes"):
         st.session_state.pop("show_pdf_downloads", None)
+        st.session_state.pop("show_excel_download", None)
         st.rerun()
 
+if st.session_state.get("show_excel_download", False):
+    st.info("✅ Excel KAWAK generado con éxito. Descárgalo aquí:")
+    st.download_button(
+        label="⬇️ Descargar Evidencia KAWAK (Excel)",
+        data=st.session_state.get("excel_kawak_buffer", b""),
+        file_name=st.session_state.get("excel_kawak_name", "Reporte.xlsx"),
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+
 if st.session_state.get("show_pdf_downloads", False):
-    st.info("✅ Reportes generados con éxito. Descárgalos aquí:")
+    st.info("✅ Reportes PDF generados con éxito. Descárgalos aquí:")
     col_d1, col_d2 = st.columns(2)
     fecha_hoy = datetime.datetime.now().strftime("%Y-%m-%d")
     with col_d1:
