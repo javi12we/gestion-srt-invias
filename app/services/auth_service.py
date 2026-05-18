@@ -29,6 +29,7 @@ class AuthService:
             "id": str(registro["_id"]),
             "usuario": registro["usuario"],
             "nombre_completo": registro.get("nombre_completo", ""),
+            "email": registro.get("email", ""),
             "roles": registro.get("roles", []),
             "permisos": permisos,
         }

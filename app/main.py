@@ -371,9 +371,40 @@ else:
     
     # Personalización del sidebar
     st.sidebar.title("Menú")
-    st.sidebar.success(f"Sesión: {sesion['usuario']}")
     
     with st.sidebar:
+        # Tarjeta de Perfil de Usuario Premium
+        with st.container(border=True):
+            nombre = sesion.get("nombre_completo") or "Usuario"
+            username = sesion.get("usuario")
+            email = sesion.get("email") or ""
+            roles_lista = sesion.get("roles", [])
+            
+            # Icono según rol
+            if "admin" in roles_lista:
+                avatar = "🛡️"
+            elif "direccion" in roles_lista:
+                avatar = "👩‍💼"
+            else:
+                avatar = "👤"
+            
+            c_avatar, c_info = st.columns([1, 3])
+            with c_avatar:
+                st.markdown(f"<div style='font-size: 2.3em; text-align: center; margin-top: 3px;'>{avatar}</div>", unsafe_allow_html=True)
+            with c_info:
+                st.markdown(f"**{nombre}**")
+                st.markdown(f"<div style='color: gray; font-size: 0.85em; margin-top: -5px;'>@{username}</div>", unsafe_allow_html=True)
+                if email:
+                    st.markdown(f"<div style='color: gray; font-size: 0.75em; word-break: break-all; margin-top: 2px;'>{email}</div>", unsafe_allow_html=True)
+            
+            # Mostrar badges elegantes para cada rol
+            roles_html = ""
+            for r in roles_lista:
+                roles_html += f"<span style='background-color: rgba(0, 128, 255, 0.15); color: #0080ff; padding: 2px 8px; border-radius: 12px; font-size: 0.75em; font-weight: bold; margin-right: 4px; display: inline-block;'>{r.title()}</span>"
+            if roles_html:
+                st.write("")
+                st.markdown(roles_html, unsafe_allow_html=True)
+
         st.divider()
         es_oscuro = st.toggle("Modo Oscuro 🌙", value=(st.session_state.tema == "Oscuro"))
         nuevo_tema = "Oscuro" if es_oscuro else "Claro"
