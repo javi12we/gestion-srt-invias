@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from app.core.sesion import obtener_sesion
 from app.services.correspondencia_service import CorrespondenciaService
@@ -134,8 +134,10 @@ def modal_gestion_correspondencia(corr_actual):
         if isinstance(fecha_venc_dt, datetime):
             if fecha_venc_dt.tzinfo is None:
                 fecha_venc_dt = fecha_venc_dt.replace(tzinfo=timezone.utc)
-            hoy = datetime.now(timezone.utc)
-            dias_restantes = (fecha_venc_dt.date() - hoy.date()).days
+            fecha_venc_utc = fecha_venc_dt.astimezone(timezone.utc)
+            colombia_tz = timezone(timedelta(hours=-5))
+            hoy = datetime.now(colombia_tz)
+            dias_restantes = (fecha_venc_utc.date() - hoy.date()).days
             
             # Si ya finalizó, no mostramos alerta de vencimiento alarmante
             es_finalizado = estado_actual in ["respondido", "archivado", "traslado_competencia"]
@@ -651,8 +653,10 @@ with tab_gestion:
                 if isinstance(fecha_venc_dt, datetime):
                     if fecha_venc_dt.tzinfo is None:
                         fecha_venc_dt = fecha_venc_dt.replace(tzinfo=timezone.utc)
-                    hoy = datetime.now(timezone.utc)
-                    dias_restantes = (fecha_venc_dt.date() - hoy.date()).days
+                    fecha_venc_utc = fecha_venc_dt.astimezone(timezone.utc)
+                    colombia_tz = timezone(timedelta(hours=-5))
+                    hoy = datetime.now(colombia_tz)
+                    dias_restantes = (fecha_venc_utc.date() - hoy.date()).days
                     dias_restantes_val = dias_restantes
                     if dias_restantes < 0:
                         tiempo_restante = f"🛑 {-dias_restantes} d. atraso"

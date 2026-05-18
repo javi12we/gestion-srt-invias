@@ -85,8 +85,9 @@ class PDFReportService:
 
     def generar_pdf_pqrd(self) -> io.BytesIO:
         buffer = io.BytesIO()
-        fecha_hoy = datetime.now().strftime("%Y-%m-%d")
-        hoy = datetime.now(timezone.utc)
+        colombia_tz = timezone(timedelta(hours=-5))
+        hoy = datetime.now(colombia_tz)
+        fecha_hoy = hoy.strftime("%Y-%m-%d")
         
         datos = self._obtener_datos_activos()
         filas = []
@@ -107,12 +108,11 @@ class PDFReportService:
             if isinstance(f_vencimiento, datetime):
                 if f_vencimiento.tzinfo is None:
                     f_vencimiento = f_vencimiento.replace(tzinfo=timezone.utc)
-                if f_vencimiento.tzinfo != timezone.utc:
-                    f_vencimiento = f_vencimiento.astimezone(timezone.utc)
+                f_vencimiento_utc = f_vencimiento.astimezone(timezone.utc)
             
             # Calcular días de atraso en días completos/calendario
-            if hoy.date() > f_vencimiento.date():
-                dias_retraso = (hoy.date() - f_vencimiento.date()).days
+            if hoy.date() > f_vencimiento_utc.date():
+                dias_retraso = (hoy.date() - f_vencimiento_utc.date()).days
                 if dias_retraso > 0:
                     filas.append({
                         "NO. RADICADO": doc.get("numero_radicado", "S/N"),
@@ -184,8 +184,9 @@ class PDFReportService:
     def generar_pdf_conglomerado(self) -> io.BytesIO:
         from reportlab.platypus import PageBreak
         buffer = io.BytesIO()
-        fecha_hoy = datetime.now().strftime("%Y-%m-%d")
-        hoy = datetime.now(timezone.utc)
+        colombia_tz = timezone(timedelta(hours=-5))
+        hoy = datetime.now(colombia_tz)
+        fecha_hoy = hoy.strftime("%Y-%m-%d")
         
         datos = self._obtener_datos_activos()
         filas = []
@@ -202,12 +203,11 @@ class PDFReportService:
             if isinstance(f_vencimiento, datetime):
                 if f_vencimiento.tzinfo is None:
                     f_vencimiento = f_vencimiento.replace(tzinfo=timezone.utc)
-                if f_vencimiento.tzinfo != timezone.utc:
-                    f_vencimiento = f_vencimiento.astimezone(timezone.utc)
+                f_vencimiento_utc = f_vencimiento.astimezone(timezone.utc)
             
             # Calcular días de atraso en días completos/calendario
-            if hoy.date() > f_vencimiento.date():
-                dias_retraso = (hoy.date() - f_vencimiento.date()).days
+            if hoy.date() > f_vencimiento_utc.date():
+                dias_retraso = (hoy.date() - f_vencimiento_utc.date()).days
                 if dias_retraso > 0:
                     filas.append({
                         "No. Radicado": doc.get("numero_radicado", "S/N"),
