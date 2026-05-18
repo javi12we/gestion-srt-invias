@@ -89,18 +89,21 @@ class PDFReportService:
         hoy = datetime.now(colombia_tz)
         fecha_hoy = hoy.strftime("%Y-%m-%d")
         
-        datos = self._obtener_datos_activos()
+        hoy_utc = hoy.astimezone(timezone.utc)
+        
+        # Filtro optimizado a nivel de base de datos (MongoDB)
+        query = {
+            "estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]},
+            "tipo": {"$regex": "pqrd", "$options": "i"},
+            "fecha_vencimiento": {"$lt": hoy_utc},
+            "responsable_actual.nombre": {"$ne": "Gladys Gutierrez Buitrago", "$exists": True}
+        }
+        
+        datos = self.repo.listar(query, limit=10000)
         filas = []
         
         for doc in datos:
-            # Fix Problema 2: Permitir "pqrds" o "pqrd"
-            if "PQRD" not in str(doc.get("tipo", "")).upper():
-                continue
-                
             responsable = doc.get("responsable_actual", {}).get("nombre", "Sin Asignar")
-            if not responsable or responsable.strip() == "Gladys Gutierrez Buitrago":
-                continue
-                
             f_vencimiento = doc.get("fecha_vencimiento")
             if not f_vencimiento:
                 continue
@@ -111,14 +114,13 @@ class PDFReportService:
                 f_vencimiento_utc = f_vencimiento.astimezone(timezone.utc)
             
             # Calcular días de atraso en días completos/calendario
-            if hoy.date() > f_vencimiento_utc.date():
-                dias_retraso = (hoy.date() - f_vencimiento_utc.date()).days
-                if dias_retraso > 0:
-                    filas.append({
-                        "NO. RADICADO": doc.get("numero_radicado", "S/N"),
-                        "Usuario Responsable": responsable,
-                        "Días sin respuesta": dias_retraso
-                    })
+            dias_retraso = (hoy.date() - f_vencimiento_utc.date()).days
+            if dias_retraso > 0:
+                filas.append({
+                    "NO. RADICADO": doc.get("numero_radicado", "S/N"),
+                    "Usuario Responsable": responsable,
+                    "Días sin respuesta": dias_retraso
+                })
                 
         df_reporte = pd.DataFrame(filas)
         if not df_reporte.empty:
@@ -188,14 +190,20 @@ class PDFReportService:
         hoy = datetime.now(colombia_tz)
         fecha_hoy = hoy.strftime("%Y-%m-%d")
         
-        datos = self._obtener_datos_activos()
+        hoy_utc = hoy.astimezone(timezone.utc)
+        
+        # Filtro optimizado a nivel de base de datos (MongoDB)
+        query = {
+            "estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]},
+            "fecha_vencimiento": {"$lt": hoy_utc},
+            "responsable_actual.nombre": {"$ne": "Gladys Gutierrez Buitrago", "$exists": True}
+        }
+        
+        datos = self.repo.listar(query, limit=10000)
         filas = []
         
         for doc in datos:
             responsable = doc.get("responsable_actual", {}).get("nombre", "Sin Asignar")
-            if not responsable or responsable.strip() == "Gladys Gutierrez Buitrago":
-                continue
-                
             f_vencimiento = doc.get("fecha_vencimiento")
             if not f_vencimiento:
                 continue
@@ -206,14 +214,13 @@ class PDFReportService:
                 f_vencimiento_utc = f_vencimiento.astimezone(timezone.utc)
             
             # Calcular días de atraso en días completos/calendario
-            if hoy.date() > f_vencimiento_utc.date():
-                dias_retraso = (hoy.date() - f_vencimiento_utc.date()).days
-                if dias_retraso > 0:
-                    filas.append({
-                        "No. Radicado": doc.get("numero_radicado", "S/N"),
-                        "Usuario Responsable": responsable,
-                        "Días sin respuesta": dias_retraso
-                    })
+            dias_retraso = (hoy.date() - f_vencimiento_utc.date()).days
+            if dias_retraso > 0:
+                filas.append({
+                    "No. Radicado": doc.get("numero_radicado", "S/N"),
+                    "Usuario Responsable": responsable,
+                    "Días sin respuesta": dias_retraso
+                })
                 
         df_reporte = pd.DataFrame(filas)
         

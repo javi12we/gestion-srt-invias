@@ -35,6 +35,8 @@ with col_btn:
         st.session_state.pop("excel_kawak_name", None)
         st.session_state.pop("pdf_pqrd", None)
         st.session_state.pop("pdf_conglomerado", None)
+        st.session_state.pop("pdf_preview_data", None)
+        st.session_state.pop("pdf_preview_title", None)
         st.rerun()
 
 st.divider()
@@ -102,21 +104,67 @@ else:
                 st.write("")
                 fecha_hoy = datetime.datetime.now().strftime("%Y-%m-%d")
                 
-                st.download_button(
-                    label="⬇️ Descargar Reporte PQRD (PDF)",
-                    data=st.session_state.get("pdf_pqrd", b""),
-                    file_name=f"Reporte_VUVR_PQRD_{fecha_hoy}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
+                # --- Reporte PQRD ---
+                st.markdown("##### 📌 Reporte PQRD")
+                col_pqrd_preview, col_pqrd_dl = st.columns([1, 1])
+                with col_pqrd_preview:
+                    if st.button("🔍 Previsualizar PQRD", use_container_width=True, key="prev_pqrd"):
+                        st.session_state["pdf_preview_data"] = st.session_state.get("pdf_pqrd").getvalue() if hasattr(st.session_state.get("pdf_pqrd"), "getvalue") else st.session_state.get("pdf_pqrd", b"")
+                        st.session_state["pdf_preview_title"] = "Reporte VUVR PQRD"
+                        st.rerun()
+                with col_pqrd_dl:
+                    st.download_button(
+                        label="⬇️ Descargar PDF",
+                        data=st.session_state.get("pdf_pqrd", b""),
+                        file_name=f"Reporte_VUVR_PQRD_{fecha_hoy}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key="dl_pqrd"
+                    )
                 
-                st.download_button(
-                    label="⬇️ Descargar Reporte Conglomerado (PDF)",
-                    data=st.session_state.get("pdf_conglomerado", b""),
-                    file_name=f"Reporte_Correspondencia_{fecha_hoy}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
+                # --- Reporte Conglomerado ---
+                st.markdown("##### 📌 Reporte Conglomerado")
+                col_cong_preview, col_cong_dl = st.columns([1, 1])
+                with col_cong_preview:
+                    if st.button("🔍 Previsualizar Conglomerado", use_container_width=True, key="prev_cong"):
+                        st.session_state["pdf_preview_data"] = st.session_state.get("pdf_conglomerado").getvalue() if hasattr(st.session_state.get("pdf_conglomerado"), "getvalue") else st.session_state.get("pdf_conglomerado", b"")
+                        st.session_state["pdf_preview_title"] = "Reporte Conglomerado SRTI"
+                        st.rerun()
+                with col_cong_dl:
+                    st.download_button(
+                        label="⬇️ Descargar PDF",
+                        data=st.session_state.get("pdf_conglomerado", b""),
+                        file_name=f"Reporte_Correspondencia_{fecha_hoy}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key="dl_cong"
+                    )
+
+    # --- Visualizador de PDF Incrustado ---
+    if st.session_state.get("pdf_preview_data") is not None:
+        st.write("")
+        st.divider()
+        st.markdown(f"### 🔍 Previsualización: {st.session_state.get('pdf_preview_title')}")
+        
+        import base64
+        try:
+            pdf_bytes = st.session_state.get("pdf_preview_data")
+            base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" style="border: none; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" type="application/pdf"></iframe>'
+            
+            col_view, col_close = st.columns([5, 1])
+            with col_view:
+                st.info("💡 **Consejo:** Puedes usar los controles nativos del navegador dentro del visor para imprimir, hacer zoom o guardar el documento directamente.")
+            with col_close:
+                st.write("")
+                if st.button("❌ Cerrar Vista", use_container_width=True, key="close_preview"):
+                    st.session_state["pdf_preview_data"] = None
+                    st.session_state["pdf_preview_title"] = ""
+                    st.rerun()
+                    
+            st.markdown(pdf_display, unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"No se pudo renderizar la vista previa del PDF: {e}")
 
     st.write("")
     st.caption("💡 **Consejo:** Una vez descargados los archivos, puedes pulsar el botón 'Limpiar' en la parte superior para liberar los recursos cacheados de la sesión.")
