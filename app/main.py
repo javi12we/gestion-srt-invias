@@ -36,10 +36,12 @@ def aplicar_tema():
                 color: #FAFAFA !important;
             }
             [data-testid="stSidebar"] {
-                background-color: #1A1C24 !important;
+                background-color: #16120F !important; /* Café muy oscuro sutil */
+                border-right: 1px solid rgba(255, 140, 0, 0.15) !important;
             }
             [data-testid="stHeader"] {
-                background-color: rgba(14, 17, 23, 0.8) !important;
+                background-color: rgba(22, 18, 15, 0.8) !important;
+                border-top: 3px solid #FF8C00 !important;
             }
 
             /* 1. TIPOGRAFÍA Y ETIQUETAS (GLOBAL) */
@@ -67,19 +69,20 @@ def aplicar_tema():
                 fill: #FAFAFA !important;
             }
 
-            /* Botones primarios (Accento INVIAS) */
+            /* Botones primarios (Accento Naranja Login) */
             .stApp button[kind="primary"],
             .stApp [data-testid="stBaseButton-primary"] {
-                background-color: #FDB913 !important;
-                color: #000000 !important;
+                background-color: #FF8C00 !important;
+                color: #FFFFFF !important;
                 border: none !important;
+                font-weight: bold !important;
             }
 
             /* 3. HOVER (Mantener lo funcional) */
             .stApp button:hover {
-                border-color: #FDB913 !important;
-                color: #FDB913 !important;
-                background-color: #31333F !important;
+                border-color: #FF8C00 !important;
+                color: #FF8C00 !important;
+                background-color: rgba(255, 140, 0, 0.1) !important;
             }
 
             /* 4. CONTENEDORES (DIÁLOGOS, POPOVERS Y FORMULARIOS) */
@@ -144,8 +147,8 @@ def aplicar_tema():
             div[role="option"]:hover, 
             li[role="option"]:hover,
             [data-testid="stVirtualDropdown"] li:hover {
-                background-color: #31333F !important;
-                color: #FDB913 !important;
+                background-color: rgba(255, 140, 0, 0.15) !important;
+                color: #FF8C00 !important;
             }
 
             /* 6. OTROS */
@@ -155,7 +158,20 @@ def aplicar_tema():
                 border: 1px solid #444 !important;
             }
             hr { border-color: #444 !important; }
-            </style>
+
+            /* Navegación lateral (Sidebar Menu) - Integración Login */
+            div[data-testid="stSidebarNavItems"] a:hover {
+                background-color: rgba(255, 140, 0, 0.1) !important;
+                color: #FF8C00 !important;
+            }
+            div[data-testid="stSidebarNavItems"] a[aria-current="page"] {
+                background-color: rgba(255, 140, 0, 0.15) !important;
+                border-left: 4px solid #FF8C00 !important;
+            }
+            div[data-testid="stSidebarNavItems"] a[aria-current="page"] span {
+                color: #FF8C00 !important;
+                font-weight: bold !important;
+            }
             </style>
         """, unsafe_allow_html=True)
     else:
@@ -167,7 +183,11 @@ def aplicar_tema():
                 color: #262730 !important;
             }
             [data-testid="stSidebar"] {
-                background-color: #F8F9FA !important;
+                background-color: #FFF9F2 !important; /* Naranja muy pálido/cálido */
+                border-right: 1px solid rgba(255, 140, 0, 0.15) !important;
+            }
+            [data-testid="stHeader"] {
+                border-top: 3px solid #FF8C00 !important;
             }
             /* Botones en modo claro */
             .stButton>button {
@@ -175,9 +195,14 @@ def aplicar_tema():
                 transition: all 0.3s ease !important;
             }
             .stButton>button[kind="primary"] {
-                background-color: #FDB913 !important;
-                color: #000000 !important;
+                background-color: #FF8C00 !important;
+                color: #FFFFFF !important;
                 border: none !important;
+                font-weight: bold !important;
+            }
+            .stButton>button:hover {
+                border-color: #FF8C00 !important;
+                color: #FF8C00 !important;
             }
             /* Tooltips en modo claro */
             div[data-testid="stTooltipContent"] {
@@ -185,6 +210,19 @@ def aplicar_tema():
                 color: #262730 !important;
                 border: 1px solid #E9ECEF !important;
                 border-radius: 4px !important;
+            }
+            /* Navegación lateral (Sidebar Menu) - Integración Login */
+            div[data-testid="stSidebarNavItems"] a:hover {
+                background-color: rgba(255, 140, 0, 0.08) !important;
+                color: #FF8C00 !important;
+            }
+            div[data-testid="stSidebarNavItems"] a[aria-current="page"] {
+                background-color: rgba(255, 140, 0, 0.12) !important;
+                border-left: 4px solid #FF8C00 !important;
+            }
+            div[data-testid="stSidebarNavItems"] a[aria-current="page"] span {
+                color: #FF8C00 !important;
+                font-weight: bold !important;
             }
             </style>
         """, unsafe_allow_html=True)
