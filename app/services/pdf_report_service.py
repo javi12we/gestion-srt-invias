@@ -111,8 +111,8 @@ class PDFReportService:
                     f_vencimiento = f_vencimiento.astimezone(timezone.utc)
             
             # Calcular días de atraso en días completos/calendario
-            if hoy > f_vencimiento:
-                dias_retraso = (hoy - f_vencimiento).days
+            if hoy.date() > f_vencimiento.date():
+                dias_retraso = (hoy.date() - f_vencimiento.date()).days
                 if dias_retraso > 0:
                     filas.append({
                         "NO. RADICADO": doc.get("numero_radicado", "S/N"),
@@ -206,8 +206,8 @@ class PDFReportService:
                     f_vencimiento = f_vencimiento.astimezone(timezone.utc)
             
             # Calcular días de atraso en días completos/calendario
-            if hoy > f_vencimiento:
-                dias_retraso = (hoy - f_vencimiento).days
+            if hoy.date() > f_vencimiento.date():
+                dias_retraso = (hoy.date() - f_vencimiento.date()).days
                 if dias_retraso > 0:
                     filas.append({
                         "No. Radicado": doc.get("numero_radicado", "S/N"),

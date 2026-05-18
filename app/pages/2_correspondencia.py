@@ -135,7 +135,7 @@ def modal_gestion_correspondencia(corr_actual):
             if fecha_venc_dt.tzinfo is None:
                 fecha_venc_dt = fecha_venc_dt.replace(tzinfo=timezone.utc)
             hoy = datetime.now(timezone.utc)
-            dias_restantes = (fecha_venc_dt - hoy).days
+            dias_restantes = (fecha_venc_dt.date() - hoy.date()).days
             
             # Si ya finalizó, no mostramos alerta de vencimiento alarmante
             es_finalizado = estado_actual in ["respondido", "archivado", "traslado_competencia"]
@@ -652,7 +652,7 @@ with tab_gestion:
                     if fecha_venc_dt.tzinfo is None:
                         fecha_venc_dt = fecha_venc_dt.replace(tzinfo=timezone.utc)
                     hoy = datetime.now(timezone.utc)
-                    dias_restantes = (fecha_venc_dt - hoy).days
+                    dias_restantes = (fecha_venc_dt.date() - hoy.date()).days
                     dias_restantes_val = dias_restantes
                     if dias_restantes < 0:
                         tiempo_restante = f"🛑 {-dias_restantes} d. atraso"
