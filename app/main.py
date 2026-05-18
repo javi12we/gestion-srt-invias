@@ -352,7 +352,7 @@ def pantalla_login() -> None:
             display: none !important;
             visibility: hidden !important;
         }
-        div[data-testid="stPopover"] > button {
+        div[data-testid="stPopover"] button {
             background-color: #FF8C00 !important; /* Naranja institucional para combinar con fondo */
             color: #FFFFFF !important;
             border: none !important;
@@ -365,19 +365,21 @@ def pantalla_login() -> None:
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4), 0 0 10px rgba(255, 140, 0, 0.3) !important;
             transition: transform 0.3s ease !important;
         }
-        div[data-testid="stPopover"] > button:hover {
+        div[data-testid="stPopover"] button:hover {
             transform: translateY(-2px) !important;
             background-color: #E67E00 !important;
             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 140, 0, 0.5) !important;
         }
         /* Texto interior del botón popover a blanco para evitar conflictos */
-        div[data-testid="stPopover"] > button p,
-        div[data-testid="stPopover"] > button span {
+        div[data-testid="stPopover"] button p,
+        div[data-testid="stPopover"] button span {
             color: #FFFFFF !important;
         }
         
         /* ===== Estilos del contenido del Popover (Aislando del modo oscuro/claro) ===== */
         div[data-testid="stPopoverBody"],
+        div[data-baseweb="popover"],
+        div[data-baseweb="popover"] > div,
         div[role="dialog"] {
             background-color: rgba(10, 5, 3, 0.98) !important; /* Color oscuro de las cajas de texto */
             border: 1px solid #FF8C00 !important; /* Borde naranja */
@@ -387,14 +389,9 @@ def pantalla_login() -> None:
         }
         /* Forzar texto a blanco independientemente del tema de Streamlit */
         div[data-testid="stPopoverBody"] *,
+        div[data-baseweb="popover"] *,
         div[role="dialog"] * {
             color: #FAFAFA !important;
-        }
-        /* Excepto el bloque de código del correo, que tendrá color naranja */
-        div[data-testid="stPopoverBody"] code,
-        div[role="dialog"] code {
-            color: #FF8C00 !important;
-            background-color: rgba(255, 255, 255, 0.1) !important;
         }
 
         /* ===== Ajuste contenido principal ===== */
@@ -452,10 +449,13 @@ def pantalla_login() -> None:
             st.markdown("<p style='font-size: 14px; color: #D3C3B8;'>Si tienes problemas de acceso, comunícate con nosotros.</p>", unsafe_allow_html=True)
             
             st.write("📧 **Correo Electrónico:**")
-            st.code("jdelgadov@invias.gov.co", language="text")
+            st.markdown(
+                "<div style='background-color: rgba(20, 10, 5, 0.8); border: 1px solid rgba(255, 140, 0, 0.4); border-radius: 8px; padding: 12px; text-align: center; color: #FF8C00; font-family: monospace; font-size: 16px; letter-spacing: 0.5px;'>jdelgadov@invias.gov.co</div>", 
+                unsafe_allow_html=True
+            )
             
             st.write("")
-            whatsapp_url = "https://wa.me/573169333608?text=Hola,%0A%0ANecesito%20ayuda%20con%20el%20aplicativo%20*Gestiones%20Digitales%20SRTI*.%0A%0AQuedo%20atento%20a%20su%20soporte.%20Gracias."
+            whatsapp_url = "https://wa.me/573169333607?text=Hola,%0A%0ANecesito%20ayuda%20con%20el%20aplicativo%20*Gestiones%20Digitales%20SRTI*.%0A%0AQuedo%20atento%20a%20su%20soporte.%20Gracias."
             st.markdown(f"<a href='{whatsapp_url}' target='_blank' style='display: block; background-color: #25D366; color: white; text-align: center; padding: 10px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 5px; box-shadow: 0 4px 10px rgba(37,211,102,0.3);'>🟢 Escribir a WhatsApp</a>", unsafe_allow_html=True)
 
 
