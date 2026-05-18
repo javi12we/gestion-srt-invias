@@ -401,17 +401,15 @@ def pantalla_login() -> None:
         .block-container {
             position: relative;
             z-index: 10;
+            padding-top: 2rem !important;
+            padding-bottom: 1rem !important;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # Crear un diseño centrado usando columnas, reduciendo MÁS el ancho general de la caja
     col1, col2, col3 = st.columns([1.8, 1.1, 1.8])
     
     with col2:
-        st.write("")
-        st.write("")
-        
         # Agrupamos título y logo DENTRO del formulario para que queden sobre la caja oscura
         with st.form("form_login", clear_on_submit=False):
             # Nuevo logo de la empresa (Agrandado en proporción)
