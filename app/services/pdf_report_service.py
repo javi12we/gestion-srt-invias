@@ -100,28 +100,25 @@ class PDFReportService:
             if not responsable or responsable.strip() == "Gladys Gutierrez Buitrago":
                 continue
                 
-            f_radicacion = doc.get("fecha_radicacion")
-            if not f_radicacion:
+            f_vencimiento = doc.get("fecha_vencimiento")
+            if not f_vencimiento:
                 continue
-                
-            # Calcular los días hábiles totales que lleva el radicado
-            total_dias_habiles = self._calcular_dias_habiles(f_radicacion, hoy)
             
-            # Solo incluir si ya pasaron los 10 días reglamentarios
-            if total_dias_habiles >= 10:
-                # El usuario quiere ver los días de "retraso" (pasados los 10 días).
-                # Calculamos los días hábiles pasados desde la fecha de vencimiento.
-                f_vencimiento = doc.get("fecha_vencimiento")
-                if f_vencimiento:
-                    dias_retraso = self._calcular_dias_habiles(f_vencimiento, hoy)
-                else:
-                    dias_retraso = total_dias_habiles - 10
-                    
-                filas.append({
-                    "NO. RADICADO": doc.get("numero_radicado", "S/N"),
-                    "Usuario Responsable": responsable,
-                    "Días sin respuesta": dias_retraso
-                })
+            if isinstance(f_vencimiento, datetime):
+                if f_vencimiento.tzinfo is None:
+                    f_vencimiento = f_vencimiento.replace(tzinfo=timezone.utc)
+                if f_vencimiento.tzinfo != timezone.utc:
+                    f_vencimiento = f_vencimiento.astimezone(timezone.utc)
+            
+            # Calcular días de atraso en días completos/calendario
+            if hoy > f_vencimiento:
+                dias_retraso = (hoy - f_vencimiento).days
+                if dias_retraso > 0:
+                    filas.append({
+                        "NO. RADICADO": doc.get("numero_radicado", "S/N"),
+                        "Usuario Responsable": responsable,
+                        "Días sin respuesta": dias_retraso
+                    })
                 
         df_reporte = pd.DataFrame(filas)
         if not df_reporte.empty:
@@ -198,25 +195,25 @@ class PDFReportService:
             if not responsable or responsable.strip() == "Gladys Gutierrez Buitrago":
                 continue
                 
-            f_radicacion = doc.get("fecha_radicacion")
-            if not f_radicacion:
+            f_vencimiento = doc.get("fecha_vencimiento")
+            if not f_vencimiento:
                 continue
-                
-            # Calcular los días hábiles totales que lleva el radicado
-            total_dias_habiles = self._calcular_dias_habiles(f_radicacion, hoy)
             
-            if total_dias_habiles >= 10:
-                f_vencimiento = doc.get("fecha_vencimiento")
-                if f_vencimiento:
-                    dias_retraso = self._calcular_dias_habiles(f_vencimiento, hoy)
-                else:
-                    dias_retraso = total_dias_habiles - 10
-                    
-                filas.append({
-                    "No. Radicado": doc.get("numero_radicado", "S/N"),
-                    "Usuario Responsable": responsable,
-                    "Días sin respuesta": dias_retraso
-                })
+            if isinstance(f_vencimiento, datetime):
+                if f_vencimiento.tzinfo is None:
+                    f_vencimiento = f_vencimiento.replace(tzinfo=timezone.utc)
+                if f_vencimiento.tzinfo != timezone.utc:
+                    f_vencimiento = f_vencimiento.astimezone(timezone.utc)
+            
+            # Calcular días de atraso en días completos/calendario
+            if hoy > f_vencimiento:
+                dias_retraso = (hoy - f_vencimiento).days
+                if dias_retraso > 0:
+                    filas.append({
+                        "No. Radicado": doc.get("numero_radicado", "S/N"),
+                        "Usuario Responsable": responsable,
+                        "Días sin respuesta": dias_retraso
+                    })
                 
         df_reporte = pd.DataFrame(filas)
         
