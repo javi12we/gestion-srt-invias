@@ -386,7 +386,8 @@ def pantalla_login() -> None:
         }
         /* Ocultar forzosamente el icono default de flecha de Streamlit (expand_more) que daña el botón */
         div[data-testid="stPopover"] button svg,
-        div[data-testid="stPopover"] button span.material-symbols-rounded {
+        div[data-testid="stPopover"] button > span,
+        div[data-testid="stPopover"] button span[class*="material-"] {
             display: none !important;
             visibility: hidden !important;
         }
