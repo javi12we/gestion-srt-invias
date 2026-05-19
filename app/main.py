@@ -281,6 +281,14 @@ def pantalla_login() -> None:
             padding: 3rem 2.5rem !important; 
             position: relative;
             z-index: 10;
+            max-width: 420px !important;
+            margin: 0 auto !important;
+        }
+
+        /* ===== Centrar alertas de error ===== */
+        [data-testid="stAlert"] {
+            max-width: 420px !important;
+            margin: 1rem auto !important;
         }
 
         /* ===== Entradas de Datos (Inputs más pequeños) ===== */
@@ -448,9 +456,9 @@ def pantalla_login() -> None:
         </style>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1.8, 1.1, 1.8])
-    
-    with col2:
+    # En lugar de usar columnas con proporciones fijas que se aplastan en pantallas pequeñas,
+    # usamos un contenedor centralizado a través de las propiedades max-width de CSS.
+    with st.container():
         # Agrupamos título y logo DENTRO del formulario para que queden sobre la caja oscura
         with st.form("form_login", clear_on_submit=False):
             # Nuevo logo de la empresa (Agrandado en proporción)
@@ -482,10 +490,9 @@ def pantalla_login() -> None:
             sesion, error = servicio.iniciar_sesion(usuario.strip(), password)
             if error:
                 st.error(error)
-                return
-
-            iniciar_sesion(sesion)
-            st.rerun()
+            else:
+                iniciar_sesion(sesion)
+                st.rerun()
 
         # ===== Popover de Ayuda/Soporte =====
         with st.popover("🎧 Soporte Técnico"):
