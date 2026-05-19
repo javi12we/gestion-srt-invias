@@ -388,12 +388,14 @@ def pantalla_login() -> None:
         div[data-testid="stPopover"] button svg,
         div[data-testid="stPopover"] button [data-testid="stIcon"],
         div[data-testid="stPopover"] button span[data-testid="stIcon"],
-        div[data-testid="stPopover"] button span[class*="material-"],
-        div[data-testid="stPopover"] button span:not([data-testid="stMarkdownContainer"] *) {
+        div[data-testid="stPopover"] button span[class*="material-"] {
             display: none !important;
             visibility: hidden !important;
         }
         div[data-testid="stPopover"] button {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
             background-color: #FF8C00 !important; /* Naranja institucional para combinar con fondo */
             color: #FFFFFF !important;
             border: none !important;
