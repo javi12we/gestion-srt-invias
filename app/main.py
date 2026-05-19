@@ -384,11 +384,12 @@ def pantalla_login() -> None:
             justify-content: center;
             margin-top: 15px;
         }
-        /* Ocultar forzosamente el icono default de flecha de Streamlit (expand_more) que daña el botón */
+        /* Ocultar forzosamente el icono default de flecha de Streamlit (expand_more/expand_less) que daña el botón */
         div[data-testid="stPopover"] button svg,
         div[data-testid="stPopover"] button [data-testid="stIcon"],
         div[data-testid="stPopover"] button span[data-testid="stIcon"],
-        div[data-testid="stPopover"] button span[class*="material-"] {
+        div[data-testid="stPopover"] button span[class*="material-"],
+        div[data-testid="stPopover"] button span:not(:has([data-testid="stMarkdownContainer"])):not([data-testid="stMarkdownContainer"]):not([data-testid="stMarkdownContainer"] *) {
             display: none !important;
             visibility: hidden !important;
         }
