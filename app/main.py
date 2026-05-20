@@ -620,6 +620,7 @@ else:
     page_dashboard = st.Page(pantalla_dashboard, title="Inicio", icon="🏠", default=True)
     page_perfil = st.Page("pages/2_mi_perfil.py", title="Mi Perfil", icon="👤")
     page_correspondencia = st.Page("pages/2_correspondencia.py", title="Correspondencia", icon="📬")
+    page_instructivos = st.Page("pages/3_instructivos.py", title="Instructivos", icon="📚")
     
     # Páginas de administración
     admin_pages = []
@@ -633,8 +634,9 @@ else:
     
     # Agrupar páginas
     menu_dict = {
-        "Principal": [page_dashboard, page_correspondencia, page_perfil],
+        "Principal": [page_dashboard, page_correspondencia, page_perfil, page_instructivos],
     }
+
     
     if admin_pages:
         menu_dict["Administración"] = admin_pages
