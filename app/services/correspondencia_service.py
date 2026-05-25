@@ -12,6 +12,16 @@ class CorrespondenciaService:
         self.repo = CorrespondenciaRepositorio()
         self.festivos_co = holidays.CO()
 
+    def _usuario_object_id(self, usuario_id: Optional[str]):
+        return ObjectId(usuario_id) if usuario_id else None
+
+    def _auditoria_usuario(self, usuario_id: Optional[str], nombre: str, fecha: Optional[datetime] = None) -> Dict:
+        return {
+            "usuario_id": self._usuario_object_id(usuario_id),
+            "nombre": nombre,
+            "fecha": fecha or datetime.now(timezone.utc),
+        }
+
     def listar_correspondencia(self, id_usuario: Optional[str] = None, ver_todas: bool = False, skip: int = 0, limit: int = 10, filtros: dict = None) -> tuple[List[Dict], int]:
         """
         Lista las correspondencias. Si ver_todas es True, devuelve todas.
@@ -20,7 +30,7 @@ class CorrespondenciaService:
         """
         query = {}
         if not ver_todas and id_usuario:
-            query["responsable_actual.usuario_id"] = id_usuario
+            query["responsable_actual.usuario_id"] = self._usuario_object_id(id_usuario)
             
         if filtros:
             # Estado
@@ -53,7 +63,7 @@ class CorrespondenciaService:
 
             # Filtro por responsable (para coordinadores/admin)
             if "responsable_id" in filtros and filtros["responsable_id"] != "Todos":
-                query["responsable_actual.usuario_id"] = filtros["responsable_id"]
+                query["responsable_actual.usuario_id"] = self._usuario_object_id(filtros["responsable_id"])
 
             if "busqueda" in filtros and filtros["busqueda"]:
                 busqueda_escapada = re.escape(filtros["busqueda"])
@@ -80,8 +90,9 @@ class CorrespondenciaService:
                 dias_agregados += 1
         return fecha_actual
 
-    def crear_correspondencia(self, datos: dict, usuario_ejecutor_nombre: str) -> str:
+    def crear_correspondencia(self, datos: dict, usuario_ejecutor_nombre: str, usuario_ejecutor_id: Optional[str] = None) -> str:
         fecha_actual = datetime.now(timezone.utc)
+        auditoria = self._auditoria_usuario(usuario_ejecutor_id, usuario_ejecutor_nombre, fecha_actual)
         
         # Sanitizar y validar número de radicado a nivel de servicio
         if "numero_radicado" in datos and datos["numero_radicado"]:
@@ -116,13 +127,16 @@ class CorrespondenciaService:
         if "respuesta" in datos:
             del datos["respuesta"]
 
+        datos["creado_por"] = auditoria
+        datos["actualizado_por"] = auditoria
+
         return str(self.repo.crear(datos))
         
     def existe_radicado(self, numero_radicado):
         """Verifica si un número de radicado ya existe en la base de datos."""
         return self.repo.buscar_por_radicado(numero_radicado) is not None
         
-    def editar_correspondencia(self, id_correspondencia: str, datos_actualizados: dict, usuario_ejecutor_nombre: str) -> bool:
+    def editar_correspondencia(self, id_correspondencia: str, datos_actualizados: dict, usuario_ejecutor_nombre: str, usuario_ejecutor_id: Optional[str] = None) -> bool:
         """Permite editar campos básicos del radicado."""
         # Obtener el radicado actual para conocer su estado y validar existencia
         correspondencia = self.repo.buscar_por_id(id_correspondencia)
@@ -137,6 +151,8 @@ class CorrespondenciaService:
         
         if not campos_a_actualizar:
             return False
+
+        campos_a_actualizar["actualizado_por"] = self._auditoria_usuario(usuario_ejecutor_id, usuario_ejecutor_nombre)
             
         evento_trazabilidad = {
             "fecha": datetime.now(timezone.utc),
@@ -156,7 +172,8 @@ class CorrespondenciaService:
         nuevo_responsable_id: str, 
         nuevo_responsable_nombre: str, 
         usuario_ejecutor_nombre: str,
-        comentario: str = "Asignación de correspondencia"
+        comentario: str = "Asignación de correspondencia",
+        usuario_ejecutor_id: Optional[str] = None
     ) -> bool:
         correspondencia = self.repo.buscar_por_id(id_correspondencia)
         if not correspondencia:
@@ -171,11 +188,12 @@ class CorrespondenciaService:
         
         campos_actualizar = {
             "responsable_actual": {
-                "usuario_id": str(nuevo_responsable_id),
+                "usuario_id": ObjectId(nuevo_responsable_id),
                 "nombre": nuevo_responsable_nombre,
                 "fecha_asignacion": fecha_actual
             },
-            "estado_actual": nuevo_estado
+            "estado_actual": nuevo_estado,
+            "actualizado_por": self._auditoria_usuario(usuario_ejecutor_id, usuario_ejecutor_nombre, fecha_actual)
         }
 
         evento_trazabilidad = {
@@ -194,7 +212,7 @@ class CorrespondenciaService:
         resultado = self.repo.actualizar_con_trazabilidad(id_correspondencia, campos_actualizar, evento_trazabilidad)
         return resultado.modified_count > 0
 
-    def cambiar_estado(self, id_correspondencia: str, nuevo_estado: str, usuario_ejecutor_nombre: str, comentario: str) -> bool:
+    def cambiar_estado(self, id_correspondencia: str, nuevo_estado: str, usuario_ejecutor_nombre: str, comentario: str, usuario_ejecutor_id: Optional[str] = None) -> bool:
         correspondencia = self.repo.buscar_por_id(id_correspondencia)
         if not correspondencia:
             return False
@@ -203,7 +221,10 @@ class CorrespondenciaService:
         if estado_anterior == nuevo_estado:
             return False
 
-        campos_actualizar = {"estado_actual": nuevo_estado}
+        campos_actualizar = {
+            "estado_actual": nuevo_estado,
+            "actualizado_por": self._auditoria_usuario(usuario_ejecutor_id, usuario_ejecutor_nombre)
+        }
         
         evento_trazabilidad = {
             "fecha": datetime.now(timezone.utc),
@@ -223,7 +244,8 @@ class CorrespondenciaService:
         numero_oficio: str, 
         usuario_ejecutor_nombre: str, 
         comentario: str = "Se dio respuesta al radicado",
-        fecha_respuesta: Optional[datetime] = None
+        fecha_respuesta: Optional[datetime] = None,
+        usuario_ejecutor_id: Optional[str] = None
     ) -> bool:
         correspondencia = self.repo.buscar_por_id(id_correspondencia)
         if not correspondencia:
@@ -239,7 +261,8 @@ class CorrespondenciaService:
             "respuesta": {
                 "numero_oficio": numero_oficio,
                 "fecha_salida": fecha_salida
-            }
+            },
+            "actualizado_por": self._auditoria_usuario(usuario_ejecutor_id, usuario_ejecutor_nombre, fecha_actual)
         }
 
         
@@ -255,7 +278,7 @@ class CorrespondenciaService:
         resultado = self.repo.actualizar_con_trazabilidad(id_correspondencia, campos_actualizar, evento_trazabilidad)
         return resultado.modified_count > 0
 
-    def archivar(self, id_correspondencia: str, usuario_ejecutor_nombre: str, comentario: str = "Se archivó el radicado") -> bool:
+    def archivar(self, id_correspondencia: str, usuario_ejecutor_nombre: str, comentario: str = "Se archivó el radicado", usuario_ejecutor_id: Optional[str] = None) -> bool:
         correspondencia = self.repo.buscar_por_id(id_correspondencia)
         if not correspondencia:
             return False
@@ -264,7 +287,8 @@ class CorrespondenciaService:
         nuevo_estado = "archivado"
         
         campos_actualizar = {
-            "estado_actual": nuevo_estado
+            "estado_actual": nuevo_estado,
+            "actualizado_por": self._auditoria_usuario(usuario_ejecutor_id, usuario_ejecutor_nombre)
         }
         
         evento_trazabilidad = {
@@ -286,7 +310,7 @@ class CorrespondenciaService:
         # Base de consulta (si hay usuario, solo lo asignado a él; si no, todo lo activo)
         query_activos = {"estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]}}
         if id_usuario:
-            query_activos["responsable_actual.usuario_id"] = id_usuario
+            query_activos["responsable_actual.usuario_id"] = self._usuario_object_id(id_usuario)
             
         # Vencidos o por vencer en menos de 5 días
         query_urgentes = query_activos.copy()

@@ -140,11 +140,31 @@ ESQUEMA_CORRESPONDENCIA = {
         "tipo": { "bsonType": "string" },
         "grupo": { "bsonType": "string" },
         "clase": { "bsonType": "string" },
+        "creado_por": {
+            "bsonType": "object",
+            "required": ["usuario_id", "nombre", "fecha"],
+            "properties": {
+                "usuario_id": { "bsonType": "objectId" },
+                "nombre": { "bsonType": "string" },
+                "fecha": { "bsonType": "date" }
+            },
+            "description": "Usuario que creó la correspondencia"
+        },
+        "actualizado_por": {
+            "bsonType": "object",
+            "required": ["usuario_id", "nombre", "fecha"],
+            "properties": {
+                "usuario_id": { "bsonType": "objectId" },
+                "nombre": { "bsonType": "string" },
+                "fecha": { "bsonType": "date" }
+            },
+            "description": "Usuario que realizó la última actualización"
+        },
         "responsable_actual": {
             "bsonType": "object",
             "required": ["usuario_id", "nombre", "fecha_asignacion"],
             "properties": {
-                "usuario_id": { "bsonType": "string" },
+                "usuario_id": { "bsonType": "objectId" },
                 "nombre": { "bsonType": "string" },
                 "fecha_asignacion": { "bsonType": "date" }
             },
@@ -181,4 +201,4 @@ ESQUEMA_CORRESPONDENCIA = {
             }
         }
     }
-}
+}

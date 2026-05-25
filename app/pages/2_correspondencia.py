@@ -209,7 +209,8 @@ def modal_gestion_correspondencia(corr_actual):
                                 service.editar_correspondencia(
                                     id_seleccionado, 
                                     {"asunto": ed_asunto, "peticionario": ed_peticionario, "observaciones_generales": ed_observaciones}, 
-                                    nombre_usuario_actual
+                                    nombre_usuario_actual,
+                                    usuario_ejecutor_id=id_usuario_actual
                                 )
                                 st.success("Actualizado")
                                 st.rerun()
@@ -217,7 +218,7 @@ def modal_gestion_correspondencia(corr_actual):
                                 st.error(f"Error: {e}")
 
         # Determinar si el usuario es el responsable actual del radicado
-        es_responsable = corr_actual.get("responsable_actual", {}).get("usuario_id") == id_usuario_actual
+        es_responsable = str(corr_actual.get("responsable_actual", {}).get("usuario_id")) == str(id_usuario_actual)
 
         # Acción 2: Asignar (Traslado a otro usuario)
         # Los administradores y personal de asignación pueden asignar todo.
@@ -243,7 +244,8 @@ def modal_gestion_correspondencia(corr_actual):
                                     nuevo_resp_id,
                                     usuarios_opts[nuevo_resp_id],
                                     nombre_usuario_actual,
-                                    comentario_asig
+                                    comentario_asig,
+                                    usuario_ejecutor_id=id_usuario_actual
                                 )
                                 st.success("Asignado exitosamente")
                                 st.rerun()
@@ -294,7 +296,8 @@ def modal_gestion_correspondencia(corr_actual):
                                             nuevo_resp_id_g,
                                             admins_opts[nuevo_resp_id_g],
                                             nombre_usuario_actual,
-                                            f"[Gestor] {comentario_gestor}"
+                                            f"[Gestor] {comentario_gestor}",
+                                            usuario_ejecutor_id=id_usuario_actual
                                         )
                                         st.success("Reasignado exitosamente al administrador.")
                                         st.rerun()
@@ -330,7 +333,14 @@ def modal_gestion_correspondencia(corr_actual):
                         if st.button("Marcar como Respondido", disabled=not es_valido, key=f"btn_marcar_resp_{id_seleccionado}"):
                             # Convertir fecha de date a datetime
                             f_resp_dt = datetime.combine(fecha_resp, datetime.min.time()).replace(tzinfo=timezone.utc)
-                            service.dar_respuesta(id_seleccionado, num_oficio, nombre_usuario_actual, comentario_resp, fecha_respuesta=f_resp_dt)
+                            service.dar_respuesta(
+                                id_seleccionado,
+                                num_oficio,
+                                nombre_usuario_actual,
+                                comentario_resp,
+                                fecha_respuesta=f_resp_dt,
+                                usuario_ejecutor_id=id_usuario_actual
+                            )
                             st.success("Respuesta registrada")
                             st.rerun()
 
@@ -340,7 +350,12 @@ def modal_gestion_correspondencia(corr_actual):
                         with st.form(f"form_archivar_{id_seleccionado}"):
                             comentario_arch = st.text_input("Comentario (Opcional)", value="Cierre del caso")
                             if st.form_submit_button("Archivar", type="primary"):
-                                service.archivar(id_seleccionado, nombre_usuario_actual, comentario_arch)
+                                service.archivar(
+                                    id_seleccionado,
+                                    nombre_usuario_actual,
+                                    comentario_arch,
+                                    usuario_ejecutor_id=id_usuario_actual
+                                )
                                 st.success("Archivado")
                                 st.rerun()
                                 
@@ -349,7 +364,13 @@ def modal_gestion_correspondencia(corr_actual):
                         with st.form(f"form_traslado_comp_{id_seleccionado}"):
                             comentario_tc = st.text_input("Comentario", value="No es competencia de la entidad")
                             if st.form_submit_button("Trasladar", type="primary"):
-                                service.cambiar_estado(id_seleccionado, "traslado_competencia", nombre_usuario_actual, comentario_tc)
+                                service.cambiar_estado(
+                                    id_seleccionado,
+                                    "traslado_competencia",
+                                    nombre_usuario_actual,
+                                    comentario_tc,
+                                    usuario_ejecutor_id=id_usuario_actual
+                                )
                                 st.success("Traslado por competencia registrado")
                                 st.rerun()
                             
@@ -522,9 +543,15 @@ if is_asignacion:
                         }
                     }
                     try:
-                        id_nuevo = service.crear_correspondencia(datos, nombre_usuario_actual)
+                        id_nuevo = service.crear_correspondencia(datos, nombre_usuario_actual, id_usuario_actual)
                         if is_traslado:
-                            service.cambiar_estado(id_nuevo, "traslado_competencia", nombre_usuario_actual, "Traslado por competencia inicial")
+                            service.cambiar_estado(
+                                id_nuevo,
+                                "traslado_competencia",
+                                nombre_usuario_actual,
+                                "Traslado por competencia inicial",
+                                usuario_ejecutor_id=id_usuario_actual
+                            )
                             st.session_state["mensaje_exito"] = f"Correspondencia {numero_radicado} creada y trasladada por competencia."
                             limpiar_formulario()
                             st.rerun() 
@@ -535,7 +562,8 @@ if is_asignacion:
                                 asignado_a,
                                 usuarios_opts[asignado_a],
                                 nombre_usuario_actual,
-                                "Asignación inicial en radicación"
+                                "Asignación inicial en radicación",
+                                usuario_ejecutor_id=id_usuario_actual
                             )
                             st.session_state["mensaje_exito"] = f"Correspondencia {numero_radicado} creada y asignada exitosamente."
                         
