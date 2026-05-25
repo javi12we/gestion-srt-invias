@@ -240,7 +240,7 @@ def aplicar_tema():
         </style>
     """, unsafe_allow_html=True)
 
-aplicar_tema()
+# aplicar_tema()
 
 
 def pantalla_login() -> None:
