@@ -2,8 +2,8 @@ import streamlit as st
 from pathlib import Path
 
 # URLs for resources
-PDF_URL = "https://drive.google.com/file/d/1NXb90nmDl5347ZQeo0MMdN4ID17p8zJn/view?usp=drive_link"
-VIDEO_URL = "https://www.youtube.com/watch?v=rbJHvDWeEvY"
+PDF_URL = "https://invias-my.sharepoint.com/:b:/g/personal/srti_invias_gov_co/IQCYL5xtar5uRYKiE2Ie67LqAVG7bs4PylUKHShk8DGk2d4?e=dTd9cH"
+VIDEO_URL = "https://invias-my.sharepoint.com/:v:/g/personal/srti_invias_gov_co/IQD38W4JO-ypQavnQIaKu7qZAXyv1x_rPNy0FweZtT4DWLQ?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&e=Tl6SME"
 
 def get_drive_embed(url: str) -> str:
     """Convert a normal Google Drive share link to an embed URL for preview."""
