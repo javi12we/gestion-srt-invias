@@ -22,212 +22,225 @@ st.set_page_config(
     page_icon="app/assets/invias_fav_ico_3.ico"
 )
 
-# --- LÓGICA DE TEMA (MODO OSCURO/CLARO) ---
-if "tema" not in st.session_state:
-    st.session_state.tema = "Claro"
-
 def aplicar_tema():
-    if st.session_state.tema == "Oscuro":
-        st.markdown("""
-            <style>
-            /* --- ESTILOS MODO OSCURO (REFUERZO NUCLEAR) --- */
-            .stApp {
-                background-color: #0E1117 !important;
-                color: #FAFAFA !important;
-            }
-            [data-testid="stSidebar"] {
-                background-color: #16120F !important; /* Café muy oscuro sutil */
-                border-right: 1px solid rgba(255, 140, 0, 0.15) !important;
-            }
-            [data-testid="stHeader"] {
-                background-color: rgba(22, 18, 15, 0.8) !important;
-                border-top: 3px solid #FF8C00 !important;
-            }
+    st.markdown("""
+        <style>
+        /* ===== Tipografía General ===== */
+        .stApp, .stMarkdown, .stText, p, h1, h2, h3, h4, h5, h6, label, li, 
+        [data-testid="stWidgetLabel"] p, [data-testid="stMarkdownContainer"] p {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+            color: #FAFAFA !important;
+        }
 
-            /* 1. TIPOGRAFÍA Y ETIQUETAS (GLOBAL) */
-            .stApp, .stMarkdown, .stText, p, h1, h2, h3, h4, h5, h6, span, label, li, 
-            [data-testid="stWidgetLabel"] p, [data-testid="stMarkdownContainer"] p {
-                color: #FAFAFA !important;
-            }
+        /* ===== Fondo Principal (Más profundidad, mezcla de naranjas y cafés vivos) ===== */
+        .stApp {
+            background: linear-gradient(135deg, #E87A1E 0%, #A65012 50%, #3D1E0A 100%) !important;
+            background-attachment: fixed !important;
+            overflow-x: hidden;
+            z-index: 1;
+        }
 
-            /* 2. BOTONES (REFUERZO NUCLEAR DE ESTADO BASE) */
-            /* Forzar el estado inicial de TODOS los botones en la App */
-            .stApp button, 
-            .stApp [data-testid="stBaseButton-secondary"],
-            .stApp [data-testid="stBaseButton-primary"],
-            .stApp div[data-testid="stPopover"] > button,
-            div[data-testid="stColumn"] button {
-                background-color: #262730 !important;
-                color: #FAFAFA !important;
-                border: 1px solid #444 !important;
-                border-radius: 8px !important;
-            }
+        /* ===== Geometrías Adaptables Superpuestas ===== */
+        /* Círculo difuso iluminado (blanco pastel / naranja claro) */
+        .stApp::before {
+            content: ""; position: fixed; width: 650px; height: 650px;
+            background: radial-gradient(circle, rgba(255, 230, 180, 0.25) 0%, transparent 60%);
+            top: -150px; left: -150px; border-radius: 50%; z-index: 0;
+            box-shadow: 800px 500px 0 150px rgba(255, 160, 40, 0.15); /* Clon disperso */
+            pointer-events: none;
+        }
 
-            /* Forzar que el contenido interno (texto, iconos) sea blanco desde el inicio */
-            .stApp button p, .stApp button span, .stApp button div, .stApp button svg {
-                color: #FAFAFA !important;
-                fill: #FAFAFA !important;
-            }
+        /* Cuadrado redondeado rotado (Naranja fuerte) */
+        .stApp::after {
+            content: ""; position: fixed; width: 450px; height: 450px;
+            background: linear-gradient(135deg, rgba(255, 140, 0, 0.4) 0%, rgba(200, 80, 10, 0.1) 100%);
+            bottom: 5%; right: -100px; 
+            border-radius: 60px; 
+            transform: rotate(35deg);
+            z-index: 0;
+            box-shadow: -800px -300px 0 80px rgba(100, 45, 15, 0.3); /* Clon oscuro a la izquierda */
+            pointer-events: none;
+        }
 
-            /* Botones primarios (Accento Naranja Login) */
-            .stApp button[kind="primary"],
-            .stApp [data-testid="stBaseButton-primary"] {
-                background-color: #FF8C00 !important;
-                color: #FFFFFF !important;
-                border: none !important;
-                font-weight: bold !important;
-            }
+        /* ===== Estilizar Contenedores y Formularios ===== */
+        div[data-testid="stForm"], div[data-testid="stVerticalBlockBorderWrapper"] {
+            background-color: rgba(35, 20, 12, 0.9) !important; /* Modo oscuro pero con base café/naranja profundo */
+            border: 1px solid rgba(255, 150, 50, 0.3) !important; /* Borde naranja vibrante pero sutil */
+            border-radius: 20px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 0 10px rgba(255, 140, 0, 0.05) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            position: relative;
+            z-index: 10;
+        }
 
-            /* 3. HOVER (Mantener lo funcional) */
-            .stApp button:hover {
-                border-color: #FF8C00 !important;
-                color: #FF8C00 !important;
-                background-color: rgba(255, 140, 0, 0.1) !important;
-            }
+        /* ===== Sidebar (Café oscuro del contenedor de login) ===== */
+        [data-testid="stSidebar"] {
+            background-color: rgba(35, 20, 12, 1) !important; /* Café oscuro */
+            border-right: 1px solid rgba(255, 140, 0, 0.3) !important;
+        }
+        [data-testid="stHeader"] {
+            background-color: rgba(35, 20, 12, 0.8) !important;
+            border-bottom: 2px solid #FF8C00 !important;
+        }
 
-            /* 4. CONTENEDORES (DIÁLOGOS, POPOVERS Y FORMULARIOS) */
-            div[data-testid="stDialog"] > div:first-child {
-                background-color: rgba(0, 0, 0, 0.7) !important;
-            }
-            
-            div[role="dialog"], 
-            div[data-testid="stDialog"] div[role="dialog"],
-            div[data-testid="stPopoverBody"], 
-            div[data-testid="stPopoverContent"],
-            div[data-testid="stForm"] {
-                background-color: #1A1C24 !important;
-                color: #FAFAFA !important;
-                border: 1px solid #444 !important;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
-            }
+        /* Navegación lateral */
+        div[data-testid="stSidebarNavItems"] a:hover {
+            background-color: rgba(255, 140, 0, 0.2) !important;
+            color: #FF8C00 !important;
+        }
+        div[data-testid="stSidebarNavItems"] a[aria-current="page"] {
+            background-color: rgba(255, 140, 0, 0.3) !important;
+            border-left: 4px solid #FF8C00 !important;
+        }
+        div[data-testid="stSidebarNavItems"] a[aria-current="page"] span {
+            color: #FF8C00 !important;
+            font-weight: bold !important;
+        }
 
-            /* Estilo para los contenedores que explícitamente tienen borde (border=True) sin alterar los contenedores invisibles/transparentes */
-            div[data-testid="stVerticalBlockBorderWrapper"] {
-                border-color: #444 !important;
-            }
+        /* ===== Entradas de Datos (Inputs blancos con letra oscura) ===== */
+        div[data-baseweb="input"], div[data-baseweb="select"] > div, .stApp textarea {
+            background-color: #FFFFFF !important;
+            border: 1px solid rgba(255, 140, 0, 0.5) !important; 
+            border-radius: 8px !important;
+        }
+        div[data-baseweb="input"]:focus-within, div[data-baseweb="select"] > div:focus-within, .stApp textarea:focus {
+            border-color: #FF8C00 !important; 
+            box-shadow: 0 0 0 1px #FF8C00 !important;
+            background-color: #FFFFFF !important;
+        }
+        
+        /* Ajuste de color texto interno para selectores y inputs */
+        .stApp input, .stApp textarea, div[data-baseweb="select"] span {
+            color: #3D1E0A !important; /* Café muy oscuro / casi negro */
+            background-color: transparent !important;
+        }
+        
+        /* Listas desplegables y Tooltips (Naranja claro con texto oscuro) */
+        div[data-baseweb="popover"], div[role="listbox"], div[data-testid="stTooltipContent"] {
+            background-color: #FFF3E0 !important;
+            border: 1px solid #FF8C00 !important;
+            color: #000000 !important;
+        }
+        div[data-baseweb="popover"] *, div[role="listbox"] *, div[data-testid="stTooltipContent"] * {
+            color: #000000 !important;
+        }
+        div[role="option"]:hover, li[role="option"]:hover {
+            background-color: #FFE0B2 !important;
+        }
 
-            /* 5. ENTRADAS DE DATOS (INPUTS, SELECTS) */
-            .stApp input, .stApp textarea, .stApp select,
-            .stApp div[data-baseweb="select"],
-            .stApp div[data-baseweb="input"],
-            .stApp div[data-baseweb="select"] > div {
-                background-color: #262730 !important;
-                color: #FAFAFA !important;
-                border-color: #444 !important;
-            }
+        /* ===== Todos los Botones (Naranja Oscurecido tirando a rojo) ===== */
+        .stApp button, div[data-testid="stPopover"] > button, div[data-testid="stForm"] button, button[kind="secondary"], button[kind="primary"] {
+            background-color: #BA4A00 !important;
+            color: #FFFFFF !important;
+            border: none !important;
+            border-radius: 8px !important;
+            font-weight: bold !important;
+            transition: all 0.3s ease !important;
+        }
+        .stApp button:hover, div[data-testid="stPopover"] > button:hover, div[data-testid="stForm"] button:hover {
+            background-color: #8C3800 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 20px rgba(186, 74, 0, 0.5) !important;
+            color: #FFFFFF !important;
+            border: none !important;
+        }
+        .stApp button p, .stApp button span:not(.material-symbols-rounded) {
+            color: #FFFFFF !important;
+        }
 
-            /* Forzar color de texto en selectboxes y sus opciones seleccionadas */
-            .stApp div[data-baseweb="select"] span, 
-            .stApp div[data-baseweb="select"] div {
-                color: #FAFAFA !important;
-            }
+        /* ===== Pestañas (Tabs) ===== */
+        button[data-baseweb="tab"] {
+            background-color: rgba(35, 20, 12, 0.9) !important;
+            border: 1px solid rgba(255, 140, 0, 0.3) !important;
+            border-bottom: none !important;
+            border-radius: 8px 8px 0 0 !important;
+            margin-right: 5px !important;
+        }
+        button[data-baseweb="tab"] p {
+            color: #FAFAFA !important;
+            font-weight: bold !important;
+        }
+        button[data-baseweb="tab"][aria-selected="true"] {
+            background-color: #BA4A00 !important;
+            border: 1px solid #BA4A00 !important;
+            border-bottom: none !important;
+        }
+        button[data-baseweb="tab"][aria-selected="true"] p {
+            color: #FFFFFF !important;
+        }
 
-            /* --- REFUERZO PARA DESPLEGABLES (MENÚS PORTAL) --- */
-            /* Estos elementos suelen estar fuera de .stApp al final del body */
-            div[data-baseweb="popover"], 
-            div[data-baseweb="menu"], 
-            div[data-baseweb="listbox"],
-            div[role="listbox"],
-            [data-testid="stVirtualDropdown"] {
-                background-color: #1A1C24 !important;
-                color: #FAFAFA !important;
-                border: 1px solid #444 !important;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
-            }
+        /* ===== Diálogos y Popovers (Fondos) ===== */
+        div[data-testid="stDialog"] > div:first-child {
+            background-color: rgba(0, 0, 0, 0.7) !important;
+        }
+        div[role="dialog"], div[data-testid="stPopoverBody"], div[data-baseweb="popover"] > div, div[data-baseweb="modal"] > div {
+            background-color: rgba(35, 20, 12, 1) !important;
+            border: 1px solid #FF8C00 !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
+            border-radius: 12px !important;
+        }
+        /* Eliminar contorno interno naranja de los formularios dentro de popovers */
+        div[role="dialog"] div[data-testid="stVerticalBlockBorderWrapper"], 
+        div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlockBorderWrapper"],
+        div[role="dialog"] div[data-testid="stForm"], 
+        div[data-testid="stPopoverBody"] div[data-testid="stForm"] {
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        /* Restaurar textos de dialogos a blanco ya que los inputs son blancos */
+        div[role="dialog"] p:not([data-testid="stWidgetLabel"] p), div[data-testid="stPopoverBody"] p:not([data-testid="stWidgetLabel"] p), [data-testid="stWidgetLabel"] p, [data-testid="stWidgetLabel"] label {
+            color: #FAFAFA !important;
+        }
+        
+        /* Hacer la tarjeta de perfil del menú lateral más compacta */
+        [data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] {
+            padding: 0px !important;
+            margin-bottom: -25px !important;
+        }
+        /* Logo completamente estático - sin interacción ni expansión */
+        [data-testid="stSidebar"] .logo-static-container img {
+            pointer-events: none !important;
+            cursor: default !important;
+            user-select: none !important;
+            -webkit-user-drag: none !important;
+            border-radius: 8px !important;
+            width: 100% !important;
+            display: block !important;
+            margin-top: 16px !important;
+            margin-bottom: 8px !important;
+        }
+        [data-testid="stSidebar"] .logo-static-container a,
+        [data-testid="stSidebar"] .logo-static-container button {
+            pointer-events: none !important;
+            cursor: default !important;
+        }
+        /* Barra lateral completamente adaptable a la altura de pantalla */
+        [data-testid="stSidebar"] > div:first-child {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100vh !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 !important;
+            overflow-y: auto !important;
+            min-height: 0 !important;
+        }
+        /* Ocultar el botón de expandir/fullscreen de imágenes en sidebar */
+        [data-testid="stSidebar"] [data-testid="stFullScreenFrame"] > button,
+        [data-testid="stSidebar"] button[title="View fullscreen"],
+        [data-testid="stSidebar"] [data-testid="stImage"] + div button {
+            display: none !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-            div[data-baseweb="popover"] *, 
-            div[data-baseweb="menu"] *, 
-            div[role="option"],
-            div[role="listbox"] * {
-                background-color: #1A1C24 !important;
-                color: #FAFAFA !important;
-            }
-
-            /* Hover en opciones de listas */
-            div[role="option"]:hover, 
-            li[role="option"]:hover,
-            [data-testid="stVirtualDropdown"] li:hover {
-                background-color: rgba(255, 140, 0, 0.15) !important;
-                color: #FF8C00 !important;
-            }
-
-            /* 6. OTROS */
-            div[data-testid="stTooltipContent"] {
-                background-color: #262730 !important;
-                color: #FAFAFA !important;
-                border: 1px solid #444 !important;
-            }
-            hr { border-color: #444 !important; }
-
-            /* Navegación lateral (Sidebar Menu) - Integración Login */
-            div[data-testid="stSidebarNavItems"] a:hover {
-                background-color: rgba(255, 140, 0, 0.1) !important;
-                color: #FF8C00 !important;
-            }
-            div[data-testid="stSidebarNavItems"] a[aria-current="page"] {
-                background-color: rgba(255, 140, 0, 0.15) !important;
-                border-left: 4px solid #FF8C00 !important;
-            }
-            div[data-testid="stSidebarNavItems"] a[aria-current="page"] span {
-                color: #FF8C00 !important;
-                font-weight: bold !important;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-            <style>
-            /* Estilos modo claro (limpio) */
-            .stApp {
-                background-color: #FFFFFF !important;
-                color: #262730 !important;
-            }
-            [data-testid="stSidebar"] {
-                background-color: #FFF9F2 !important; /* Naranja muy pálido/cálido */
-                border-right: 1px solid rgba(255, 140, 0, 0.15) !important;
-            }
-            [data-testid="stHeader"] {
-                border-top: 3px solid #FF8C00 !important;
-            }
-            /* Botones en modo claro */
-            .stButton>button {
-                border-radius: 8px !important;
-                transition: all 0.3s ease !important;
-            }
-            .stButton>button[kind="primary"] {
-                background-color: #FF8C00 !important;
-                color: #FFFFFF !important;
-                border: none !important;
-                font-weight: bold !important;
-            }
-            .stButton>button:hover {
-                border-color: #FF8C00 !important;
-                color: #FF8C00 !important;
-            }
-            /* Tooltips en modo claro */
-            div[data-testid="stTooltipContent"] {
-                background-color: #FFFFFF !important;
-                color: #262730 !important;
-                border: 1px solid #E9ECEF !important;
-                border-radius: 4px !important;
-            }
-            /* Navegación lateral (Sidebar Menu) - Integración Login */
-            div[data-testid="stSidebarNavItems"] a:hover {
-                background-color: rgba(255, 140, 0, 0.08) !important;
-                color: #FF8C00 !important;
-            }
-            div[data-testid="stSidebarNavItems"] a[aria-current="page"] {
-                background-color: rgba(255, 140, 0, 0.12) !important;
-                border-left: 4px solid #FF8C00 !important;
-            }
-            div[data-testid="stSidebarNavItems"] a[aria-current="page"] span {
-                color: #FF8C00 !important;
-                font-weight: bold !important;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-
-aplicar_tema()
+# aplicar_tema()
 
 
 def pantalla_login() -> None:
@@ -620,6 +633,7 @@ else:
     page_dashboard = st.Page(pantalla_dashboard, title="Inicio", icon="🏠", default=True)
     page_perfil = st.Page("pages/2_mi_perfil.py", title="Mi Perfil", icon="👤")
     page_correspondencia = st.Page("pages/2_correspondencia.py", title="Correspondencia", icon="📬")
+    page_instructivos = st.Page("pages/3_instructivos.py", title="Instructivos", icon="📚")
     
     # Páginas de administración
     admin_pages = []
@@ -633,8 +647,9 @@ else:
     
     # Agrupar páginas
     menu_dict = {
-        "Principal": [page_dashboard, page_correspondencia, page_perfil],
+        "Principal": [page_dashboard, page_correspondencia, page_perfil, page_instructivos],
     }
+
     
     if admin_pages:
         menu_dict["Administración"] = admin_pages
@@ -676,16 +691,20 @@ else:
             if roles_html:
                 st.write("")
                 st.markdown(roles_html, unsafe_allow_html=True)
-
-        st.divider()
-        es_oscuro = st.toggle("Modo Oscuro 🌙", value=(st.session_state.tema == "Oscuro"))
-        nuevo_tema = "Oscuro" if es_oscuro else "Claro"
-        if nuevo_tema != st.session_state.tema:
-            st.session_state.tema = nuevo_tema
-            st.rerun()
-        st.divider()
         if st.button("🚪 Cerrar sesión", key="logout_btn", use_container_width=True):
             logout()
+            
+        logo_path = os.path.join("app", "assets", "INVIAS_login_logo.png")
+        if os.path.exists(logo_path):
+            import base64
+            with open(logo_path, "rb") as img_file:
+                logo_b64 = base64.b64encode(img_file.read()).decode()
+            st.markdown(
+                f'<div class="logo-static-container">'
+                f'<img src="data:image/png;base64,{logo_b64}" alt="INVIAS Logo" />'
+                f'</div>',
+                unsafe_allow_html=True
+            )
             
     pg.run()
 

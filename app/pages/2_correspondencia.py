@@ -40,7 +40,7 @@ is_coordinador = "coordinador" in roles
 is_lider = "lider" in roles
 is_gestor = "gestor" in roles
 
-can_assign = is_asignacion or is_coordinador or is_lider
+can_assign = is_asignacion or is_coordinador or is_lider or is_gestor
 
 # Si no tiene ningún rol relacionado, no mostramos nada
 if not (is_asignacion or is_coordinador or is_lider or is_gestor):
@@ -222,7 +222,8 @@ def modal_gestion_correspondencia(corr_actual):
         # Acción 2: Asignar (Traslado a otro usuario)
         # Los administradores y personal de asignación pueden asignar todo.
         # Los líderes y coordinadores SOLO pueden reasignar lo que ellos tienen asignado.
-        puedo_reasignar = is_asignacion or (can_assign and es_responsable)
+        # Los gestores SOLO pueden reasignar a usuarios con rol admin.
+        puedo_reasignar = is_asignacion or (can_assign and es_responsable and not is_gestor)
 
         if puedo_reasignar:
             with col_acc2 if is_asignacion else col_acc1:
@@ -249,6 +250,57 @@ def modal_gestion_correspondencia(corr_actual):
                             except Exception as e:
                                 st.error(f"Error: {e}")
 
+        # Acción 2b: Reasignar restringida para GESTOR (solo a admins, comentario obligatorio)
+        if is_gestor and not is_asignacion:
+            with col_acc2:
+                tooltip_gestor = "Solo reasignar en caso de que el radicado no te pertenezca, será revisado"
+                with st.popover("👥 Asignar / Reasignar", use_container_width=True):
+                    st.markdown(
+                        '<p style="color:#FFFFFF; font-weight:bold; font-size:1.05em; margin-bottom:4px;">⚠️ Reasignación restringida</p>',
+                        unsafe_allow_html=True
+                    )
+                    st.caption(tooltip_gestor)
+                    
+                    # Filtrar solo usuarios activos con rol admin
+                    todos_usuarios = usuario_service.listar_usuarios()
+                    admins_opts = {
+                        str(u["_id"]): f"{u.get('nombre_completo', u['usuario'])}"
+                        for u in todos_usuarios
+                        if u.get("activo", True) and "admin" in u.get("roles", [])
+                    }
+                    
+                    if not admins_opts:
+                        st.warning("No hay administradores disponibles para reasignar.")
+                    else:
+                        with st.form(f"form_asignar_gestor_{id_seleccionado}"):
+                            nuevo_resp_id_g = st.selectbox(
+                                "Seleccionar Administrador",
+                                options=list(admins_opts.keys()),
+                                format_func=lambda x: admins_opts[x]
+                            )
+                            comentario_gestor = st.text_input(
+                                "Motivo de reasignación * (Obligatorio)",
+                                value="",
+                                placeholder="Explica el motivo de la reasignación..."
+                            )
+                            submitted_g = st.form_submit_button("Devolver", type="primary")
+                            if submitted_g:
+                                if not comentario_gestor.strip():
+                                    st.error("❌ El campo de motivo es obligatorio para reasignar.")
+                                else:
+                                    try:
+                                        service.asignar_correspondencia(
+                                            id_seleccionado,
+                                            nuevo_resp_id_g,
+                                            admins_opts[nuevo_resp_id_g],
+                                            nombre_usuario_actual,
+                                            f"[Gestor] {comentario_gestor}"
+                                        )
+                                        st.success("Reasignado exitosamente al administrador.")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error: {e}")
+
         # Acción 3: Dar Respuesta / Archivar / Traslado por Competencia
         if es_responsable or is_asignacion:
 
@@ -256,28 +308,35 @@ def modal_gestion_correspondencia(corr_actual):
                 with st.popover("✅ Responder / Cerrar", use_container_width=True):
                     if estado_actual not in ["respondido", "archivado", "traslado_competencia"]:
                         st.write("Cargar Respuesta")
-                        with st.form(f"form_resp_{id_seleccionado}"):
-                            col_resp1, col_resp2 = st.columns(2)
-                            with col_resp1:
-                                num_oficio = st.text_input("Número de Oficio *")
-                            with col_resp2:
-                                fecha_resp = st.date_input("Fecha de Respuesta", value=datetime.now(timezone.utc))
-                                
-                            comentario_resp = st.text_input("Comentario", value="Se da respuesta")
+                        # Se quita st.form para validar en tiempo real el campo y habilitar/deshabilitar el botón
+                        col_resp1, col_resp2 = st.columns(2)
+                        with col_resp1:
+                            num_oficio = st.text_input("Número de Oficio *", key=f"num_oficio_{id_seleccionado}")
+                        with col_resp2:
+                            fecha_resp = st.date_input("Fecha de Respuesta", value=datetime.now(timezone.utc), key=f"fecha_resp_{id_seleccionado}")
                             
-                            if st.form_submit_button("Marcar como Respondido"):
-                                if num_oficio:
-                                    # Convertir fecha de date a datetime
-                                    f_resp_dt = datetime.combine(fecha_resp, datetime.min.time()).replace(tzinfo=timezone.utc)
-                                    service.dar_respuesta(id_seleccionado, num_oficio, nombre_usuario_actual, comentario_resp, fecha_respuesta=f_resp_dt)
-                                    st.success("Respuesta registrada")
-                                    st.rerun()
-                                else:
-                                    st.error("El número de oficio es obligatorio")
+                        comentario_resp = st.text_input("Comentario", value="Se da respuesta", key=f"comentario_resp_{id_seleccionado}")
+                        
+                        # Validación del formato
+                        patron_oficio = r"^\d{4}[A-Za-z]?-(VANT|VATL|VBOG|VBOL|VBOY|VCAL|VCAQ|VCAS|VCAU|VCES|VCHO|VCOR|VCUN|VGUA|VHUI|VMAG|VMET|VNAR|VNSA|VOCA|VPUT|VQUI|VRIS|VSAN|VSUC|VTOL|VUVR|VUVRAZ|VVAL)-[A-Za-z0-9]+$"
+                        es_valido = False
+                        
+                        if num_oficio:
+                            if re.match(patron_oficio, num_oficio, re.IGNORECASE):
+                                es_valido = True
+                            else:
+                                st.warning("Formato invalido, no es una respuesta")
+                        
+                        if st.button("Marcar como Respondido", disabled=not es_valido, key=f"btn_marcar_resp_{id_seleccionado}"):
+                            # Convertir fecha de date a datetime
+                            f_resp_dt = datetime.combine(fecha_resp, datetime.min.time()).replace(tzinfo=timezone.utc)
+                            service.dar_respuesta(id_seleccionado, num_oficio, nombre_usuario_actual, comentario_resp, fecha_respuesta=f_resp_dt)
+                            st.success("Respuesta registrada")
+                            st.rerun()
 
                     
                     if estado_actual not in ["archivado", "traslado_competencia"]:
-                        st.write("Archivar Radicado")
+                        st.markdown('Archivar Radicado <span title="Solo archivar radicados que no necesiten respuesta y se encuentren debidamente en una Carpeta de Archivados o Archivo en AZ, de lo contrario contará como abierto y generará reporte de retraso (Se realiza revisión semanal de archivados)">ℹ️</span>', unsafe_allow_html=True)
                         with st.form(f"form_archivar_{id_seleccionado}"):
                             comentario_arch = st.text_input("Comentario (Opcional)", value="Cierre del caso")
                             if st.form_submit_button("Archivar", type="primary"):
@@ -358,9 +417,9 @@ def modal_gestion_correspondencia(corr_actual):
 
 
 # Construir pestañas
-tabs_names = ["Búsqueda y Gestión"]
+tabs_names = ["📂 Búsqueda y Gestión"]
 if is_asignacion:
-    tabs_names.append("Nueva Correspondencia")
+    tabs_names.append("📝 Nueva Correspondencia")
 
 tabs = st.tabs(tabs_names)
 
@@ -576,6 +635,38 @@ with tab_gestion:
             help="Si se marca, solo verás la correspondencia donde tú eres el responsable."
         )
     
+    # --- Botón de Herramientas (Cargue Masivo) ---
+    col_tools, _ = st.columns([1, 3])
+    with col_tools:
+        with st.popover("🛠️ Herramientas", use_container_width=True):
+            st.markdown(
+                '<p style="color:#FFFFFF; font-size:1.05em; font-weight:bold; margin-bottom:6px;">📥 Cargue Masivo de Respuestas</p>',
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                '• <a href="https://invias-my.sharepoint.com/:x:/g/personal/srti_invias_gov_co/IQAe8YhYctV2QIJ07mIXCt0dAZ3X5DSmKKTEboUTE4X-5Tw?e=AA7iIW" '
+                'target="_blank" style="color:#1D6F42; font-weight:bold; text-decoration:underline; font-size:0.97em;">'
+                '📗 Descargar formato de Cargue Masivo de Respuestas</a>',
+                unsafe_allow_html=True
+            )
+            st.markdown('<hr style="border-color: rgba(255,255,255,0.2); margin: 10px 0;" />', unsafe_allow_html=True)
+            st.markdown(
+                '<p style="color:#FFFFFF; font-size:0.95em; margin-bottom:4px;">• <b>Cargar formato diligenciado:</b></p>',
+                unsafe_allow_html=True
+            )
+            st.file_uploader(
+                "Seleccionar archivo",
+                type=["xlsx"],
+                disabled=True,
+                key="uploader_masivo_disabled",
+                help="Solo se permite el archivo con el nombre exacto del formato descargado.",
+                label_visibility="collapsed"
+            )
+            st.markdown(
+                '<p style="color:rgba(255,255,255,0.6); font-size:0.82em; margin-top:4px;">⏳ Trabajo en proceso</p>',
+                unsafe_allow_html=True
+            )
+
     st.divider()
 
     # --- Estilo CSS para forzar el centrado de cabeceras ---
