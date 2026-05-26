@@ -25,72 +25,31 @@ st.set_page_config(
 def aplicar_tema():
     st.markdown("""
         <style>
-        /* ===== Tipografía General ===== */
-        .stApp, .stMarkdown, .stText, p, h1, h2, h3, h4, h5, h6, label, li, 
-        [data-testid="stWidgetLabel"] p, [data-testid="stMarkdownContainer"] p {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-            color: #FAFAFA !important;
-        }
-
-        /* ===== Fondo Principal (Más profundidad, mezcla de naranjas y cafés vivos) ===== */
-        .stApp {
-            background: linear-gradient(135deg, #E87A1E 0%, #A65012 50%, #3D1E0A 100%) !important;
-            background-attachment: fixed !important;
-            overflow-x: hidden;
-            z-index: 1;
-        }
-
-        /* ===== Geometrías Adaptables Superpuestas ===== */
-        /* Círculo difuso iluminado (blanco pastel / naranja claro) */
-        .stApp::before {
-            content: ""; position: fixed; width: 650px; height: 650px;
-            background: radial-gradient(circle, rgba(255, 230, 180, 0.25) 0%, transparent 60%);
-            top: -150px; left: -150px; border-radius: 50%; z-index: 0;
-            box-shadow: 800px 500px 0 150px rgba(255, 160, 40, 0.15); /* Clon disperso */
-            pointer-events: none;
-        }
-
-        /* Cuadrado redondeado rotado (Naranja fuerte) */
-        .stApp::after {
-            content: ""; position: fixed; width: 450px; height: 450px;
-            background: linear-gradient(135deg, rgba(255, 140, 0, 0.4) 0%, rgba(200, 80, 10, 0.1) 100%);
-            bottom: 5%; right: -100px; 
-            border-radius: 60px; 
-            transform: rotate(35deg);
-            z-index: 0;
-            box-shadow: -800px -300px 0 80px rgba(100, 45, 15, 0.3); /* Clon oscuro a la izquierda */
-            pointer-events: none;
-        }
-
-        /* ===== Estilizar Contenedores y Formularios ===== */
-        div[data-testid="stForm"], div[data-testid="stVerticalBlockBorderWrapper"] {
-            background-color: rgba(35, 20, 12, 0.9) !important; /* Modo oscuro pero con base café/naranja profundo */
-            border: 1px solid rgba(255, 150, 50, 0.3) !important; /* Borde naranja vibrante pero sutil */
-            border-radius: 20px !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 0 10px rgba(255, 140, 0, 0.05) !important;
-            backdrop-filter: blur(15px) !important;
-            -webkit-backdrop-filter: blur(15px) !important;
-            position: relative;
-            z-index: 10;
-        }
-
-        /* ===== Sidebar (Café oscuro del contenedor de login) ===== */
+        /* ===== Sidebar: fondo café oscuro con acento naranja ===== */
         [data-testid="stSidebar"] {
-            background-color: rgba(35, 20, 12, 1) !important; /* Café oscuro */
+            background-color: #231408 !important;
             border-right: 1px solid rgba(255, 140, 0, 0.3) !important;
         }
+
+        /* ===== Header/topbar: café oscuro con línea naranja ===== */
         [data-testid="stHeader"] {
-            background-color: rgba(35, 20, 12, 0.8) !important;
+            background-color: rgba(35, 20, 12, 0.95) !important;
             border-bottom: 2px solid #FF8C00 !important;
         }
 
-        /* Navegación lateral */
-        div[data-testid="stSidebarNavItems"] a:hover {
-            background-color: rgba(255, 140, 0, 0.2) !important;
-            color: #FF8C00 !important;
+        /* ===== Texto del sidebar en blanco ===== */
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3 {
+            color: #FAFAFA !important;
         }
+
+        /* ===== Ítem de navegación activo ===== */
         div[data-testid="stSidebarNavItems"] a[aria-current="page"] {
-            background-color: rgba(255, 140, 0, 0.3) !important;
+            background-color: rgba(255, 140, 0, 0.25) !important;
             border-left: 4px solid #FF8C00 !important;
         }
         div[data-testid="stSidebarNavItems"] a[aria-current="page"] span {
@@ -98,108 +57,37 @@ def aplicar_tema():
             font-weight: bold !important;
         }
 
-        /* ===== Entradas de Datos (Inputs blancos con letra oscura) ===== */
-        div[data-baseweb="input"], div[data-baseweb="select"] > div, .stApp textarea {
-            background-color: #FFFFFF !important;
-            border: 1px solid rgba(255, 140, 0, 0.5) !important; 
-            border-radius: 8px !important;
+        /* ===== Hover en items de navegación ===== */
+        div[data-testid="stSidebarNavItems"] a:hover {
+            background-color: rgba(255, 140, 0, 0.15) !important;
         }
-        div[data-baseweb="input"]:focus-within, div[data-baseweb="select"] > div:focus-within, .stApp textarea:focus {
-            border-color: #FF8C00 !important; 
-            box-shadow: 0 0 0 1px #FF8C00 !important;
-            background-color: #FFFFFF !important;
-        }
-        
-        /* Ajuste de color texto interno para selectores y inputs */
-        .stApp input, .stApp textarea, div[data-baseweb="select"] span {
-            color: #3D1E0A !important; /* Café muy oscuro / casi negro */
-            background-color: transparent !important;
-        }
-        
-        /* Listas desplegables y Tooltips (Naranja claro con texto oscuro) */
-        div[data-baseweb="popover"], div[role="listbox"], div[data-testid="stTooltipContent"] {
-            background-color: #FFF3E0 !important;
-            border: 1px solid #FF8C00 !important;
-            color: #000000 !important;
-        }
-        div[data-baseweb="popover"] *, div[role="listbox"] *, div[data-testid="stTooltipContent"] * {
-            color: #000000 !important;
-        }
-        div[role="option"]:hover, li[role="option"]:hover {
-            background-color: #FFE0B2 !important;
+        div[data-testid="stSidebarNavItems"] a:hover span {
+            color: #FF8C00 !important;
         }
 
-        /* ===== Todos los Botones (Naranja Oscurecido tirando a rojo) ===== */
-        .stApp button, div[data-testid="stPopover"] > button, div[data-testid="stForm"] button, button[kind="secondary"], button[kind="primary"] {
+        /* ===== Botón cerrar sesión en sidebar ===== */
+        [data-testid="stSidebar"] button {
             background-color: #BA4A00 !important;
             color: #FFFFFF !important;
             border: none !important;
-            border-radius: 8px !important;
-            font-weight: bold !important;
-            transition: all 0.3s ease !important;
         }
-        .stApp button:hover, div[data-testid="stPopover"] > button:hover, div[data-testid="stForm"] button:hover {
+        [data-testid="stSidebar"] button:hover {
             background-color: #8C3800 !important;
-            transform: translateY(-2px) !important;
-            box-shadow: 0 8px 20px rgba(186, 74, 0, 0.5) !important;
-            color: #FFFFFF !important;
-            border: none !important;
         }
-        .stApp button p, .stApp button span:not(.material-symbols-rounded) {
+        [data-testid="stSidebar"] button p,
+        [data-testid="stSidebar"] button span {
             color: #FFFFFF !important;
         }
 
-        /* ===== Pestañas (Tabs) ===== */
-        button[data-baseweb="tab"] {
-            background-color: rgba(35, 20, 12, 0.9) !important;
-            border: 1px solid rgba(255, 140, 0, 0.3) !important;
-            border-bottom: none !important;
-            border-radius: 8px 8px 0 0 !important;
-            margin-right: 5px !important;
-        }
-        button[data-baseweb="tab"] p {
-            color: #FAFAFA !important;
-            font-weight: bold !important;
-        }
-        button[data-baseweb="tab"][aria-selected="true"] {
-            background-color: #BA4A00 !important;
-            border: 1px solid #BA4A00 !important;
-            border-bottom: none !important;
-        }
-        button[data-baseweb="tab"][aria-selected="true"] p {
-            color: #FFFFFF !important;
-        }
-
-        /* ===== Diálogos y Popovers (Fondos) ===== */
-        div[data-testid="stDialog"] > div:first-child {
-            background-color: rgba(0, 0, 0, 0.7) !important;
-        }
-        div[role="dialog"], div[data-testid="stPopoverBody"], div[data-baseweb="popover"] > div, div[data-baseweb="modal"] > div {
-            background-color: rgba(35, 20, 12, 1) !important;
-            border: 1px solid #FF8C00 !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
-            border-radius: 12px !important;
-        }
-        /* Eliminar contorno interno naranja de los formularios dentro de popovers */
-        div[role="dialog"] div[data-testid="stVerticalBlockBorderWrapper"], 
-        div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlockBorderWrapper"],
-        div[role="dialog"] div[data-testid="stForm"], 
-        div[data-testid="stPopoverBody"] div[data-testid="stForm"] {
-            background-color: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-        }
-        /* Restaurar textos de dialogos a blanco ya que los inputs son blancos */
-        div[role="dialog"] p:not([data-testid="stWidgetLabel"] p), div[data-testid="stPopoverBody"] p:not([data-testid="stWidgetLabel"] p), [data-testid="stWidgetLabel"] p, [data-testid="stWidgetLabel"] label {
-            color: #FAFAFA !important;
-        }
-        
-        /* Hacer la tarjeta de perfil del menú lateral más compacta */
+        /* ===== Tarjeta de perfil: compacta y con borde sutil ===== */
         [data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] {
             padding: 0px !important;
             margin-bottom: -25px !important;
+            background-color: rgba(255, 255, 255, 0.05) !important;
+            border-color: rgba(255, 140, 0, 0.25) !important;
         }
-        /* Logo completamente estático - sin interacción ni expansión */
+
+        /* ===== Logo estático sin interacción ===== */
         [data-testid="stSidebar"] .logo-static-container img {
             pointer-events: none !important;
             cursor: default !important;
@@ -216,7 +104,8 @@ def aplicar_tema():
             pointer-events: none !important;
             cursor: default !important;
         }
-        /* Barra lateral completamente adaptable a la altura de pantalla */
+
+        /* ===== Sidebar adaptable a la altura de pantalla ===== */
         [data-testid="stSidebar"] > div:first-child {
             display: flex !important;
             flex-direction: column !important;
@@ -231,16 +120,14 @@ def aplicar_tema():
             overflow-y: auto !important;
             min-height: 0 !important;
         }
-        /* Ocultar el botón de expandir/fullscreen de imágenes en sidebar */
+
+        /* ===== Ocultar botón fullscreen de imágenes en sidebar ===== */
         [data-testid="stSidebar"] [data-testid="stFullScreenFrame"] > button,
-        [data-testid="stSidebar"] button[title="View fullscreen"],
-        [data-testid="stSidebar"] [data-testid="stImage"] + div button {
+        [data-testid="stSidebar"] button[title="View fullscreen"] {
             display: none !important;
         }
         </style>
     """, unsafe_allow_html=True)
-
-# aplicar_tema()
 
 
 def pantalla_login() -> None:
@@ -628,7 +515,8 @@ if not sesion_activa():
     pantalla_login()
 else:
     sesion = obtener_sesion()
-    
+    aplicar_tema()
+
     # Definición de páginas
     page_dashboard = st.Page(pantalla_dashboard, title="Inicio", icon="🏠", default=True)
     page_perfil = st.Page("pages/2_mi_perfil.py", title="Mi Perfil", icon="👤")
