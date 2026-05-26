@@ -12,6 +12,8 @@ class Configuracion:
     mongodb_db: str = os.getenv("MONGODB_DB", "gestion_srt")
     secret_key: str = os.getenv("SECRET_KEY", "cambia_esta_clave_por_una_muy_larga_y_segura")
     admin_inicial_password: str | None = os.getenv("ADMIN_INICIAL_PASSWORD")
+    instructivo_pdf_url: str = os.getenv("INSTRUCTIVO_PDF_URL", "")
+    instructivo_video_url: str = os.getenv("INSTRUCTIVO_VIDEO_URL", "")
 
 
 configuracion = Configuracion()
