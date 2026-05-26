@@ -456,30 +456,48 @@ if is_asignacion:
         with st.container(border=True):
             col1, col2 = st.columns(2)
             with col1:
-                raw_radicado = st.text_input(
-                    "Número de Radicado *", 
-                    key=f"form_numero_radicado_{form_key}", 
-                    on_change=on_radicado_change
+                PATRON_RADICADO = (
+                    r"^\d{4}[A-Za-z]-"
+                    r"(VANT|VATL|VBOG|VBOL|VBOY|VCAL|VCAQ|VCAS|VCAU|VCES|VCHO|VCOR|VCUN|"
+                    r"VGUA|VHUI|VMAG|VMET|VNAR|VNSA|VOCA|VPUT|VQUI|VRIS|VSAN|VSUC|VTOL|"
+                    r"VUVRAZ|VUVR|VVAL)"
+                    r"-[A-Za-z0-9]+$"
                 )
-                
-                # Sanitizar el valor para almacenamiento e indicador de existencia
+
+                raw_radicado = st.text_input(
+                    "Número de Radicado *",
+                    key=f"form_numero_radicado_{form_key}",
+                    on_change=on_radicado_change,
+                    placeholder="Ej: 2026E-VUVRAZ-051829"
+                )
+
                 numero_radicado = raw_radicado.replace(" ", "").upper()
-                
-                radicado_valido = True
-                if raw_radicado:
-                    # Validar caracteres permitidos
-                    if not re.match(r"^[A-Za-z0-9\-_.]+$", raw_radicado.replace(" ", "")):
-                        st.error("❌ **Error de formato:** Solo se permiten letras, números, guiones (`-`), guiones bajos (`_`) y puntos (`.`).")
-                        radicado_valido = False
-                    
-                    # Alerta si contiene espacios
-                    if " " in raw_radicado:
-                        st.warning("⚠️ **Aviso:** Se eliminarán los espacios automáticamente.")
-                    
-                    # Alerta de duplicados (búsqueda insensible a mayúsculas/minúsculas)
-                    if radicado_valido:
-                        if service.existe_radicado(numero_radicado):
-                            st.warning("⚠️ **Aviso:** Este número de radicado ya está registrado en el sistema (incluso con diferente combinación de mayúsculas/minúsculas).")
+
+                if " " in raw_radicado:
+                    st.warning("⚠️ Se eliminarán los espacios automáticamente.")
+
+                radicado_cumple_formato = (
+                    bool(re.match(PATRON_RADICADO, numero_radicado, re.IGNORECASE))
+                    if numero_radicado else True
+                )
+
+                if numero_radicado and service.existe_radicado(numero_radicado):
+                    st.warning("⚠️ Este número de radicado ya está registrado en el sistema.")
+
+                contingencia_radicado = st.checkbox(
+                    "⚠️ Contingencia: omitir validación de formato",
+                    key=f"form_contingencia_radicado_{form_key}",
+                    help="Activar solo si el radicado no sigue el formato estándar (AAAA[L]-CÓDIGO-número). Quedará registrado en el sistema como radicado irregular."
+                )
+
+                radicado_valido = radicado_cumple_formato or contingencia_radicado
+
+                if numero_radicado and not radicado_cumple_formato:
+                    if contingencia_radicado:
+                        st.warning("⚠️ Formato no estándar. Se guardará con marca de **contingencia** en el sistema.")
+                    else:
+                        st.error("❌ Formato inválido. Debe ser: `AAAA[L]-CÓDIGO-número` — Ej: `2026E-VUVRAZ-051829`")
+
                 peticionario = st.text_input("Peticionario *", key=f"form_peticionario_{form_key}")
                 fecha_radicacion = st.date_input("Fecha de Radicación *", key=f"form_fecha_radicacion_{form_key}")
             with col2:
@@ -513,22 +531,24 @@ if is_asignacion:
             submit_btn = st.button("Crear Correspondencia", type="primary", use_container_width=True)
             
             if submit_btn:
-                # Usar los valores de session_state o variables locales
                 if not numero_radicado or not asunto or not peticionario or not tipo:
                     st.error("Los campos marcados con * son obligatorios. Asegúrese de que el tipo de correspondencia esté definido.")
-                elif not re.match(r"^[A-Z0-9\-_.]+$", numero_radicado):
-                    st.error("❌ **Error de formato:** El número de radicado contiene caracteres no válidos. Solo se permiten letras, números, guiones (`-`), guiones bajos (`_`) y puntos (`.`).")
+                elif not radicado_valido:
+                    st.error("❌ El número de radicado no cumple el formato estándar. Activa la Contingencia si es un caso excepcional.")
                 else:
-                    # Función para limpiar el formulario (reseteando el key de los widgets)
                     def limpiar_formulario():
                         st.session_state["form_key_idx"] = st.session_state.get("form_key_idx", 0) + 1
                         st.session_state.pop("inicio_creacion_radicado", None)
 
-                    # Calcular tiempo de diligenciamiento
                     tiempo_final = datetime.now(timezone.utc)
                     inicio = st.session_state.get("inicio_creacion_radicado", tiempo_final)
                     duracion_seg = (tiempo_final - inicio).total_seconds()
-                    
+
+                    metadatos = {"tiempo_creacion_seg": round(duracion_seg, 2)}
+                    if contingencia_radicado and not radicado_cumple_formato:
+                        metadatos["radicado_contingencia"] = True
+                        metadatos["radicado_contingencia_usuario"] = nombre_usuario_actual
+
                     datos = {
                         "numero_radicado": numero_radicado,
                         "asunto": asunto,
@@ -538,9 +558,7 @@ if is_asignacion:
                         "grupo": grupo,
                         "clase": clase,
                         "observaciones_generales": observaciones,
-                        "metadatos": {
-                            "tiempo_creacion_seg": round(duracion_seg, 2)
-                        }
+                        "metadatos": metadatos
                     }
                     try:
                         id_nuevo = service.crear_correspondencia(datos, nombre_usuario_actual, id_usuario_actual)
