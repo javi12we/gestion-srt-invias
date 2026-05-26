@@ -25,10 +25,23 @@ st.set_page_config(
 def aplicar_tema():
     st.markdown("""
         <style>
-        /* ===== Sidebar: fondo café oscuro con acento naranja ===== */
+        /* ===== Sidebar: gradiente cálido + borde naranja ===== */
         [data-testid="stSidebar"] {
-            background-color: #231408 !important;
-            border-right: 1px solid rgba(255, 140, 0, 0.3) !important;
+            background: linear-gradient(180deg, #5A2D0C 0%, #3D1E0A 100%) !important;
+            border-right: 1px solid rgba(255, 140, 0, 0.4) !important;
+        }
+
+        /* ===== Separadores visibles: línea naranja sutil ===== */
+        [data-testid="stSidebar"] hr {
+            border: none !important;
+            border-top: 1px solid rgba(255, 140, 0, 0.35) !important;
+            margin: 6px 0 !important;
+        }
+
+        /* ===== Separadores entre grupos de navegación ===== */
+        [data-testid="stSidebarNavSeparator"],
+        [data-testid="stSidebarNavSeparator"] hr {
+            border-top: 1px solid rgba(255, 140, 0, 0.2) !important;
         }
 
         /* ===== Header/topbar: café oscuro con línea naranja ===== */
@@ -79,12 +92,21 @@ def aplicar_tema():
             color: #FFFFFF !important;
         }
 
-        /* ===== Tarjeta de perfil: compacta y con borde sutil ===== */
+        /* ===== Tarjeta de perfil: compacta y con borde naranja visible ===== */
         [data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] {
             padding: 0px !important;
             margin-bottom: -25px !important;
-            background-color: rgba(255, 255, 255, 0.05) !important;
-            border-color: rgba(255, 140, 0, 0.25) !important;
+            background-color: rgba(255, 255, 255, 0.06) !important;
+            border-radius: 10px !important;
+            box-shadow: 0 0 0 2px #FF8C00 !important;
+        }
+        [data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] > div {
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+        [data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] > div > div {
+            border: none !important;
         }
 
         /* ===== Logo estático sin interacción ===== */
