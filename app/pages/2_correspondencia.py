@@ -710,7 +710,8 @@ with tab_gestion:
         
     page_size = 50
 
-    current_page = st.session_state["page_correspondencia"]
+    current_page = max(1, st.session_state["page_correspondencia"])
+    st.session_state["page_correspondencia"] = current_page
     skip = (current_page - 1) * page_size
     
     datos_corr, total_docs = cargar_datos(skip=skip, limit=page_size, filtros=filtros)
