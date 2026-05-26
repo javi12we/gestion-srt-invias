@@ -663,38 +663,6 @@ with tab_gestion:
             help="Si se marca, solo verás la correspondencia donde tú eres el responsable."
         )
     
-    # --- Botón de Herramientas (Cargue Masivo) ---
-    col_tools, _ = st.columns([1, 3])
-    with col_tools:
-        with st.popover("🛠️ Herramientas", use_container_width=True):
-            st.markdown(
-                '<p style="color:#FFFFFF; font-size:1.05em; font-weight:bold; margin-bottom:6px;">📥 Cargue Masivo de Respuestas</p>',
-                unsafe_allow_html=True
-            )
-            st.markdown(
-                '• <a href="https://invias-my.sharepoint.com/:x:/g/personal/srti_invias_gov_co/IQAe8YhYctV2QIJ07mIXCt0dAZ3X5DSmKKTEboUTE4X-5Tw?e=AA7iIW" '
-                'target="_blank" style="color:#1D6F42; font-weight:bold; text-decoration:underline; font-size:0.97em;">'
-                '📗 Descargar formato de Cargue Masivo de Respuestas</a>',
-                unsafe_allow_html=True
-            )
-            st.markdown('<hr style="border-color: rgba(255,255,255,0.2); margin: 10px 0;" />', unsafe_allow_html=True)
-            st.markdown(
-                '<p style="color:#FFFFFF; font-size:0.95em; margin-bottom:4px;">• <b>Cargar formato diligenciado:</b></p>',
-                unsafe_allow_html=True
-            )
-            st.file_uploader(
-                "Seleccionar archivo",
-                type=["xlsx"],
-                disabled=True,
-                key="uploader_masivo_disabled",
-                help="Solo se permite el archivo con el nombre exacto del formato descargado.",
-                label_visibility="collapsed"
-            )
-            st.markdown(
-                '<p style="color:rgba(255,255,255,0.6); font-size:0.82em; margin-top:4px;">⏳ Trabajo en proceso</p>',
-                unsafe_allow_html=True
-            )
-
     st.divider()
 
     # --- Estilo CSS para forzar el centrado de cabeceras ---
