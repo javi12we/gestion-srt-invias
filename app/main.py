@@ -27,8 +27,16 @@ def aplicar_tema():
         <style>
 
         /* =====================================================
+           BORDE NARANJA GLOBAL SUPERIOR
+        ===================================================== */
+
+        .stApp {
+
+            border-top: 2px solid #FF8C00;
+        }
+
+        /* =====================================================
            SIDEBAR BASE
-           COLOR EXACTO PEDIDO
         ===================================================== */
 
         [data-testid="stSidebar"] {
@@ -36,35 +44,54 @@ def aplicar_tema():
             background:
 
                 radial-gradient(
-                    circle at 88% 10%,
-                    rgba(255,140,0,0.06) 0%,
-                    transparent 22%
-                ),
-
-                radial-gradient(
-                    circle at 92% 12%,
-                    rgba(255,140,0,0.03) 0%,
-                    transparent 35%
+                    circle at 90% 8%,
+                    rgba(255,140,0,0.08) 0%,
+                    transparent 18%
                 ),
 
                 linear-gradient(
                     180deg,
-                    #271911 0%,
-                    #1D120B 100%
+                    #26160D 0%,
+                    #1A1008 100%
                 ) !important;
 
-            border-right: 1px solid rgba(255,140,0,0.08) !important;
+            border-right: 1px solid rgba(255,140,0,0.35) !important;
+
+            box-shadow:
+                inset -1px 0 0 rgba(255,140,0,0.10);
+
+            overflow: hidden;
         }
 
         /* =====================================================
-           HEADER
+           HEADER SUPERIOR
         ===================================================== */
 
         [data-testid="stHeader"] {
 
-            background: rgba(39,25,17,0.96) !important;
+            background: rgba(35,20,12,0.96) !important;
 
-            border-bottom: 1px solid rgba(255,140,0,0.05) !important;
+            border-bottom: 1px solid rgba(255,140,0,0.55) !important;
+
+            box-shadow:
+                0 1px 0 rgba(255,140,0,0.15);
+        }
+
+        /* =====================================================
+           CONTENIDO PRINCIPAL
+        ===================================================== */
+
+        .main .block-container {
+
+            border-top: 1px solid rgba(255,140,0,0.18);
+
+            padding-top: 2rem !important;
+        }
+
+        .main {
+
+            box-shadow:
+                inset 0 1px 0 rgba(255,140,0,0.10);
         }
 
         /* =====================================================
@@ -77,52 +104,187 @@ def aplicar_tema():
         }
 
         /* =====================================================
-           ITEMS MENÚ
+           CONTENEDOR DEL MENÚ
+           MÁS NARANJA / CÁLIDO
         ===================================================== */
 
-        div[data-testid="stSidebarNav"] a {
+        div[data-testid="stSidebarNav"] {
 
-            border-radius: 8px !important;
+            background:
 
-            transition: all 0.18s ease !important;
+                radial-gradient(
+                    circle at top right,
+                    rgba(255,170,0,0.055) 0%,
+                    transparent 28%
+                ),
 
-            background: transparent !important;
-        }
+                radial-gradient(
+                    circle at bottom left,
+                    rgba(255,140,0,0.040) 0%,
+                    transparent 30%
+                ),
 
-        /* Hover */
+                linear-gradient(
+                    180deg,
+                    rgba(68,32,10,0.96) 0%,
+                    rgba(48,22,8,0.98) 100%
+                ) !important;
 
-        div[data-testid="stSidebarNav"] a:hover {
+            border: 1px solid rgba(255,140,0,0.14);
 
-            background: rgba(255,255,255,0.04) !important;
-        }
+            border-radius: 16px;
 
-        /* Item activo */
+            padding: 8px 7px;
 
-        div[data-testid="stSidebarNav"] a[aria-current="page"] {
+            margin-top: 8px;
 
-            background: rgba(255,255,255,0.14) !important;
+            box-shadow:
+                inset 0 0 18px rgba(255,140,0,0.03),
+                0 0 18px rgba(255,140,0,0.025);
 
-            border-left: 4px solid #FF9800 !important;
-        }
+            position: relative;
 
-        div[data-testid="stSidebarNav"] a[aria-current="page"] span {
-
-            color: white !important;
-
-            font-weight: 700 !important;
+            overflow: hidden;
         }
 
         /* =====================================================
-           TÍTULOS SECCIONES
+           ITEMS MENÚ
         ===================================================== */
 
-        [data-testid="stSidebarNav"] p {
+        div[data-testid="stSidebarNav"] ul {
+
+            gap: 0px !important;
+
+            padding-top: 0px !important;
+
+            padding-bottom: 0px !important;
+
+            position: relative;
+        }
+
+        /* ITEM */
+
+        div[data-testid="stSidebarNav"] a {
+
+            border-radius: 7px !important;
+
+            transition: all 0.12s ease !important;
+
+            background: transparent !important;
+
+            min-height: 27px !important;
+
+            height: 27px !important;
+
+            padding-top: 0px !important;
+            padding-bottom: 0px !important;
+
+            padding-left: 7px !important;
+            padding-right: 6px !important;
+
+            margin-bottom: 1px !important;
+
+            display: flex !important;
+
+            align-items: center !important;
+
+            border-left: none !important;
+
+            box-shadow: none !important;
+        }
+
+        /* CONTENEDOR INTERNO */
+
+        div[data-testid="stSidebarNav"] a > div {
+
+            padding-top: 0px !important;
+            padding-bottom: 0px !important;
+
+            gap: 6px !important;
+
+            align-items: center !important;
+        }
+
+        /* ICONOS */
+
+        div[data-testid="stSidebarNav"] a svg {
+
+            width: 13px !important;
+            height: 13px !important;
+
+            min-width: 13px !important;
+        }
+
+        /* =====================================================
+           TEXTO OPCIONES
+        ===================================================== */
+
+        div[data-testid="stSidebarNav"] a span {
+
+            color: #F4F4F4 !important;
+
+            font-weight: 300 !important;
+
+            font-size: 13.5px !important;
+
+            letter-spacing: 0px !important;
+
+            line-height: 1 !important;
+
+            opacity: 0.95 !important;
+        }
+
+        /* HOVER */
+
+        div[data-testid="stSidebarNav"] a:hover {
+
+            background: rgba(255,255,255,0.03) !important;
+
+            transform: translateX(1px);
+        }
+
+        /* =====================================================
+           ITEM ACTIVO
+        ===================================================== */
+
+        div[data-testid="stSidebarNav"] a[aria-current="page"] {
+
+            background:
+                rgba(255,140,0,0.08) !important;
+
+            border-left: none !important;
+
+            box-shadow: none !important;
+        }
+
+        /* TEXTO ITEM ACTIVO */
+
+        div[data-testid="stSidebarNav"] a[aria-current="page"] span {
 
             color: #FFFFFF !important;
 
+            font-weight: 400 !important;
+        }
+
+        /* =====================================================
+           SOLO TÍTULOS DE SECCIÓN
+        ===================================================== */
+
+        div[data-testid="stSidebarNav"] > div > div > p {
+
+            color: #FF9800 !important;
+
             font-weight: 700 !important;
 
-            font-size: 14px !important;
+            font-size: 12px !important;
+
+            margin-top: 7px !important;
+
+            margin-bottom: 6px !important;
+
+            opacity: 1 !important;
+
+            letter-spacing: 0.3px;
         }
 
         /* =====================================================
@@ -137,7 +299,7 @@ def aplicar_tema():
         }
 
         /* =====================================================
-           CONTENEDOR PERFIL EXACTO
+           TARJETA PERFIL
         ===================================================== */
 
         [data-testid="stSidebar"]
@@ -147,25 +309,24 @@ def aplicar_tema():
 
                 radial-gradient(
                     circle at top right,
-                    rgba(255,170,0,0.10) 0%,
+                    rgba(255,170,0,0.08) 0%,
                     transparent 40%
                 ),
 
                 linear-gradient(
                     135deg,
-                    #5A2D0C 0%,
-                    #452008 45%,
-                    #341706 100%
+                    #552A0B 0%,
+                    #442008 50%,
+                    #321606 100%
                 ) !important;
 
             border: 2px solid #FF9800 !important;
 
-            border-radius: 16px !important;
+            border-radius: 18px !important;
 
             box-shadow:
-                0 0 0 1px rgba(255,152,0,0.10),
-                0 8px 24px rgba(0,0,0,0.45),
-                inset 0 0 20px rgba(255,170,0,0.04);
+                0 6px 18px rgba(0,0,0,0.40),
+                inset 0 0 14px rgba(255,170,0,0.03);
 
             overflow: hidden !important;
 
@@ -174,7 +335,7 @@ def aplicar_tema():
             padding: 0px !important;
         }
 
-        /* Glow naranja superior */
+        /* Glow tarjeta */
 
         [data-testid="stSidebar"]
         div[data-testid="stVerticalBlockBorderWrapper"]::before {
@@ -183,39 +344,26 @@ def aplicar_tema():
 
             position: absolute;
 
-            top: -70px;
-            right: -70px;
+            top: -60px;
+            right: -60px;
 
-            width: 180px;
-            height: 180px;
+            width: 160px;
+            height: 160px;
 
             border-radius: 50%;
 
             background:
                 radial-gradient(
                     circle,
-                    rgba(255,180,0,0.18) 0%,
-                    rgba(255,180,0,0.05) 35%,
-                    transparent 75%
+                    rgba(255,180,0,0.15) 0%,
+                    transparent 70%
                 );
 
             pointer-events: none;
         }
 
-        /* Limpiar estilos internos streamlit */
-
-        [data-testid="stSidebar"]
-        div[data-testid="stVerticalBlockBorderWrapper"] > div {
-
-            border: none !important;
-
-            box-shadow: none !important;
-
-            background: transparent !important;
-        }
-
         /* =====================================================
-           BADGE ADMIN
+           BADGES / ROLES
         ===================================================== */
 
         [data-testid="stSidebar"] span[style*="border-radius: 12px"] {
@@ -223,20 +371,25 @@ def aplicar_tema():
             background:
                 linear-gradient(
                     180deg,
-                    rgba(180,100,0,0.55) 0%,
-                    rgba(120,60,0,0.65) 100%
+                    rgba(120,60,0,0.72) 0%,
+                    rgba(90,40,0,0.90) 100%
                 ) !important;
 
             color: #FFD27A !important;
 
-            border: 1px solid rgba(255,180,0,0.25) !important;
+            border: 1px solid rgba(255,170,0,0.45) !important;
 
             box-shadow:
-                inset 0 0 10px rgba(255,180,0,0.04);
+                inset 0 0 8px rgba(255,180,0,0.05),
+                0 0 10px rgba(255,140,0,0.08);
+
+            font-weight: 500 !important;
+
+            padding: 2px 8px !important;
         }
 
         /* =====================================================
-           BOTÓN CERRAR SESIÓN
+           BOTÓN
         ===================================================== */
 
         [data-testid="stSidebar"] button {
@@ -249,56 +402,26 @@ def aplicar_tema():
 
             border-radius: 999px !important;
 
-            font-weight: bold !important;
+            font-weight: 500 !important;
+
+            min-height: 40px !important;
 
             box-shadow:
-                0 6px 18px rgba(255,145,0,0.16);
+                0 5px 14px rgba(255,145,0,0.16);
         }
 
         [data-testid="stSidebar"] button:hover {
 
             background: #F08C00 !important;
-        }
 
-        [data-testid="stSidebar"] button p,
-        [data-testid="stSidebar"] button span {
-
-            color: white !important;
+            transform: translateY(-1px);
         }
 
         /* =====================================================
-           LOGO
+           FORMAS DECORATIVAS PREMIUM
         ===================================================== */
 
-        .logo-static-container img {
-
-            opacity: 0.95;
-
-            filter:
-                drop-shadow(
-                    0 0 12px rgba(255,140,0,0.10)
-                );
-        }
-
-        /* =====================================================
-           SCROLLBAR
-        ===================================================== */
-
-        [data-testid="stSidebar"] ::-webkit-scrollbar {
-
-            width: 5px;
-        }
-
-        [data-testid="stSidebar"] ::-webkit-scrollbar-thumb {
-
-            background: rgba(255,140,0,0.16);
-
-            border-radius: 20px;
-        }
-
-        /* =====================================================
-           FORMAS DECORATIVAS
-        ===================================================== */
+        /* CÍRCULO SUPERIOR DERECHO GRANDE */
 
         [data-testid="stSidebar"]::before {
 
@@ -306,18 +429,20 @@ def aplicar_tema():
 
             position: fixed;
 
-            top: -120px;
-            right: -120px;
+            top: -140px;
+            right: -140px;
 
-            width: 320px;
-            height: 320px;
+            width: 340px;
+            height: 340px;
 
             border-radius: 50%;
 
-            border: 40px solid rgba(255,140,0,0.04);
+            border: 38px solid rgba(255,140,0,0.045);
 
             pointer-events: none;
         }
+
+        /* ROMBO INFERIOR IZQUIERDO */
 
         [data-testid="stSidebar"]::after {
 
@@ -325,17 +450,295 @@ def aplicar_tema():
 
             position: fixed;
 
-            bottom: -120px;
-            left: -120px;
+            bottom: 60px;
+            left: -110px;
+
+            width: 210px;
+            height: 210px;
+
+            transform: rotate(45deg);
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,140,0,0.028),
+                    transparent
+                );
+
+            border: 1px solid rgba(255,140,0,0.040);
+
+            border-radius: 34px;
+
+            pointer-events: none;
+        }
+
+        /* POLÍGONO SUPERIOR DERECHO */
+
+        [data-testid="stSidebar"] > div:first-child::before {
+
+            content: "";
+
+            position: absolute;
+
+            top: 120px;
+            right: -55px;
+
+            width: 160px;
+            height: 160px;
+
+            clip-path: polygon(
+                25% 6%,
+                75% 6%,
+                100% 50%,
+                75% 94%,
+                25% 94%,
+                0% 50%
+            );
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,170,0,0.028),
+                    transparent
+                );
+
+            border: 1px solid rgba(255,140,0,0.030);
+
+            transform: rotate(14deg);
+
+            pointer-events: none;
+        }
+
+        /* POLÍGONO CENTRAL IZQUIERDO */
+
+        [data-testid="stSidebar"] > div:first-child::after {
+
+            content: "";
+
+            position: absolute;
+
+            left: -60px;
+
+            top: 42%;
+
+            width: 170px;
+            height: 170px;
+
+            clip-path: polygon(
+                50% 0%,
+                100% 38%,
+                82% 100%,
+                18% 100%,
+                0% 38%
+            );
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,140,0,0.018),
+                    transparent
+                );
+
+            border: 1px solid rgba(255,140,0,0.022);
+
+            transform: rotate(-10deg);
+
+            pointer-events: none;
+        }
+
+        /* FIGURA CIRCULAR SUPERIOR MENU */
+
+        div[data-testid="stSidebarNav"]::after {
+
+            content: "";
+
+            position: absolute;
+
+            top: -45px;
+            left: -35px;
+
+            width: 130px;
+            height: 130px;
+
+            border-radius: 50%;
+
+            border: 18px solid rgba(255,170,0,0.028);
+
+            pointer-events: none;
+        }
+
+        /* HEXÁGONO CENTRAL MENU */
+
+        div[data-testid="stSidebarNav"]::before {
+
+            content: "";
+
+            position: absolute;
+
+            right: -55px;
+            top: 36%;
+
+            width: 150px;
+            height: 150px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,140,0,0.022),
+                    transparent
+                );
+
+            clip-path: polygon(
+                25% 6%,
+                75% 6%,
+                100% 50%,
+                75% 94%,
+                25% 94%,
+                0% 50%
+            );
+
+            border: 1px solid rgba(255,140,0,0.028);
+
+            pointer-events: none;
+
+            transform: rotate(12deg);
+        }
+
+        /* TRIÁNGULO SUPERIOR */
+
+        div[data-testid="stSidebarNav"] ul::before {
+
+            content: "";
+
+            position: absolute;
+
+            top: 120px;
+            left: -70px;
+
+            width: 140px;
+            height: 140px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,180,0,0.018),
+                    transparent
+                );
+
+            clip-path: polygon(
+                50% 0%,
+                0% 100%,
+                100% 100%
+            );
+
+            transform: rotate(-14deg);
+
+            pointer-events: none;
+        }
+
+        /* ROMBO CENTRAL MENU */
+
+        div[data-testid="stSidebarNav"] ul::after {
+
+            content: "";
+
+            position: absolute;
+
+            bottom: 120px;
+            right: -60px;
+
+            width: 120px;
+            height: 120px;
+
+            border-radius: 24px;
+
+            transform: rotate(45deg);
+
+            border: 1px solid rgba(255,140,0,0.022);
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,140,0,0.015),
+                    transparent
+                );
+
+            pointer-events: none;
+        }
+
+        /* LINEAS DIFUSAS */
+
+        [data-testid="stSidebarNav"] span::after {
+
+            content: "";
+
+            position: absolute;
+
+            bottom: -180px;
+            right: -130px;
 
             width: 260px;
             height: 260px;
 
+            border-radius: 48px;
+
+            border: 1px solid rgba(255,140,0,0.015);
+
             transform: rotate(45deg);
 
-            background: rgba(255,140,0,0.02);
+            pointer-events: none;
+        }
 
-            border-radius: 40px;
+        /* GLOW DIFUSO IZQUIERDO */
+
+        .logo-static-container::before {
+
+            content: "";
+
+            position: absolute;
+
+            left: -90px;
+
+            bottom: -60px;
+
+            width: 200px;
+            height: 200px;
+
+            border-radius: 50%;
+
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(255,160,0,0.035) 0%,
+                    transparent 70%
+                );
+
+            pointer-events: none;
+        }
+
+        /* GLOW SUPERIOR SUAVE */
+
+        .logo-static-container::after {
+
+            content: "";
+
+            position: absolute;
+
+            top: -50px;
+
+            right: -70px;
+
+            width: 160px;
+            height: 160px;
+
+            border-radius: 50%;
+
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(255,180,0,0.025) 0%,
+                    transparent 72%
+                );
 
             pointer-events: none;
         }
