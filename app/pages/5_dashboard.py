@@ -12,7 +12,7 @@ if not sesion:
     st.stop()
 
 try:
-    validar_permiso(sesion.get("permisos", []), "reporte.ver")
+    validar_permiso(sesion.get("permisos", []), "dashboard.ver")
 except ValidacionAutorizacion:
     st.error("No tienes permisos para ver este módulo.")
     st.stop()

@@ -7,6 +7,7 @@ PERMISOS_BASE = [
     {"clave": "rol.crear", "descripcion": "Crear roles", "modulo": "roles"},
     {"clave": "rol.editar", "descripcion": "Editar roles", "modulo": "roles"},
     {"clave": "rol.desactivar", "descripcion": "Desactivar roles", "modulo": "roles"},
+    {"clave": "dashboard.ver", "descripcion": "Ver dashboard", "modulo": "dashboard"},
     {"clave": "reporte.ver", "descripcion": "Ver reportes", "modulo": "reportes"},
     {"clave": "correspondencia.ver", "descripcion": "Ver correspondencia", "modulo": "correspondencia"},
     {"clave": "correspondencia.crear", "descripcion": "Crear correspondencia", "modulo": "correspondencia"},
@@ -23,7 +24,7 @@ ROLES_BASE = [
     {
         "nombre": "direccion",
         "descripcion": "Dirección con acceso a reportes",
-        "permisos": ["reporte.ver"],
+        "permisos": ["reporte.ver", "dashboard.ver"],
         "activo": True,
     },
     {
@@ -35,7 +36,7 @@ ROLES_BASE = [
     {
         "nombre": "coordinador",
         "descripcion": "Coordinador de área",
-        "permisos": ["correspondencia.ver"],
+        "permisos": ["correspondencia.ver", "dashboard.ver", "reporte.ver"],
         "activo": True,
     },
     {
