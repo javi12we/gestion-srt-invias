@@ -41,7 +41,7 @@ class PDFReportService:
             return 0
             
         dias = 0
-        actual = fecha_inicio_date
+        actual = fecha_inicio_date + timedelta(days=1)
         while actual < fecha_fin_date:
             if actual.weekday() < 5 and actual not in self.co_holidays:
                 dias += 1
@@ -95,7 +95,6 @@ class PDFReportService:
         query = {
             "estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]},
             "tipo": {"$regex": "pqrd", "$options": "i"},
-            "fecha_vencimiento": {"$lt": hoy_utc},
             "responsable_actual.nombre": {"$ne": "Gladys Gutierrez Buitrago", "$exists": True}
         }
         
@@ -104,22 +103,25 @@ class PDFReportService:
         
         for doc in datos:
             responsable = doc.get("responsable_actual", {}).get("nombre", "Sin Asignar")
-            f_vencimiento = doc.get("fecha_vencimiento")
-            if not f_vencimiento:
+            
+            if doc.get("respuesta", {}).get("numero_oficio"):
+                continue
+                
+            f_radicacion = doc.get("fecha_radicacion")
+            if not f_radicacion:
                 continue
             
-            if isinstance(f_vencimiento, datetime):
-                if f_vencimiento.tzinfo is None:
-                    f_vencimiento = f_vencimiento.replace(tzinfo=timezone.utc)
-                f_vencimiento_utc = f_vencimiento.astimezone(timezone.utc)
+            if isinstance(f_radicacion, datetime):
+                if f_radicacion.tzinfo is None:
+                    f_radicacion = f_radicacion.replace(tzinfo=timezone.utc)
+                f_radicacion_utc = f_radicacion.astimezone(timezone.utc)
             
-            # Calcular días de atraso en días completos/calendario
-            dias_retraso = (hoy.date() - f_vencimiento_utc.date()).days
-            if dias_retraso > 0:
+            dias_correspondencia = self._calcular_dias_habiles(f_radicacion_utc, hoy_utc)
+            if dias_correspondencia >= 10:
                 filas.append({
                     "NO. RADICADO": doc.get("numero_radicado", "S/N"),
                     "Usuario Responsable": responsable,
-                    "Días sin respuesta": dias_retraso
+                    "Días sin respuesta": dias_correspondencia
                 })
                 
         df_reporte = pd.DataFrame(filas)
@@ -163,16 +165,7 @@ class PDFReportService:
             
             col_index = 2
             for i, fila in enumerate(data_reporte[1:], start=1):
-                try:
-                    dias = int(fila[col_index])
-                    if dias <= 14:
-                        estilos.append(("BACKGROUND", (col_index, i), (col_index, i), HexColor("#C6EFCE")))
-                    elif 15 <= dias <= 20:
-                        estilos.append(("BACKGROUND", (col_index, i), (col_index, i), HexColor("#FFF2CC")))
-                    elif dias > 20:
-                        estilos.append(("BACKGROUND", (col_index, i), (col_index, i), HexColor("#F8CBAD")))
-                except:
-                    pass
+                estilos.append(("BACKGROUND", (col_index, i), (col_index, i), HexColor("#FFCCCC")))
                     
             tabla_reporte.setStyle(TableStyle(estilos))
             elementos.append(tabla_reporte)
@@ -195,7 +188,6 @@ class PDFReportService:
         # Filtro optimizado a nivel de base de datos (MongoDB)
         query = {
             "estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]},
-            "fecha_vencimiento": {"$lt": hoy_utc},
             "responsable_actual.nombre": {"$ne": "Gladys Gutierrez Buitrago", "$exists": True}
         }
         
@@ -204,22 +196,25 @@ class PDFReportService:
         
         for doc in datos:
             responsable = doc.get("responsable_actual", {}).get("nombre", "Sin Asignar")
-            f_vencimiento = doc.get("fecha_vencimiento")
-            if not f_vencimiento:
+            
+            if doc.get("respuesta", {}).get("numero_oficio"):
+                continue
+                
+            f_radicacion = doc.get("fecha_radicacion")
+            if not f_radicacion:
                 continue
             
-            if isinstance(f_vencimiento, datetime):
-                if f_vencimiento.tzinfo is None:
-                    f_vencimiento = f_vencimiento.replace(tzinfo=timezone.utc)
-                f_vencimiento_utc = f_vencimiento.astimezone(timezone.utc)
+            if isinstance(f_radicacion, datetime):
+                if f_radicacion.tzinfo is None:
+                    f_radicacion = f_radicacion.replace(tzinfo=timezone.utc)
+                f_radicacion_utc = f_radicacion.astimezone(timezone.utc)
             
-            # Calcular días de atraso en días completos/calendario
-            dias_retraso = (hoy.date() - f_vencimiento_utc.date()).days
-            if dias_retraso > 0:
+            dias_correspondencia = self._calcular_dias_habiles(f_radicacion_utc, hoy_utc)
+            if dias_correspondencia >= 10:
                 filas.append({
                     "No. Radicado": doc.get("numero_radicado", "S/N"),
                     "Usuario Responsable": responsable,
-                    "Días sin respuesta": dias_retraso
+                    "Días sin respuesta": dias_correspondencia
                 })
                 
         df_reporte = pd.DataFrame(filas)
@@ -267,16 +262,7 @@ class PDFReportService:
                 ]
                 
                 for i, fila in enumerate(data[1:], start=1):
-                    try:
-                        dias = int(fila[2])
-                        if 10 <= dias <= 14:
-                            estilos.append(("BACKGROUND", (2, i), (2, i), HexColor("#C6EFCE")))
-                        elif 15 <= dias <= 20:
-                            estilos.append(("BACKGROUND", (2, i), (2, i), HexColor("#FFF2CC")))
-                        elif dias > 20:
-                            estilos.append(("BACKGROUND", (2, i), (2, i), HexColor("#F8CBAD")))
-                    except:
-                        pass
+                    estilos.append(("BACKGROUND", (2, i), (2, i), HexColor("#FFCCCC")))
                 
                 tabla.setStyle(TableStyle(estilos))
                 

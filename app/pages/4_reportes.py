@@ -150,11 +150,12 @@ else:
         try:
             pdf_bytes = st.session_state.get("pdf_preview_data")
             base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" style="border: none; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" type="application/pdf"></iframe>'
+            pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" type="application/pdf" style="border: none; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">'
             
             col_view, col_close = st.columns([5, 1])
             with col_view:
                 st.info("💡 **Consejo:** Puedes usar los controles nativos del navegador dentro del visor para imprimir, hacer zoom o guardar el documento directamente.")
+                st.warning("⚠️ **Aviso de Previsualización:** Si no puedes ver el documento a continuación, es posible que tu navegador esté bloqueando la previsualización de PDFs (o necesites permitirlo en la configuración del sitio). En ese caso, utiliza el botón de descarga directa de arriba.")
             with col_close:
                 st.write("")
                 if st.button("❌ Cerrar Vista", use_container_width=True, key="close_preview"):

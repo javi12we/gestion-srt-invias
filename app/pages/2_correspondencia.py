@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timezone, timedelta
+import holidays
 
 from app.core.sesion import obtener_sesion
 from app.services.correspondencia_service import CorrespondenciaService
@@ -761,16 +762,38 @@ with tab_gestion:
                     fecha_venc_utc = fecha_venc_dt.astimezone(timezone.utc)
                     colombia_tz = timezone(timedelta(hours=-5))
                     hoy = datetime.now(colombia_tz)
-                    dias_restantes = (fecha_venc_utc.date() - hoy.date()).days
-                    dias_restantes_val = dias_restantes
-                    if dias_restantes < 0:
-                        tiempo_restante = f"🛑 {-dias_restantes} d. atraso"
-                    elif dias_restantes == 0:
+                    dias_calendario = (fecha_venc_utc.date() - hoy.date()).days
+                    dias_restantes_val = dias_calendario
+                    
+                    if dias_calendario < 0:
+                        inicio = fecha_venc_utc.date()
+                        fin = hoy.date()
+                        dias_habiles = 0
+                        actual = inicio + timedelta(days=1)
+                        co_holidays = holidays.CO()
+                        while actual <= fin:
+                            if actual.weekday() < 5 and actual not in co_holidays:
+                                dias_habiles += 1
+                            actual += timedelta(days=1)
+                        tiempo_restante = f"🛑 {dias_habiles} d. atraso"
+                        dias_restantes_val = -dias_habiles
+                    elif dias_calendario == 0:
                         tiempo_restante = "⚠️ Vence hoy"
-                    elif dias_restantes <= 5:
-                        tiempo_restante = f"⚠️ {dias_restantes} d. restantes"
-                    else:
-                        tiempo_restante = f"⏳ {dias_restantes} d. restantes"
+                    elif dias_calendario > 0:
+                        inicio = hoy.date()
+                        fin = fecha_venc_utc.date()
+                        dias_habiles = 0
+                        actual = inicio + timedelta(days=1)
+                        co_holidays = holidays.CO()
+                        while actual <= fin:
+                            if actual.weekday() < 5 and actual not in co_holidays:
+                                dias_habiles += 1
+                            actual += timedelta(days=1)
+                        if dias_habiles <= 5:
+                            tiempo_restante = f"⚠️ {dias_habiles} d. restantes"
+                        else:
+                            tiempo_restante = f"⏳ {dias_habiles} d. restantes"
+                        dias_restantes_val = dias_habiles
             elif not fecha_venc_dt and not es_finalizado:
                 tiempo_restante = "N/A"
 
