@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timezone, timedelta
+import holidays
 
 from app.core.sesion import obtener_sesion
 from app.services.correspondencia_service import CorrespondenciaService
@@ -330,7 +331,7 @@ def modal_gestion_correspondencia(corr_actual):
                             else:
                                 st.warning("Formato invalido, no es una respuesta")
                         
-                        if st.button("Marcar como Respondido", disabled=not es_valido, key=f"btn_marcar_resp_{id_seleccionado}"):
+                        if st.button("Responder", type="primary", disabled=not es_valido, key=f"btn_marcar_resp_{id_seleccionado}"):
                             # Convertir fecha de date a datetime
                             f_resp_dt = datetime.combine(fecha_resp, datetime.min.time()).replace(tzinfo=timezone.utc)
                             service.dar_respuesta(
@@ -347,19 +348,18 @@ def modal_gestion_correspondencia(corr_actual):
                     
                     if estado_actual not in ["archivado", "traslado_competencia"]:
                         st.markdown('Archivar Radicado <span title="Solo archivar radicados que no necesiten respuesta y se encuentren debidamente en una Carpeta de Archivados o Archivo en AZ, de lo contrario contará como abierto y generará reporte de retraso (Se realiza revisión semanal de archivados)">ℹ️</span>', unsafe_allow_html=True)
-                        with st.form(f"form_archivar_{id_seleccionado}"):
-                            comentario_arch = st.text_input("Comentario (Opcional)", value="Cierre del caso")
-                            if st.form_submit_button("Archivar", type="primary"):
-                                service.archivar(
-                                    id_seleccionado,
-                                    nombre_usuario_actual,
-                                    comentario_arch,
-                                    usuario_ejecutor_id=id_usuario_actual
-                                )
-                                st.success("Archivado")
-                                st.rerun()
+                        comentario_arch = st.text_input("Comentario *", value="", key=f"comentario_arch_{id_seleccionado}")
+                        if st.button("Archivar", type="primary", disabled=not bool(comentario_arch.strip()), key=f"btn_archivar_{id_seleccionado}"):
+                            service.archivar(
+                                id_seleccionado,
+                                nombre_usuario_actual,
+                                comentario_arch,
+                                usuario_ejecutor_id=id_usuario_actual
+                            )
+                            st.success("Archivado")
+                            st.rerun()
                                 
-                    if estado_actual not in ["archivado", "traslado_competencia"]:
+                    if estado_actual not in ["archivado", "traslado_competencia"] and (is_admin or is_asignacion or is_coordinador or is_lider):
                         st.write("Traslado por Competencia")
                         with st.form(f"form_traslado_comp_{id_seleccionado}"):
                             comentario_tc = st.text_input("Comentario", value="No es competencia de la entidad")
@@ -762,16 +762,38 @@ with tab_gestion:
                     fecha_venc_utc = fecha_venc_dt.astimezone(timezone.utc)
                     colombia_tz = timezone(timedelta(hours=-5))
                     hoy = datetime.now(colombia_tz)
-                    dias_restantes = (fecha_venc_utc.date() - hoy.date()).days
-                    dias_restantes_val = dias_restantes
-                    if dias_restantes < 0:
-                        tiempo_restante = f"🛑 {-dias_restantes} d. atraso"
-                    elif dias_restantes == 0:
+                    dias_calendario = (fecha_venc_utc.date() - hoy.date()).days
+                    dias_restantes_val = dias_calendario
+                    
+                    if dias_calendario < 0:
+                        inicio = fecha_venc_utc.date()
+                        fin = hoy.date()
+                        dias_habiles = 0
+                        actual = inicio + timedelta(days=1)
+                        co_holidays = holidays.CO()
+                        while actual <= fin:
+                            if actual.weekday() < 5 and actual not in co_holidays:
+                                dias_habiles += 1
+                            actual += timedelta(days=1)
+                        tiempo_restante = f"🛑 {dias_habiles} d. atraso"
+                        dias_restantes_val = -dias_habiles
+                    elif dias_calendario == 0:
                         tiempo_restante = "⚠️ Vence hoy"
-                    elif dias_restantes <= 5:
-                        tiempo_restante = f"⚠️ {dias_restantes} d. restantes"
-                    else:
-                        tiempo_restante = f"⏳ {dias_restantes} d. restantes"
+                    elif dias_calendario > 0:
+                        inicio = hoy.date()
+                        fin = fecha_venc_utc.date()
+                        dias_habiles = 0
+                        actual = inicio + timedelta(days=1)
+                        co_holidays = holidays.CO()
+                        while actual <= fin:
+                            if actual.weekday() < 5 and actual not in co_holidays:
+                                dias_habiles += 1
+                            actual += timedelta(days=1)
+                        if dias_habiles <= 5:
+                            tiempo_restante = f"⚠️ {dias_habiles} d. restantes"
+                        else:
+                            tiempo_restante = f"⏳ {dias_habiles} d. restantes"
+                        dias_restantes_val = dias_habiles
             elif not fecha_venc_dt and not es_finalizado:
                 tiempo_restante = "N/A"
 

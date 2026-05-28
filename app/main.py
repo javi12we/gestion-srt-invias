@@ -25,129 +25,724 @@ st.set_page_config(
 def aplicar_tema():
     st.markdown("""
         <style>
-        /* ===== Sidebar: gradiente cálido + borde naranja ===== */
+
+        /* =====================================================
+           BORDE NARANJA GLOBAL SUPERIOR
+        ===================================================== */
+
+        .stApp {
+
+            border-top: 2px solid #FF8C00;
+        }
+
+        /* =====================================================
+           SIDEBAR BASE
+        ===================================================== */
+
         [data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #5A2D0C 0%, #3D1E0A 100%) !important;
-            border-right: 1px solid rgba(255, 140, 0, 0.4) !important;
+
+            background:
+
+                radial-gradient(
+                    circle at 90% 8%,
+                    rgba(255,140,0,0.08) 0%,
+                    transparent 18%
+                ),
+
+                linear-gradient(
+                    180deg,
+                    #26160D 0%,
+                    #1A1008 100%
+                ) !important;
+
+            border-right: 1px solid rgba(255,140,0,0.35) !important;
+
+            box-shadow:
+                inset -1px 0 0 rgba(255,140,0,0.10);
+
+            overflow: hidden;
         }
 
-        /* ===== Separadores visibles: línea naranja sutil ===== */
-        [data-testid="stSidebar"] hr {
-            border: none !important;
-            border-top: 1px solid rgba(255, 140, 0, 0.35) !important;
-            margin: 6px 0 !important;
-        }
+        /* =====================================================
+           HEADER SUPERIOR
+        ===================================================== */
 
-        /* ===== Separadores entre grupos de navegación ===== */
-        [data-testid="stSidebarNavSeparator"],
-        [data-testid="stSidebarNavSeparator"] hr {
-            border-top: 1px solid rgba(255, 140, 0, 0.2) !important;
-        }
-
-        /* ===== Header/topbar: café oscuro con línea naranja ===== */
         [data-testid="stHeader"] {
-            background-color: rgba(35, 20, 12, 0.95) !important;
-            border-bottom: 2px solid #FF8C00 !important;
+
+            background: rgba(35,20,12,0.96) !important;
+
+            border-bottom: 1px solid rgba(255,140,0,0.55) !important;
+
+            box-shadow:
+                0 1px 0 rgba(255,140,0,0.15);
         }
 
-        /* ===== Texto del sidebar en blanco ===== */
-        [data-testid="stSidebar"] p,
-        [data-testid="stSidebar"] span,
-        [data-testid="stSidebar"] label,
-        [data-testid="stSidebar"] h1,
-        [data-testid="stSidebar"] h2,
-        [data-testid="stSidebar"] h3 {
-            color: #FAFAFA !important;
+        /* =====================================================
+           CONTENIDO PRINCIPAL
+        ===================================================== */
+
+        .main .block-container {
+
+            border-top: 1px solid rgba(255,140,0,0.18);
+
+            padding-top: 2rem !important;
         }
 
-        /* ===== Ítem de navegación activo ===== */
-        div[data-testid="stSidebarNavItems"] a[aria-current="page"] {
-            background-color: rgba(255, 140, 0, 0.25) !important;
-            border-left: 4px solid #FF8C00 !important;
-        }
-        div[data-testid="stSidebarNavItems"] a[aria-current="page"] span {
-            color: #FF8C00 !important;
-            font-weight: bold !important;
+        .main {
+
+            box-shadow:
+                inset 0 1px 0 rgba(255,140,0,0.10);
         }
 
-        /* ===== Hover en items de navegación ===== */
-        div[data-testid="stSidebarNavItems"] a:hover {
-            background-color: rgba(255, 140, 0, 0.15) !important;
-        }
-        div[data-testid="stSidebarNavItems"] a:hover span {
-            color: #FF8C00 !important;
+        /* =====================================================
+           TEXTO GENERAL
+        ===================================================== */
+
+        [data-testid="stSidebar"] * {
+
+            color: #F4F4F4 !important;
         }
 
-        /* ===== Botón cerrar sesión en sidebar ===== */
-        [data-testid="stSidebar"] button {
-            background-color: #BA4A00 !important;
-            color: #FFFFFF !important;
-            border: none !important;
-        }
-        [data-testid="stSidebar"] button:hover {
-            background-color: #8C3800 !important;
-        }
-        [data-testid="stSidebar"] button p,
-        [data-testid="stSidebar"] button span {
-            color: #FFFFFF !important;
+        /* =====================================================
+           CONTENEDOR DEL MENÚ
+           MÁS NARANJA / CÁLIDO
+        ===================================================== */
+
+        div[data-testid="stSidebarNav"] {
+
+            background:
+
+                radial-gradient(
+                    circle at top right,
+                    rgba(255,170,0,0.055) 0%,
+                    transparent 28%
+                ),
+
+                radial-gradient(
+                    circle at bottom left,
+                    rgba(255,140,0,0.040) 0%,
+                    transparent 30%
+                ),
+
+                linear-gradient(
+                    180deg,
+                    rgba(68,32,10,0.96) 0%,
+                    rgba(48,22,8,0.98) 100%
+                ) !important;
+
+            border: 1px solid rgba(255,140,0,0.14);
+
+            border-radius: 16px;
+
+            padding: 8px 7px;
+
+            margin-top: 8px;
+
+            box-shadow:
+                inset 0 0 18px rgba(255,140,0,0.03),
+                0 0 18px rgba(255,140,0,0.025);
+
+            position: relative;
+
+            overflow: hidden;
         }
 
-        /* ===== Tarjeta de perfil: compacta y con borde naranja visible ===== */
-        [data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] {
-            padding: 0px !important;
-            margin-bottom: -25px !important;
-            background-color: rgba(255, 255, 255, 0.06) !important;
-            border-radius: 10px !important;
-            box-shadow: 0 0 0 2px #FF8C00 !important;
+        /* =====================================================
+           ITEMS MENÚ
+        ===================================================== */
+
+        div[data-testid="stSidebarNav"] ul {
+
+            gap: 0px !important;
+
+            padding-top: 0px !important;
+
+            padding-bottom: 0px !important;
+
+            position: relative;
         }
-        [data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] > div {
-            border: none !important;
-            outline: none !important;
+
+        /* ITEM */
+
+        div[data-testid="stSidebarNav"] a {
+
+            border-radius: 7px !important;
+
+            transition: all 0.12s ease !important;
+
+            background: transparent !important;
+
+            min-height: 27px !important;
+
+            height: 27px !important;
+
+            padding-top: 0px !important;
+            padding-bottom: 0px !important;
+
+            padding-left: 7px !important;
+            padding-right: 6px !important;
+
+            margin-bottom: 1px !important;
+
+            display: flex !important;
+
+            align-items: center !important;
+
+            border-left: none !important;
+
             box-shadow: none !important;
         }
-        [data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] > div > div {
+
+        /* CONTENEDOR INTERNO */
+
+        div[data-testid="stSidebarNav"] a > div {
+
+            padding-top: 0px !important;
+            padding-bottom: 0px !important;
+
+            gap: 6px !important;
+
+            align-items: center !important;
+        }
+
+        /* ICONOS */
+
+        div[data-testid="stSidebarNav"] a svg {
+
+            width: 13px !important;
+            height: 13px !important;
+
+            min-width: 13px !important;
+        }
+
+        /* =====================================================
+           TEXTO OPCIONES
+        ===================================================== */
+
+        div[data-testid="stSidebarNav"] a span {
+
+            color: #F4F4F4 !important;
+
+            font-weight: 300 !important;
+
+            font-size: 13.5px !important;
+
+            letter-spacing: 0px !important;
+
+            line-height: 1 !important;
+
+            opacity: 0.95 !important;
+        }
+
+        /* HOVER */
+
+        div[data-testid="stSidebarNav"] a:hover {
+
+            background: rgba(255,255,255,0.03) !important;
+
+            transform: translateX(1px);
+        }
+
+        /* =====================================================
+           ITEM ACTIVO
+        ===================================================== */
+
+        div[data-testid="stSidebarNav"] a[aria-current="page"] {
+
+            background:
+                rgba(255,140,0,0.08) !important;
+
+            border-left: none !important;
+
+            box-shadow: none !important;
+        }
+
+        /* TEXTO ITEM ACTIVO */
+
+        div[data-testid="stSidebarNav"] a[aria-current="page"] span {
+
+            color: #FFFFFF !important;
+
+            font-weight: 400 !important;
+        }
+
+        /* =====================================================
+           SOLO TÍTULOS DE SECCIÓN
+        ===================================================== */
+
+        div[data-testid="stSidebarNav"] > div > div > p {
+
+            color: #FF9800 !important;
+
+            font-weight: 700 !important;
+
+            font-size: 12px !important;
+
+            margin-top: 7px !important;
+
+            margin-bottom: 6px !important;
+
+            opacity: 1 !important;
+
+            letter-spacing: 0.3px;
+        }
+
+        /* =====================================================
+           SEPARADORES
+        ===================================================== */
+
+        [data-testid="stSidebar"] hr {
+
             border: none !important;
+
+            border-top: 1px solid rgba(255,140,0,0.10) !important;
         }
 
-        /* ===== Logo estático sin interacción ===== */
-        [data-testid="stSidebar"] .logo-static-container img {
-            pointer-events: none !important;
-            cursor: default !important;
-            user-select: none !important;
-            -webkit-user-drag: none !important;
-            border-radius: 8px !important;
-            width: 100% !important;
-            display: block !important;
-            margin-top: 16px !important;
-            margin-bottom: 8px !important;
-        }
-        [data-testid="stSidebar"] .logo-static-container a,
-        [data-testid="stSidebar"] .logo-static-container button {
-            pointer-events: none !important;
-            cursor: default !important;
+        /* =====================================================
+           TARJETA PERFIL
+        ===================================================== */
+
+        [data-testid="stSidebar"]
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+
+            background:
+
+                radial-gradient(
+                    circle at top right,
+                    rgba(255,170,0,0.08) 0%,
+                    transparent 40%
+                ),
+
+                linear-gradient(
+                    135deg,
+                    #552A0B 0%,
+                    #442008 50%,
+                    #321606 100%
+                ) !important;
+
+            border: 2px solid #FF9800 !important;
+
+            border-radius: 18px !important;
+
+            box-shadow:
+                0 6px 18px rgba(0,0,0,0.40),
+                inset 0 0 14px rgba(255,170,0,0.03);
+
+            overflow: hidden !important;
+
+            position: relative;
+
+            padding: 0px !important;
         }
 
-        /* ===== Sidebar adaptable a la altura de pantalla ===== */
-        [data-testid="stSidebar"] > div:first-child {
-            display: flex !important;
-            flex-direction: column !important;
-            height: 100vh !important;
-            overflow-y: auto !important;
-            overflow-x: hidden !important;
-        }
-        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
-            display: flex !important;
-            flex-direction: column !important;
-            flex: 1 !important;
-            overflow-y: auto !important;
-            min-height: 0 !important;
+        /* Glow tarjeta */
+
+        [data-testid="stSidebar"]
+        div[data-testid="stVerticalBlockBorderWrapper"]::before {
+
+            content: "";
+
+            position: absolute;
+
+            top: -60px;
+            right: -60px;
+
+            width: 160px;
+            height: 160px;
+
+            border-radius: 50%;
+
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(255,180,0,0.15) 0%,
+                    transparent 70%
+                );
+
+            pointer-events: none;
         }
 
-        /* ===== Ocultar botón fullscreen de imágenes en sidebar ===== */
-        [data-testid="stSidebar"] [data-testid="stFullScreenFrame"] > button,
-        [data-testid="stSidebar"] button[title="View fullscreen"] {
-            display: none !important;
+        /* =====================================================
+           BADGES / ROLES
+        ===================================================== */
+
+        [data-testid="stSidebar"] span[style*="border-radius: 12px"] {
+
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(120,60,0,0.72) 0%,
+                    rgba(90,40,0,0.90) 100%
+                ) !important;
+
+            color: #FFD27A !important;
+
+            border: 1px solid rgba(255,170,0,0.45) !important;
+
+            box-shadow:
+                inset 0 0 8px rgba(255,180,0,0.05),
+                0 0 10px rgba(255,140,0,0.08);
+
+            font-weight: 500 !important;
+
+            padding: 2px 8px !important;
         }
+
+        /* =====================================================
+           BOTÓN
+        ===================================================== */
+
+        [data-testid="stSidebar"] button {
+
+            background: #FF9800 !important;
+
+            color: white !important;
+
+            border: none !important;
+
+            border-radius: 999px !important;
+
+            font-weight: 500 !important;
+
+            min-height: 40px !important;
+
+            box-shadow:
+                0 5px 14px rgba(255,145,0,0.16);
+        }
+
+        [data-testid="stSidebar"] button:hover {
+
+            background: #F08C00 !important;
+
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           FORMAS DECORATIVAS PREMIUM
+        ===================================================== */
+
+        /* CÍRCULO SUPERIOR DERECHO GRANDE */
+
+        [data-testid="stSidebar"]::before {
+
+            content: "";
+
+            position: fixed;
+
+            top: -140px;
+            right: -140px;
+
+            width: 340px;
+            height: 340px;
+
+            border-radius: 50%;
+
+            border: 38px solid rgba(255,140,0,0.045);
+
+            pointer-events: none;
+        }
+
+        /* ROMBO INFERIOR IZQUIERDO */
+
+        [data-testid="stSidebar"]::after {
+
+            content: "";
+
+            position: fixed;
+
+            bottom: 60px;
+            left: -110px;
+
+            width: 210px;
+            height: 210px;
+
+            transform: rotate(45deg);
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,140,0,0.028),
+                    transparent
+                );
+
+            border: 1px solid rgba(255,140,0,0.040);
+
+            border-radius: 34px;
+
+            pointer-events: none;
+        }
+
+        /* POLÍGONO SUPERIOR DERECHO */
+
+        [data-testid="stSidebar"] > div:first-child::before {
+
+            content: "";
+
+            position: absolute;
+
+            top: 120px;
+            right: -55px;
+
+            width: 160px;
+            height: 160px;
+
+            clip-path: polygon(
+                25% 6%,
+                75% 6%,
+                100% 50%,
+                75% 94%,
+                25% 94%,
+                0% 50%
+            );
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,170,0,0.028),
+                    transparent
+                );
+
+            border: 1px solid rgba(255,140,0,0.030);
+
+            transform: rotate(14deg);
+
+            pointer-events: none;
+        }
+
+        /* POLÍGONO CENTRAL IZQUIERDO */
+
+        [data-testid="stSidebar"] > div:first-child::after {
+
+            content: "";
+
+            position: absolute;
+
+            left: -60px;
+
+            top: 42%;
+
+            width: 170px;
+            height: 170px;
+
+            clip-path: polygon(
+                50% 0%,
+                100% 38%,
+                82% 100%,
+                18% 100%,
+                0% 38%
+            );
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,140,0,0.018),
+                    transparent
+                );
+
+            border: 1px solid rgba(255,140,0,0.022);
+
+            transform: rotate(-10deg);
+
+            pointer-events: none;
+        }
+
+        /* FIGURA CIRCULAR SUPERIOR MENU */
+
+        div[data-testid="stSidebarNav"]::after {
+
+            content: "";
+
+            position: absolute;
+
+            top: -45px;
+            left: -35px;
+
+            width: 130px;
+            height: 130px;
+
+            border-radius: 50%;
+
+            border: 18px solid rgba(255,170,0,0.028);
+
+            pointer-events: none;
+        }
+
+        /* HEXÁGONO CENTRAL MENU */
+
+        div[data-testid="stSidebarNav"]::before {
+
+            content: "";
+
+            position: absolute;
+
+            right: -55px;
+            top: 36%;
+
+            width: 150px;
+            height: 150px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,140,0,0.022),
+                    transparent
+                );
+
+            clip-path: polygon(
+                25% 6%,
+                75% 6%,
+                100% 50%,
+                75% 94%,
+                25% 94%,
+                0% 50%
+            );
+
+            border: 1px solid rgba(255,140,0,0.028);
+
+            pointer-events: none;
+
+            transform: rotate(12deg);
+        }
+
+        /* TRIÁNGULO SUPERIOR */
+
+        div[data-testid="stSidebarNav"] ul::before {
+
+            content: "";
+
+            position: absolute;
+
+            top: 120px;
+            left: -70px;
+
+            width: 140px;
+            height: 140px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,180,0,0.018),
+                    transparent
+                );
+
+            clip-path: polygon(
+                50% 0%,
+                0% 100%,
+                100% 100%
+            );
+
+            transform: rotate(-14deg);
+
+            pointer-events: none;
+        }
+
+        /* ROMBO CENTRAL MENU */
+
+        div[data-testid="stSidebarNav"] ul::after {
+
+            content: "";
+
+            position: absolute;
+
+            bottom: 120px;
+            right: -60px;
+
+            width: 120px;
+            height: 120px;
+
+            border-radius: 24px;
+
+            transform: rotate(45deg);
+
+            border: 1px solid rgba(255,140,0,0.022);
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,140,0,0.015),
+                    transparent
+                );
+
+            pointer-events: none;
+        }
+
+        /* LINEAS DIFUSAS */
+
+        [data-testid="stSidebarNav"] span::after {
+
+            content: "";
+
+            position: absolute;
+
+            bottom: -180px;
+            right: -130px;
+
+            width: 260px;
+            height: 260px;
+
+            border-radius: 48px;
+
+            border: 1px solid rgba(255,140,0,0.015);
+
+            transform: rotate(45deg);
+
+            pointer-events: none;
+        }
+
+        /* GLOW DIFUSO IZQUIERDO */
+
+        .logo-static-container::before {
+
+            content: "";
+
+            position: absolute;
+
+            left: -90px;
+
+            bottom: -60px;
+
+            width: 200px;
+            height: 200px;
+
+            border-radius: 50%;
+
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(255,160,0,0.035) 0%,
+                    transparent 70%
+                );
+
+            pointer-events: none;
+        }
+
+        /* GLOW SUPERIOR SUAVE */
+
+        .logo-static-container::after {
+
+            content: "";
+
+            position: absolute;
+
+            top: -50px;
+
+            right: -70px;
+
+            width: 160px;
+            height: 160px;
+
+            border-radius: 50%;
+
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(255,180,0,0.025) 0%,
+                    transparent 72%
+                );
+
+            pointer-events: none;
+        }
+
         </style>
     """, unsafe_allow_html=True)
 
@@ -571,7 +1166,8 @@ else:
     
     with st.sidebar:
         # Tarjeta de Perfil de Usuario Premium
-        with st.container(border=True):
+        st.markdown('<div class="menu-card">', unsafe_allow_html=True)
+        with st.container(border=False):
             nombre = sesion.get("nombre_completo") or "Usuario"
             username = sesion.get("usuario")
             email = sesion.get("email") or ""
@@ -601,6 +1197,7 @@ else:
             if roles_html:
                 st.write("")
                 st.markdown(roles_html, unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
         if st.button("🚪 Cerrar sesión", key="logout_btn", use_container_width=True):
             logout()
             
