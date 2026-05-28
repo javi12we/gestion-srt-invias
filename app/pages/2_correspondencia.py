@@ -134,7 +134,7 @@ def modal_gestion_correspondencia(corr_actual):
         <div style="display:inline-flex;align-items:center;gap:8px;margin:0 0 6px 0;">
           <span style="font-size:30px;line-height:1;">📄</span>
           <span style="font-size:38px;font-weight:700;line-height:1;">Radicado:</span>
-          <code style="font-size:36px;padding:2px 8px;border-radius:8px;background:#F3F4F6;">{numero_radicado}</code>
+          <code style="font-size:36px;padding:2px 8px;border-radius:8px;background:#ECFDF3;color:#15803D;">{numero_radicado}</code>
           <button
             id="copy-radicado-btn"
             onclick='navigator.clipboard.writeText({radicado_js}).then(() => {{ this.innerText = "✅"; setTimeout(() => this.innerText = "📋", 1200); }})'
