@@ -330,7 +330,7 @@ def modal_gestion_correspondencia(corr_actual):
                             else:
                                 st.warning("Formato invalido, no es una respuesta")
                         
-                        if st.button("Marcar como Respondido", disabled=not es_valido, key=f"btn_marcar_resp_{id_seleccionado}"):
+                        if st.button("Responder", type="primary", disabled=not es_valido, key=f"btn_marcar_resp_{id_seleccionado}"):
                             # Convertir fecha de date a datetime
                             f_resp_dt = datetime.combine(fecha_resp, datetime.min.time()).replace(tzinfo=timezone.utc)
                             service.dar_respuesta(
@@ -347,19 +347,18 @@ def modal_gestion_correspondencia(corr_actual):
                     
                     if estado_actual not in ["archivado", "traslado_competencia"]:
                         st.markdown('Archivar Radicado <span title="Solo archivar radicados que no necesiten respuesta y se encuentren debidamente en una Carpeta de Archivados o Archivo en AZ, de lo contrario contará como abierto y generará reporte de retraso (Se realiza revisión semanal de archivados)">ℹ️</span>', unsafe_allow_html=True)
-                        with st.form(f"form_archivar_{id_seleccionado}"):
-                            comentario_arch = st.text_input("Comentario (Opcional)", value="Cierre del caso")
-                            if st.form_submit_button("Archivar", type="primary"):
-                                service.archivar(
-                                    id_seleccionado,
-                                    nombre_usuario_actual,
-                                    comentario_arch,
-                                    usuario_ejecutor_id=id_usuario_actual
-                                )
-                                st.success("Archivado")
-                                st.rerun()
+                        comentario_arch = st.text_input("Comentario *", value="", key=f"comentario_arch_{id_seleccionado}")
+                        if st.button("Archivar", type="primary", disabled=not bool(comentario_arch.strip()), key=f"btn_archivar_{id_seleccionado}"):
+                            service.archivar(
+                                id_seleccionado,
+                                nombre_usuario_actual,
+                                comentario_arch,
+                                usuario_ejecutor_id=id_usuario_actual
+                            )
+                            st.success("Archivado")
+                            st.rerun()
                                 
-                    if estado_actual not in ["archivado", "traslado_competencia"]:
+                    if estado_actual not in ["archivado", "traslado_competencia"] and (is_admin or is_asignacion or is_coordinador or is_lider):
                         st.write("Traslado por Competencia")
                         with st.form(f"form_traslado_comp_{id_seleccionado}"):
                             comentario_tc = st.text_input("Comentario", value="No es competencia de la entidad")
