@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
+import json
 from datetime import datetime, timezone, timedelta
 import holidays
+import streamlit.components.v1 as components
 
 from app.core.sesion import obtener_sesion
 from app.services.correspondencia_service import CorrespondenciaService
@@ -126,7 +128,24 @@ def modal_gestion_correspondencia(corr_actual):
     estado_actual = corr_actual.get('estado_actual', 'pendiente')
     
     # 1. Cabecera principal
-    st.markdown(f"## 📄 Radicado: `{numero_radicado}`")
+    radicado_js = json.dumps(str(numero_radicado))
+    components.html(
+        f"""
+        <div style="display:inline-flex;align-items:center;gap:8px;margin:0 0 6px 0;">
+          <span style="font-size:30px;line-height:1;">📄</span>
+          <span style="font-size:38px;font-weight:700;line-height:1;">Radicado:</span>
+          <code style="font-size:36px;padding:2px 8px;border-radius:8px;background:#F3F4F6;">{numero_radicado}</code>
+          <button
+            id="copy-radicado-btn"
+            onclick='navigator.clipboard.writeText({radicado_js}).then(() => {{ this.innerText = "✅"; setTimeout(() => this.innerText = "📋", 1200); }})'
+            style="border:1px solid #d1d5db;border-radius:8px;width:30px;height:30px;background:#fff;cursor:pointer;font-size:15px;line-height:1;"
+            title="Copiar número de radicado"
+            aria-label="Copiar número de radicado"
+          >📋</button>
+        </div>
+        """,
+        height=48,
+    )
     
     # 2. Calcular días de vencimiento
     fecha_venc_dt = corr_actual.get('fecha_vencimiento')
