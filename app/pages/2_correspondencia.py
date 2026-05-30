@@ -328,13 +328,13 @@ def modal_gestion_correspondencia(corr_actual):
         if es_responsable or is_asignacion:
 
             with col_acc3 if is_asignacion else (col_acc2 if can_assign else col_acc1):
-                with st.popover("✅ Responder / Cerrar", use_container_width=True):
+                with st.popover("✅ Responder / Tramitar", use_container_width=True):
                     if estado_actual not in ["respondido", "archivado", "traslado_competencia"]:
                         st.write("Cargar Respuesta")
                         # Se quita st.form para validar en tiempo real el campo y habilitar/deshabilitar el botón
                         col_resp1, col_resp2 = st.columns(2)
                         with col_resp1:
-                            num_oficio = st.text_input("Número de Oficio *", key=f"num_oficio_{id_seleccionado}")
+                            num_oficio = st.text_input("Numero de radicado Salida *", key=f"num_oficio_{id_seleccionado}")
                         with col_resp2:
                             fecha_resp = st.date_input("Fecha de Respuesta", value=datetime.now(timezone.utc), key=f"fecha_resp_{id_seleccionado}")
                             

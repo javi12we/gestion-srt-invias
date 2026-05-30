@@ -987,7 +987,7 @@ def pantalla_login() -> None:
                     st.image(logo_path, use_container_width=True)
             
             # Subir el título para acercarlo más al logo
-            st.markdown("<h2 style='text-align: center; margin-top: -25px; margin-bottom: 0px;'>Gestiones Digitales SRTI</h2>", unsafe_allow_html=True)
+            st.markdown("<h2 style='text-align: center; margin-top: -25px; margin-bottom: 0px;'>Gestiones correspondencia SRTI</h2>", unsafe_allow_html=True)
             st.markdown("<h4 style='text-align: center; font-weight: normal; margin-top: 5px; color: #F0E6DD;'>Inicio de sesión</h4>", unsafe_allow_html=True)
             
             st.write("") # Espaciador
