@@ -938,6 +938,59 @@ def aplicar_tema():
                 color: #7070A0 !important;
             }
 
+            /* Dialogs (st.dialog) montados fuera de .main */
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) {
+                background-color: #1A1A2A !important;
+                color: #FFFFFF !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) * {
+                color: #FFFFFF !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stWidgetLabel"] *,
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stMetricLabel"] * {
+                color: #D8D8F0 !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stCaptionContainer"] *,
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) small {
+                color: #B0B0CC !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stVerticalBlockBorderWrapper"],
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stForm"] {
+                background-color: #22223A !important;
+                border-color: rgba(255,140,0,0.30) !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) input[type="text"],
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) input[type="password"],
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) input[type="number"],
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) textarea {
+                background-color: #2C2C4A !important;
+                color: #FFFFFF !important;
+                border-color: rgba(255,255,255,0.25) !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) input::placeholder,
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) textarea::placeholder {
+                color: #7070A0 !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-baseweb="select"] > div:first-child {
+                background-color: #2C2C4A !important;
+                border-color: rgba(255,255,255,0.25) !important;
+                color: #FFFFFF !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) button[kind="secondary"],
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stBaseButton-secondary"] {
+                background-color: #2C2C4A !important;
+                color: #FFFFFF !important;
+                border-color: rgba(255,255,255,0.22) !important;
+            }
+
             /* Header */
             [data-testid="stHeader"] {
                 background: rgba(26,26,42,0.97) !important;
