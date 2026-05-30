@@ -303,8 +303,7 @@ def aplicar_tema():
            TARJETA PERFIL
         ===================================================== */
 
-        [data-testid="stSidebar"]
-        div[data-testid="stVerticalBlockBorderWrapper"] {
+        .menu-card-premium {
 
             background:
 
@@ -333,13 +332,12 @@ def aplicar_tema():
 
             position: relative;
 
-            padding: 0px !important;
+            padding: 18px !important;
         }
 
         /* Glow tarjeta */
 
-        [data-testid="stSidebar"]
-        div[data-testid="stVerticalBlockBorderWrapper"]::before {
+        .menu-card-premium::before {
 
             content: "";
 
@@ -1448,39 +1446,42 @@ else:
     st.sidebar.title("Menú")
     
     with st.sidebar:
-        # Tarjeta de Perfil de Usuario Premium
-        st.markdown('<div class="menu-card">', unsafe_allow_html=True)
-        with st.container(border=False):
-            nombre = sesion.get("nombre_completo") or "Usuario"
-            username = sesion.get("usuario")
-            email = sesion.get("email") or ""
-            roles_lista = sesion.get("roles", [])
+        # Tarjeta de Perfil de Usuario Premium (HTML puro para garantizar el diseño exacto)
+        nombre = sesion.get("nombre_completo") or "Usuario"
+        username = sesion.get("usuario")
+        email = sesion.get("email") or ""
+        roles_lista = sesion.get("roles", [])
+        
+        # Icono según rol
+        if "admin" in roles_lista:
+            avatar = "🛡️"
+        elif "direccion" in roles_lista:
+            avatar = "👩‍💼"
+        else:
+            avatar = "👤"
             
-            # Icono según rol
-            if "admin" in roles_lista:
-                avatar = "🛡️"
-            elif "direccion" in roles_lista:
-                avatar = "👩‍💼"
-            else:
-                avatar = "👤"
+        roles_html = ""
+        for r in roles_lista:
+            roles_html += f"<span style='background-color: rgba(0, 128, 255, 0.15); color: #0080ff; padding: 2px 8px; border-radius: 12px; font-size: 0.75em; font-weight: bold; display: inline-block;'>{r.title()}</span>"
             
-            c_avatar, c_info = st.columns([1, 3])
-            with c_avatar:
-                st.markdown(f"<div style='font-size: 2.3em; text-align: center; margin-top: 3px;'>{avatar}</div>", unsafe_allow_html=True)
-            with c_info:
-                st.markdown(f"**{nombre}**")
-                st.markdown(f"<div style='color: gray; font-size: 0.85em; margin-top: -5px;'>@{username}</div>", unsafe_allow_html=True)
-                if email:
-                    st.markdown(f"<div style='color: gray; font-size: 0.75em; word-break: break-all; margin-top: 2px;'>{email}</div>", unsafe_allow_html=True)
-            
-            # Mostrar badges elegantes para cada rol
-            roles_html = ""
-            for r in roles_lista:
-                roles_html += f"<span style='background-color: rgba(0, 128, 255, 0.15); color: #0080ff; padding: 2px 8px; border-radius: 12px; font-size: 0.75em; font-weight: bold; margin-right: 4px; display: inline-block;'>{r.title()}</span>"
-            if roles_html:
-                st.write("")
-                st.markdown(roles_html, unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+        email_html = f"<div style='color: gray; font-size: 0.75em; word-break: break-all; margin-top: 2px;'>{email}</div>" if email else ""
+        
+        html_tarjeta = f"""
+        <div class="menu-card-premium" style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 15px; box-sizing: border-box; width: 100%;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="font-size: 2.6em; display: flex; align-items: center; justify-content: center; min-width: 50px;">{avatar}</div>
+                <div style="display: flex; flex-direction: column; justify-content: center; overflow: hidden; line-height: 1.3;">
+                    <div style="font-weight: 600; color: #F4F4F4; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{nombre}</div>
+                    <div style="color: #A0A0A0; font-size: 13px;">@{username}</div>
+                    {email_html}
+                </div>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                {roles_html}
+            </div>
+        </div>
+        """
+        st.markdown(html_tarjeta, unsafe_allow_html=True)
         if st.button("🚪 Cerrar sesión", key="logout_btn", width="stretch"):
             logout()
 
