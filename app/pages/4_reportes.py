@@ -161,16 +161,13 @@ if st.session_state.get("pdf_preview_data") is not None:
     st.divider()
     st.markdown(f"### 🔍 Previsualización: {st.session_state.get('pdf_preview_title')}")
     
-    import base64
+    from streamlit_pdf_viewer import pdf_viewer
     try:
         pdf_bytes = st.session_state.get("pdf_preview_data")
-        base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-        pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" type="application/pdf" style="border: none; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">'
         
         col_view, col_close = st.columns([5, 1])
         with col_view:
-            st.info("💡 **Consejo:** Puedes usar los controles nativos del navegador dentro del visor para imprimir, hacer zoom o guardar el documento directamente.")
-            st.warning("⚠️ **Aviso de Previsualización:** Si no puedes ver el documento a continuación, es posible que tu navegador esté bloqueando la previsualización de PDFs (o necesites permitirlo en la configuración del sitio). En ese caso, utiliza el botón de descarga directa de arriba.")
+            st.info("💡 **Consejo:** El visor de PDF ahora utiliza una renderización nativa compatible con todos los navegadores, incluido Chrome en producción.")
         with col_close:
             st.write("")
             if st.button("❌ Cerrar Vista", use_container_width=True, key="close_preview"):
@@ -178,7 +175,8 @@ if st.session_state.get("pdf_preview_data") is not None:
                 st.session_state["pdf_preview_title"] = ""
                 st.rerun()
                 
-        st.markdown(pdf_display, unsafe_allow_html=True)
+        # Mostrar el visor
+        pdf_viewer(input=pdf_bytes, width=800, height=600)
     except Exception as e:
         st.error(f"No se pudo renderizar la vista previa del PDF: {e}")
 
