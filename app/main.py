@@ -23,6 +23,7 @@ st.set_page_config(
 )
 
 def aplicar_tema():
+    dark_mode = st.session_state.get("dark_mode", False)
     st.markdown("""
         <style>
 
@@ -743,8 +744,207 @@ def aplicar_tema():
             pointer-events: none;
         }
 
+        /* =====================================================
+           TOGGLE MODO OSCURO EN SIDEBAR
+        ===================================================== */
+
+        [data-testid="stSidebar"] [data-testid="stCheckbox"] {
+            padding: 4px 0 2px 0;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stCheckbox"] label {
+            font-size: 12.5px !important;
+            color: rgba(244,244,244,0.78) !important;
+            letter-spacing: 0.2px;
+            font-weight: 400 !important;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stCheckbox"] label:hover {
+            color: #F4F4F4 !important;
+            opacity: 1 !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stCheckbox"] label p {
+            font-size: 12.5px !important;
+            color: rgba(244,244,244,0.78) !important;
+            font-weight: 400 !important;
+        }
+
         </style>
     """, unsafe_allow_html=True)
+
+    if dark_mode:
+        st.markdown("""
+            <style>
+            /* =====================================================
+               MODO OSCURO — SOLO ÁREA DE CONTENIDO PRINCIPAL
+               La barra lateral NO se ve afectada gracias a sus
+               propios estilos con !important
+            ===================================================== */
+
+            /* Fondos */
+            .stApp {
+                background-color: #1A1A2A !important;
+            }
+
+            .main, [data-testid="stMain"] {
+                background-color: #1A1A2A !important;
+            }
+
+            .main .block-container,
+            [data-testid="block-container"] {
+                background-color: #1A1A2A !important;
+            }
+
+            /* ── TEXTO NUCLEAR: igual que hace el sidebar con su propio selector ── */
+            :is(.main, [data-testid="stMain"]) * {
+                color: #FFFFFF !important;
+            }
+
+            /* Texto secundario / labels (sobrescriben el blanco puro) */
+            :is(.main, [data-testid="stMain"]) [data-testid="stWidgetLabel"] *,
+            :is(.main, [data-testid="stMain"]) [data-testid="stMetricLabel"] * {
+                color: #D8D8F0 !important;
+            }
+
+            /* Captions */
+            :is(.main, [data-testid="stMain"]) [data-testid="stCaptionContainer"] *,
+            :is(.main, [data-testid="stMain"]) small {
+                color: #B0B0CC !important;
+            }
+
+            /* Métricas — valores grandes en blanco puro y resaltados */
+            :is(.main, [data-testid="stMain"]) [data-testid="stMetricValue"] * {
+                color: #FFFFFF !important;
+                font-weight: 700 !important;
+            }
+
+            /* Contenedores con borde */
+            :is(.main, [data-testid="stMain"]) [data-testid="stVerticalBlockBorderWrapper"] {
+                background-color: #22223A !important;
+                border-color: rgba(255,140,0,0.30) !important;
+            }
+
+            /* Formularios */
+            :is(.main, [data-testid="stMain"]) [data-testid="stForm"] {
+                background-color: #22223A !important;
+                border-color: rgba(255,140,0,0.30) !important;
+            }
+
+            /* Inputs de texto */
+            :is(.main, [data-testid="stMain"]) input[type="text"],
+            :is(.main, [data-testid="stMain"]) input[type="password"],
+            :is(.main, [data-testid="stMain"]) input[type="number"],
+            :is(.main, [data-testid="stMain"]) textarea {
+                background-color: #2C2C4A !important;
+                color: #FFFFFF !important;
+                border-color: rgba(255,255,255,0.25) !important;
+            }
+
+            :is(.main, [data-testid="stMain"]) input::placeholder,
+            :is(.main, [data-testid="stMain"]) textarea::placeholder {
+                color: #7070A0 !important;
+            }
+
+            /* Expanders */
+            :is(.main, [data-testid="stMain"]) [data-testid="stExpander"] {
+                background-color: #22223A !important;
+                border-color: rgba(255,255,255,0.12) !important;
+            }
+
+            :is(.main, [data-testid="stMain"]) [data-testid="stExpander"] summary p,
+            :is(.main, [data-testid="stMain"]) [data-testid="stExpander"] summary span {
+                color: #FFFFFF !important;
+            }
+
+            /* Info / Warning / Error / Success */
+            :is(.main, [data-testid="stMain"]) [data-testid="stAlert"] {
+                background-color: #22223A !important;
+            }
+
+            :is(.main, [data-testid="stMain"]) [data-testid="stAlert"] p,
+            :is(.main, [data-testid="stMain"]) [data-testid="stAlert"] span {
+                color: #FFFFFF !important;
+            }
+
+            /* DataFrames */
+            :is(.main, [data-testid="stMain"]) [data-testid="stDataFrameResizable"] {
+                background-color: #22223A !important;
+            }
+
+            :is(.main, [data-testid="stMain"]) [data-testid="stDataFrameResizable"] * {
+                color: #FFFFFF !important;
+            }
+
+            /* Tablas HTML */
+            :is(.main, [data-testid="stMain"]) table {
+                background-color: #22223A !important;
+            }
+
+            :is(.main, [data-testid="stMain"]) th {
+                background-color: #2C2C4A !important;
+                color: #FFFFFF !important;
+                border-color: rgba(255,255,255,0.12) !important;
+            }
+
+            :is(.main, [data-testid="stMain"]) td {
+                color: #F0F0FF !important;
+                border-color: rgba(255,255,255,0.08) !important;
+            }
+
+            /* Separadores */
+            :is(.main, [data-testid="stMain"]) hr {
+                border-color: rgba(255,255,255,0.12) !important;
+            }
+
+            /* Selectbox / dropdown */
+            :is(.main, [data-testid="stMain"]) [data-baseweb="select"] > div:first-child {
+                background-color: #2C2C4A !important;
+                border-color: rgba(255,255,255,0.25) !important;
+                color: #FFFFFF !important;
+            }
+
+            /* Tabs */
+            :is(.main, [data-testid="stMain"]) [data-baseweb="tab-panel"] {
+                background-color: #22223A !important;
+            }
+
+            :is(.main, [data-testid="stMain"]) [data-baseweb="tab"] {
+                color: #B0B0D0 !important;
+            }
+
+            :is(.main, [data-testid="stMain"]) [data-baseweb="tab"][aria-selected="true"] {
+                color: #FF9800 !important;
+            }
+
+            /* Botones secundarios en el área principal (ej. "Ver mi Perfil", "Actualizar") */
+            :is(.main, [data-testid="stMain"]) button[kind="secondary"],
+            :is(.main, [data-testid="stMain"]) [data-testid="stBaseButton-secondary"] {
+                background-color: #2C2C4A !important;
+                color: #FFFFFF !important;
+                border-color: rgba(255,255,255,0.22) !important;
+            }
+
+            :is(.main, [data-testid="stMain"]) button[kind="secondary"]:hover,
+            :is(.main, [data-testid="stMain"]) [data-testid="stBaseButton-secondary"]:hover {
+                background-color: #363658 !important;
+                border-color: rgba(255,140,0,0.5) !important;
+            }
+
+            /* Tooltips */
+            :is(.main, [data-testid="stMain"]) [data-testid="stTooltipIcon"] {
+                color: #7070A0 !important;
+            }
+
+            /* Header */
+            [data-testid="stHeader"] {
+                background: rgba(26,26,42,0.97) !important;
+            }
+
+            </style>
+        """, unsafe_allow_html=True)
 
 
 def pantalla_login() -> None:
@@ -1041,7 +1241,7 @@ def pantalla_dashboard() -> None:
     st.title("Gestión de Correspondencia")
     st.subheader(f"Bienvenido(a), {sesion.get('nombre_completo') or sesion['usuario']}.")
     
-    st.markdown("**Vista actual:** `Personal (Mis asignaciones)`")
+    st.markdown("**Vista actual:** Personal (Mis asignaciones)")
 
 
     # Métricas de Valor
@@ -1201,7 +1401,10 @@ else:
                 st.markdown('</div>', unsafe_allow_html=True)
         if st.button("🚪 Cerrar sesión", key="logout_btn", use_container_width=True):
             logout()
-            
+
+        st.divider()
+        st.toggle("🌙 Modo oscuro", key="dark_mode")
+
         logo_path = os.path.join("app", "assets", "INVIAS_login_logo.png")
         if os.path.exists(logo_path):
             import base64
