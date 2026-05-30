@@ -34,6 +34,7 @@ with col_btn:
         st.session_state.pop("excel_kawak_name", None)
         st.session_state.pop("pdf_pqrd", None)
         st.session_state.pop("pdf_conglomerado", None)
+        st.session_state.pop("pdf_total", None)
         st.session_state.pop("pdf_preview_data", None)
         st.session_state.pop("pdf_preview_title", None)
         st.rerun()
@@ -77,11 +78,10 @@ with col_c1:
 
 with col_c2:
     with st.container(border=True):
-        st.markdown("### 📄 Reportes Oficiales en PDF")
+        st.markdown("### 📄 Reportes Correspondencia PDF")
         st.write(
             "Genera y compila los documentos en PDF oficiales y estructurados listos para firma "
-            "o archivo: el Reporte de PQRD (Peticiones, Quejas y Reclamos) y el Reporte Conglomerado "
-            "general de correspondencia."
+            "o archivo: el Reporte de PQRD, el Reporte Conglomerado general y el Reporte Total sin trámite."
         )
         st.write("") # Relleno visual
         
@@ -91,6 +91,7 @@ with col_c2:
                     pdf_service = PDFReportService()
                     st.session_state["pdf_pqrd"] = pdf_service.generar_pdf_pqrd()
                     st.session_state["pdf_conglomerado"] = pdf_service.generar_pdf_conglomerado()
+                    st.session_state["pdf_total"] = pdf_service.generar_pdf_total_sin_tramite()
                     st.session_state["show_pdf_downloads"] = True
                     st.success("¡Documentos PDF generados con éxito!")
                 except Exception as e:
@@ -134,6 +135,24 @@ with col_c2:
                     mime="application/pdf",
                     use_container_width=True,
                     key="dl_cong"
+                )
+            
+            # --- Reporte Total sin tramite ---
+            st.markdown("##### 📌 Reporte Total sin trámite")
+            col_total_preview, col_total_dl = st.columns([1, 1])
+            with col_total_preview:
+                if st.button("🔍 Previsualizar Total", use_container_width=True, key="prev_total"):
+                    st.session_state["pdf_preview_data"] = st.session_state.get("pdf_total").getvalue() if hasattr(st.session_state.get("pdf_total"), "getvalue") else st.session_state.get("pdf_total", b"")
+                    st.session_state["pdf_preview_title"] = "Reporte Total sin trámite"
+                    st.rerun()
+            with col_total_dl:
+                st.download_button(
+                    label="⬇️ Descargar PDF",
+                    data=st.session_state.get("pdf_total", b""),
+                    file_name=f"Reporte_Total_Correspondencia_{fecha_hoy}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="dl_total"
                 )
 
 # --- Visualizador de PDF Incrustado ---
