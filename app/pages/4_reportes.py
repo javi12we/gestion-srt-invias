@@ -27,7 +27,7 @@ with col_title:
 with col_btn:
     st.write("") # Espaciador para alineación
     st.write("") 
-    if st.button("🔄 Limpiar", use_container_width=True, key="refresh_reportes"):
+    if st.button("🔄 Limpiar", width="stretch", key="refresh_reportes"):
         st.session_state.pop("show_pdf_downloads", None)
         st.session_state.pop("show_excel_download", None)
         st.session_state.pop("excel_kawak_buffer", None)
@@ -54,7 +54,7 @@ with col_c1:
         )
         st.write("") # Relleno visual
         
-        if st.button("Generar Excel KAWAK", use_container_width=True, key="gen_excel", type="primary"):
+        if st.button("Generar Excel KAWAK", width="stretch", key="gen_excel", type="primary"):
             with st.spinner("Procesando datos y estructurando hoja Excel..."):
                 try:
                     excel_service = ExcelReportService()
@@ -73,7 +73,7 @@ with col_c1:
                 data=st.session_state.get("excel_kawak_buffer", b""),
                 file_name=st.session_state.get("excel_kawak_name", "Reporte_KAWAK.xlsx"),
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
+                width="stretch"
             )
 
 with col_c2:
@@ -85,7 +85,7 @@ with col_c2:
         )
         st.write("") # Relleno visual
         
-        if st.button("Generar Reportes PDF", use_container_width=True, key="gen_pdf", type="primary"):
+        if st.button("Generar Reportes PDF", width="stretch", key="gen_pdf", type="primary"):
             with st.spinner("Generando documentos PDF..."):
                 try:
                     pdf_service = PDFReportService()
@@ -105,7 +105,7 @@ with col_c2:
             st.markdown("##### 📌 Reporte PQRD")
             col_pqrd_preview, col_pqrd_dl = st.columns([1, 1])
             with col_pqrd_preview:
-                if st.button("🔍 Previsualizar PQRD", use_container_width=True, key="prev_pqrd"):
+                if st.button("🔍 Previsualizar PQRD", width="stretch", key="prev_pqrd"):
                     st.session_state["pdf_preview_data"] = st.session_state.get("pdf_pqrd").getvalue() if hasattr(st.session_state.get("pdf_pqrd"), "getvalue") else st.session_state.get("pdf_pqrd", b"")
                     st.session_state["pdf_preview_title"] = "Reporte VUVR PQRD"
                     st.rerun()
@@ -115,7 +115,7 @@ with col_c2:
                     data=st.session_state.get("pdf_pqrd", b""),
                     file_name=f"Reporte_VUVR_PQRD_{fecha_hoy}.pdf",
                     mime="application/pdf",
-                    use_container_width=True,
+                    width="stretch",
                     key="dl_pqrd"
                 )
             
@@ -123,7 +123,7 @@ with col_c2:
             st.markdown("##### 📌 Reporte Conglomerado")
             col_cong_preview, col_cong_dl = st.columns([1, 1])
             with col_cong_preview:
-                if st.button("🔍 Previsualizar Conglomerado", use_container_width=True, key="prev_cong"):
+                if st.button("🔍 Previsualizar Conglomerado", width="stretch", key="prev_cong"):
                     st.session_state["pdf_preview_data"] = st.session_state.get("pdf_conglomerado").getvalue() if hasattr(st.session_state.get("pdf_conglomerado"), "getvalue") else st.session_state.get("pdf_conglomerado", b"")
                     st.session_state["pdf_preview_title"] = "Reporte Conglomerado SRTI"
                     st.rerun()
@@ -133,7 +133,7 @@ with col_c2:
                     data=st.session_state.get("pdf_conglomerado", b""),
                     file_name=f"Reporte_Correspondencia_{fecha_hoy}.pdf",
                     mime="application/pdf",
-                    use_container_width=True,
+                    width="stretch",
                     key="dl_cong"
                 )
             
@@ -141,7 +141,7 @@ with col_c2:
             st.markdown("##### 📌 Reporte Total sin trámite")
             col_total_preview, col_total_dl = st.columns([1, 1])
             with col_total_preview:
-                if st.button("🔍 Previsualizar Total", use_container_width=True, key="prev_total"):
+                if st.button("🔍 Previsualizar Total", width="stretch", key="prev_total"):
                     st.session_state["pdf_preview_data"] = st.session_state.get("pdf_total").getvalue() if hasattr(st.session_state.get("pdf_total"), "getvalue") else st.session_state.get("pdf_total", b"")
                     st.session_state["pdf_preview_title"] = "Reporte Total sin trámite"
                     st.rerun()
@@ -151,7 +151,7 @@ with col_c2:
                     data=st.session_state.get("pdf_total", b""),
                     file_name=f"Reporte_Total_Correspondencia_{fecha_hoy}.pdf",
                     mime="application/pdf",
-                    use_container_width=True,
+                    width="stretch",
                     key="dl_total"
                 )
 
@@ -170,7 +170,7 @@ if st.session_state.get("pdf_preview_data") is not None:
             st.info("💡 **Consejo:** El visor de PDF ahora utiliza una renderización nativa compatible con todos los navegadores, incluido Chrome en producción.")
         with col_close:
             st.write("")
-            if st.button("❌ Cerrar Vista", use_container_width=True, key="close_preview"):
+            if st.button("❌ Cerrar Vista", width="stretch", key="close_preview"):
                 st.session_state["pdf_preview_data"] = None
                 st.session_state["pdf_preview_title"] = ""
                 st.rerun()

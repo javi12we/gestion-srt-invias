@@ -41,7 +41,7 @@ def render(sesion=None):
     with col_r1:
         st.subheader("Listado de roles")
     with col_r2:
-        if st.button("🔄 Actualizar", use_container_width=True, key="refresh_roles"):
+        if st.button("🔄 Actualizar", width="stretch", key="refresh_roles"):
             st.rerun()
 
     show_dataframe(pd.DataFrame(datos), hide_index=True)

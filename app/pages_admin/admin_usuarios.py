@@ -42,7 +42,7 @@ def render(sesion=None):
     with col_h1:
         st.subheader("Listado de usuarios")
     with col_h2:
-        if st.button("🔄 Actualizar", use_container_width=True, key="refresh_usuarios"):
+        if st.button("🔄 Actualizar", width="stretch", key="refresh_usuarios"):
             st.rerun()
 
     show_dataframe(pd.DataFrame(datos), hide_index=True)

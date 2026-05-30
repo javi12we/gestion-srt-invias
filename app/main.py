@@ -1184,7 +1184,7 @@ def pantalla_login() -> None:
                 # Aumentamos el tamaño relativo
                 c_logo1, c_logo2, c_logo3 = st.columns([1, 2.8, 1])
                 with c_logo2:
-                    st.image(logo_path, use_container_width=True)
+                    st.image(logo_path, width="stretch")
             
             # Subir el título para acercarlo más al logo
             st.markdown("<h2 style='text-align: center; margin-top: -25px; margin-bottom: 0px;'>Gestiones correspondencia SRTI</h2>", unsafe_allow_html=True)
@@ -1200,7 +1200,7 @@ def pantalla_login() -> None:
             # Reducir el ancho específico del botón usando columnas internas
             c_btn1, c_btn2, c_btn3 = st.columns([1, 3, 1])
             with c_btn2:
-                enviar = st.form_submit_button("Ingresar", use_container_width=True, type="primary")
+                enviar = st.form_submit_button("Ingresar", width="stretch", type="primary")
 
         if enviar:
             servicio = AuthService()
@@ -1280,10 +1280,10 @@ def pantalla_dashboard() -> None:
         
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("📂 Ir a Correspondencia", use_container_width=True, type="primary"):
+            if st.button("📂 Ir a Correspondencia", width="stretch", type="primary"):
                 st.switch_page("pages/2_correspondencia.py")
         with c2:
-            if st.button("👤 Ver mi Perfil", use_container_width=True):
+            if st.button("👤 Ver mi Perfil", width="stretch"):
                 st.switch_page("pages/2_mi_perfil.py")
         
         st.write("")
@@ -1399,7 +1399,7 @@ else:
                 st.write("")
                 st.markdown(roles_html, unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-        if st.button("🚪 Cerrar sesión", key="logout_btn", use_container_width=True):
+        if st.button("🚪 Cerrar sesión", key="logout_btn", width="stretch"):
             logout()
 
         st.divider()

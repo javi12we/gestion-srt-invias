@@ -218,7 +218,7 @@ def modal_gestion_correspondencia(corr_actual):
         # Acción 1: Editar (Solo Asignación)
         if is_asignacion:
             with col_acc1:
-                with st.popover("✏️ Editar Detalles", use_container_width=True):
+                with st.popover("✏️ Editar Detalles", width="stretch"):
                     st.write("Editar Radicado")
                     with st.form(f"form_editar_{id_seleccionado}"):
                         ed_asunto = st.text_area("Asunto", value=corr_actual.get("asunto", ""))
@@ -248,7 +248,7 @@ def modal_gestion_correspondencia(corr_actual):
 
         if puedo_reasignar:
             with col_acc2 if is_asignacion else col_acc1:
-                with st.popover("👥 Asignar / Reasignar", use_container_width=True):
+                with st.popover("👥 Asignar / Reasignar", width="stretch"):
 
                     st.write("Asignar a un usuario")
                     usuarios = usuario_service.listar_usuarios()
@@ -276,7 +276,7 @@ def modal_gestion_correspondencia(corr_actual):
         if is_gestor and not is_asignacion:
             with col_acc2:
                 tooltip_gestor = "Solo reasignar en caso de que el radicado no te pertenezca, será revisado"
-                with st.popover("👥 Asignar / Reasignar", use_container_width=True):
+                with st.popover("👥 Asignar / Reasignar", width="stretch"):
                     st.markdown(
                         '<p style="color:#FFFFFF; font-weight:bold; font-size:1.05em; margin-bottom:4px;">⚠️ Reasignación restringida</p>',
                         unsafe_allow_html=True
@@ -328,7 +328,7 @@ def modal_gestion_correspondencia(corr_actual):
         if es_responsable or is_asignacion:
 
             with col_acc3 if is_asignacion else (col_acc2 if can_assign else col_acc1):
-                with st.popover("✅ Responder / Tramitar", use_container_width=True):
+                with st.popover("✅ Responder / Tramitar", width="stretch"):
                     if estado_actual not in ["respondido", "archivado", "traslado_competencia"]:
                         st.write("Cargar Respuesta")
                         # Se quita st.form para validar en tiempo real el campo y habilitar/deshabilitar el botón
@@ -547,7 +547,7 @@ if is_asignacion:
             if not is_traslado:
                 asignado_a = st.selectbox("Asignar a *", options=list(usuarios_opts.keys()), format_func=lambda x: usuarios_opts[x], key=f"form_asignado_a_{form_key}")
             
-            submit_btn = st.button("Crear Correspondencia", type="primary", use_container_width=True)
+            submit_btn = st.button("Crear Correspondencia", type="primary", width="stretch")
             
             if submit_btn:
                 if not numero_radicado or not asunto or not peticionario or not tipo:
@@ -619,7 +619,7 @@ with tab_gestion:
     with col_header1:
         st.subheader("Listado de Correspondencia")
     with col_header2:
-        if st.button("🔄 Actualizar Datos", use_container_width=True, help="Recarga la lista de correspondencia"):
+        if st.button("🔄 Actualizar Datos", width="stretch", help="Recarga la lista de correspondencia"):
             st.rerun()
 
     
@@ -900,7 +900,7 @@ with tab_gestion:
         # Renderizar dataframe interactivo
         event = st.dataframe(
             styled_df, 
-            use_container_width=True, 
+            width="stretch", 
             hide_index=True,
             on_select="rerun",
             selection_mode="single-row",

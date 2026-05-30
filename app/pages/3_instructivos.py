@@ -39,12 +39,12 @@ with col_controles:
     st.subheader("Recursos")
 
     for key, recurso in RECURSOS.items():
-        if st.button(recurso["label"], use_container_width=True, key=f"btn_{key}"):
+        if st.button(recurso["label"], width="stretch", key=f"btn_{key}"):
             st.session_state.recurso_activo = key
 
     if st.session_state.recurso_activo is not None:
         st.divider()
-        if st.button("✖ Cerrar vista previa", use_container_width=True):
+        if st.button("✖ Cerrar vista previa", width="stretch"):
             st.session_state.recurso_activo = None
 
 with col_vista:
