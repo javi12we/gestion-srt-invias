@@ -25,7 +25,7 @@ with col_title:
 with col_btn:
     st.write("") # Espaciador para alineación vertical
     st.write("") 
-    if st.button("🔄 Actualizar", use_container_width=True, key="refresh_dashboard"):
+    if st.button("🔄 Actualizar", width="stretch", key="refresh_dashboard"):
         st.rerun()
 
 st.divider()
@@ -76,7 +76,7 @@ with col_der:
         st.dataframe(
             carga_usuarios.rename(columns={"usuario": "Responsable", "cantidad": "Radicados Pendientes"}), 
             hide_index=True, 
-            use_container_width=True
+            width="stretch"
         )
     else:
         st.info("No hay trámites activos asignados actualmente.")
@@ -117,7 +117,7 @@ if vencimientos is not None and not vencimientos.empty:
         tooltip=['categoria', 'cantidad']
     ).properties(height=350)
     
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
 else:
     st.info("Sin trámites activos en el sistema.")
 

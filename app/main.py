@@ -869,27 +869,56 @@ def aplicar_tema():
                 color: #FFFFFF !important;
             }
 
-            /* DataFrames */
-            :is(.main, [data-testid="stMain"]) [data-testid="stDataFrameResizable"] {
+            /* DataFrames / Data Editor */
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataFrameResizable"],
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataFrame"],
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataEditor"] {
                 background-color: #22223A !important;
+                border: 1px solid rgba(255,140,0,0.38) !important;
+                border-radius: 10px !important;
+                overflow: hidden !important;
+                box-shadow: inset 0 0 0 1px rgba(255,140,0,0.16), 0 6px 16px rgba(0,0,0,0.28) !important;
             }
 
-            :is(.main, [data-testid="stMain"]) [data-testid="stDataFrameResizable"] * {
-                color: #FFFFFF !important;
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataFrame"],
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataEditor"] {
+                --gdg-accent-color: #FF9800;
+                --gdg-accent-fg: #FFFFFF;
+                --gdg-accent-light: rgba(255,152,0,0.22);
+                --gdg-text-dark: #F0F0FF;
+                --gdg-text-medium: #C9C9E8;
+                --gdg-text-light: #9D9DC0;
+                --gdg-text-header: #FFFFFF;
+                --gdg-bg-cell: #22223A;
+                --gdg-bg-cell-medium: #2C2C4A;
+                --gdg-bg-header: #2C2C4A;
+                --gdg-bg-header-hovered: #363658;
+                --gdg-bg-header-has: #3D3D63;
+                --gdg-bg-bubble: #2C2C4A;
+                --gdg-bg-bubble-selected: #3D3D63;
+                --gdg-bg-search-result: rgba(255,152,0,0.18);
+                --gdg-border-color: rgba(255,255,255,0.14);
+                --gdg-horizontal-border-color: rgba(255,255,255,0.11);
+                --gdg-link-color: #FFB74D;
+            }
+
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataFrame"] canvas,
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataEditor"] canvas {
+                background-color: #22223A !important;
             }
 
             /* Tablas HTML */
-            :is(.main, [data-testid="stMain"]) table {
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) table {
                 background-color: #22223A !important;
             }
 
-            :is(.main, [data-testid="stMain"]) th {
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) th {
                 background-color: #2C2C4A !important;
                 color: #FFFFFF !important;
                 border-color: rgba(255,255,255,0.12) !important;
             }
 
-            :is(.main, [data-testid="stMain"]) td {
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) td {
                 color: #F0F0FF !important;
                 border-color: rgba(255,255,255,0.08) !important;
             }
@@ -936,6 +965,59 @@ def aplicar_tema():
             /* Tooltips */
             :is(.main, [data-testid="stMain"]) [data-testid="stTooltipIcon"] {
                 color: #7070A0 !important;
+            }
+
+            /* Dialogs (st.dialog) montados fuera de .main */
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) {
+                background-color: #1A1A2A !important;
+                color: #FFFFFF !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) * {
+                color: #FFFFFF !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stWidgetLabel"] *,
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stMetricLabel"] * {
+                color: #D8D8F0 !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stCaptionContainer"] *,
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) small {
+                color: #B0B0CC !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stVerticalBlockBorderWrapper"],
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stForm"] {
+                background-color: #22223A !important;
+                border-color: rgba(255,140,0,0.30) !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) input[type="text"],
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) input[type="password"],
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) input[type="number"],
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) textarea {
+                background-color: #2C2C4A !important;
+                color: #FFFFFF !important;
+                border-color: rgba(255,255,255,0.25) !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) input::placeholder,
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) textarea::placeholder {
+                color: #7070A0 !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-baseweb="select"] > div:first-child {
+                background-color: #2C2C4A !important;
+                border-color: rgba(255,255,255,0.25) !important;
+                color: #FFFFFF !important;
+            }
+
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) button[kind="secondary"],
+            :is(section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stBaseButton-secondary"] {
+                background-color: #2C2C4A !important;
+                color: #FFFFFF !important;
+                border-color: rgba(255,255,255,0.22) !important;
             }
 
             /* Header */
@@ -1184,7 +1266,7 @@ def pantalla_login() -> None:
                 # Aumentamos el tamaño relativo
                 c_logo1, c_logo2, c_logo3 = st.columns([1, 2.8, 1])
                 with c_logo2:
-                    st.image(logo_path, use_container_width=True)
+                    st.image(logo_path, width="stretch")
             
             # Subir el título para acercarlo más al logo
             st.markdown("<h2 style='text-align: center; margin-top: -25px; margin-bottom: 0px;'>Gestiones correspondencia SRTI</h2>", unsafe_allow_html=True)
@@ -1200,7 +1282,7 @@ def pantalla_login() -> None:
             # Reducir el ancho específico del botón usando columnas internas
             c_btn1, c_btn2, c_btn3 = st.columns([1, 3, 1])
             with c_btn2:
-                enviar = st.form_submit_button("Ingresar", use_container_width=True, type="primary")
+                enviar = st.form_submit_button("Ingresar", width="stretch", type="primary")
 
         if enviar:
             servicio = AuthService()
@@ -1280,10 +1362,10 @@ def pantalla_dashboard() -> None:
         
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("📂 Ir a Correspondencia", use_container_width=True, type="primary"):
+            if st.button("📂 Ir a Correspondencia", width="stretch", type="primary"):
                 st.switch_page("pages/2_correspondencia.py")
         with c2:
-            if st.button("👤 Ver mi Perfil", use_container_width=True):
+            if st.button("👤 Ver mi Perfil", width="stretch"):
                 st.switch_page("pages/2_mi_perfil.py")
         
         st.write("")
@@ -1399,7 +1481,7 @@ else:
                 st.write("")
                 st.markdown(roles_html, unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-        if st.button("🚪 Cerrar sesión", key="logout_btn", use_container_width=True):
+        if st.button("🚪 Cerrar sesión", key="logout_btn", width="stretch"):
             logout()
 
         st.divider()

@@ -218,7 +218,7 @@ def modal_gestion_correspondencia(corr_actual):
         # Acción 1: Editar (Solo Asignación)
         if is_asignacion:
             with col_acc1:
-                with st.popover("✏️ Editar Detalles", use_container_width=True):
+                with st.popover("✏️ Editar Detalles", width="stretch"):
                     st.write("Editar Radicado")
                     with st.form(f"form_editar_{id_seleccionado}"):
                         ed_asunto = st.text_area("Asunto", value=corr_actual.get("asunto", ""))
@@ -248,7 +248,7 @@ def modal_gestion_correspondencia(corr_actual):
 
         if puedo_reasignar:
             with col_acc2 if is_asignacion else col_acc1:
-                with st.popover("👥 Asignar / Reasignar", use_container_width=True):
+                with st.popover("👥 Asignar / Reasignar", width="stretch"):
 
                     st.write("Asignar a un usuario")
                     usuarios = usuario_service.listar_usuarios()
@@ -276,7 +276,7 @@ def modal_gestion_correspondencia(corr_actual):
         if is_gestor and not is_asignacion:
             with col_acc2:
                 tooltip_gestor = "Solo reasignar en caso de que el radicado no te pertenezca, será revisado"
-                with st.popover("👥 Asignar / Reasignar", use_container_width=True):
+                with st.popover("👥 Asignar / Reasignar", width="stretch"):
                     st.markdown(
                         '<p style="color:#FFFFFF; font-weight:bold; font-size:1.05em; margin-bottom:4px;">⚠️ Reasignación restringida</p>',
                         unsafe_allow_html=True
@@ -328,7 +328,7 @@ def modal_gestion_correspondencia(corr_actual):
         if es_responsable or is_asignacion:
 
             with col_acc3 if is_asignacion else (col_acc2 if can_assign else col_acc1):
-                with st.popover("✅ Responder / Tramitar", use_container_width=True):
+                with st.popover("✅ Responder / Tramitar", width="stretch"):
                     if estado_actual not in ["respondido", "archivado", "traslado_competencia"]:
                         st.write("Cargar Respuesta")
                         # Se quita st.form para validar en tiempo real el campo y habilitar/deshabilitar el botón
@@ -547,7 +547,7 @@ if is_asignacion:
             if not is_traslado:
                 asignado_a = st.selectbox("Asignar a *", options=list(usuarios_opts.keys()), format_func=lambda x: usuarios_opts[x], key=f"form_asignado_a_{form_key}")
             
-            submit_btn = st.button("Crear Correspondencia", type="primary", use_container_width=True)
+            submit_btn = st.button("Crear Correspondencia", type="primary", width="stretch")
             
             if submit_btn:
                 if not numero_radicado or not asunto or not peticionario or not tipo:
@@ -619,7 +619,7 @@ with tab_gestion:
     with col_header1:
         st.subheader("Listado de Correspondencia")
     with col_header2:
-        if st.button("🔄 Actualizar Datos", use_container_width=True, help="Recarga la lista de correspondencia"):
+        if st.button("🔄 Actualizar Datos", width="stretch", help="Recarga la lista de correspondencia"):
             st.rerun()
 
     
@@ -709,10 +709,14 @@ with tab_gestion:
             [data-testid="stDataFrame"] div[class*="StyledDataGridHeaderCell"] {
                 justify-content: center !important;
                 text-align: center !important;
+                border-right: 1px solid rgba(255,255,255,0.16) !important;
+                border-bottom: 1px solid rgba(255,255,255,0.20) !important;
             }
             [data-testid="stDataFrame"] div[role="columnheader"] > div {
                 justify-content: center !important;
                 text-align: center !important;
+                border-right: 1px solid rgba(255,255,255,0.16) !important;
+                border-bottom: 1px solid rgba(255,255,255,0.20) !important;
             }
             /* Refuerzo para el texto dentro de la cabecera */
             [data-testid="stDataFrame"] div[role="columnheader"] span {
@@ -853,15 +857,31 @@ with tab_gestion:
         }
 
         # Función para aplicar colores según el tiempo restante y el estado
+        dark_mode = st.session_state.get("dark_mode", False)
+
         def style_rows(row):
-            styles = [""] * len(row)
+            # Base: en modo oscuro pintamos toda la fila oscura; en claro dejamos estilo por defecto.
+            base_style = (
+                "background-color: #22223A; color: #F0F0FF; "
+                "border-right: 1px solid rgba(255,255,255,0.10); "
+                "border-bottom: 1px solid rgba(255,255,255,0.11);"
+            ) if dark_mode else ""
+            styles = [base_style] * len(row)
             
             # --- PALETA DE COLORES TENUES ---
-            ROJO_TENUE = "background-color: #FFEBEE; color: #B71C1C;"
-            NARANJA_TENUE = "background-color: #FFF3E0; color: #E65100;"
-            AMARILLO_TENUE = "background-color: #FFFDE7; color: #F57F17;"
-            VERDE_TENUE = "background-color: #E8F5E9; color: #1B5E20;"
-            GRIS_TENUE = "background-color: #F5F5F5; color: #616161;"
+            if dark_mode:
+                BORDE_DARK = "border-right: 1px solid rgba(255,255,255,0.12); border-bottom: 1px solid rgba(255,255,255,0.12);"
+                ROJO_TENUE = f"background-color: #5A1F24; color: #FFDDE0; font-weight: 600; {BORDE_DARK}"
+                NARANJA_TENUE = f"background-color: #5B3311; color: #FFD8A8; font-weight: 600; {BORDE_DARK}"
+                AMARILLO_TENUE = f"background-color: #4D430F; color: #FFF2A6; font-weight: 600; {BORDE_DARK}"
+                VERDE_TENUE = f"background-color: #1F4A35; color: #D8FFE8; font-weight: 600; {BORDE_DARK}"
+                GRIS_TENUE = f"background-color: #3A3A4F; color: #E2E2F5; font-weight: 600; {BORDE_DARK}"
+            else:
+                ROJO_TENUE = "background-color: #FFEBEE; color: #B71C1C;"
+                NARANJA_TENUE = "background-color: #FFF3E0; color: #E65100;"
+                AMARILLO_TENUE = "background-color: #FFFDE7; color: #F57F17;"
+                VERDE_TENUE = "background-color: #E8F5E9; color: #1B5E20;"
+                GRIS_TENUE = "background-color: #F5F5F5; color: #616161;"
 
             # --- Estilo para columna TIEMPO ---
             dias = row["_dias_num"]
@@ -896,11 +916,19 @@ with tab_gestion:
         # Aplicar el estilo al dataframe (excluyendo _id para visualización pero manteniéndolo en df original para selección)
         df_display = df.drop(columns=["_id"])
         styled_df = df_display.style.apply(style_rows, axis=1)
+        if dark_mode:
+            # Refuerzo visual del encabezado en modo oscuro.
+            styled_df = styled_df.set_table_styles(
+                [
+                    {"selector": "th", "props": [("background-color", "#2C2C4A"), ("color", "#FFFFFF"), ("border-color", "rgba(255,255,255,0.18)")]},
+                    {"selector": "td", "props": [("border-color", "rgba(255,255,255,0.10)")]},
+                ]
+            )
 
         # Renderizar dataframe interactivo
         event = st.dataframe(
             styled_df, 
-            use_container_width=True, 
+            width="stretch", 
             hide_index=True,
             on_select="rerun",
             selection_mode="single-row",
