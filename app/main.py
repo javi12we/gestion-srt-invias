@@ -869,27 +869,56 @@ def aplicar_tema():
                 color: #FFFFFF !important;
             }
 
-            /* DataFrames */
-            :is(.main, [data-testid="stMain"]) [data-testid="stDataFrameResizable"] {
+            /* DataFrames / Data Editor */
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataFrameResizable"],
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataFrame"],
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataEditor"] {
                 background-color: #22223A !important;
+                border: 1px solid rgba(255,140,0,0.38) !important;
+                border-radius: 10px !important;
+                overflow: hidden !important;
+                box-shadow: inset 0 0 0 1px rgba(255,140,0,0.16), 0 6px 16px rgba(0,0,0,0.28) !important;
             }
 
-            :is(.main, [data-testid="stMain"]) [data-testid="stDataFrameResizable"] * {
-                color: #FFFFFF !important;
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataFrame"],
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataEditor"] {
+                --gdg-accent-color: #FF9800;
+                --gdg-accent-fg: #FFFFFF;
+                --gdg-accent-light: rgba(255,152,0,0.22);
+                --gdg-text-dark: #F0F0FF;
+                --gdg-text-medium: #C9C9E8;
+                --gdg-text-light: #9D9DC0;
+                --gdg-text-header: #FFFFFF;
+                --gdg-bg-cell: #22223A;
+                --gdg-bg-cell-medium: #2C2C4A;
+                --gdg-bg-header: #2C2C4A;
+                --gdg-bg-header-hovered: #363658;
+                --gdg-bg-header-has: #3D3D63;
+                --gdg-bg-bubble: #2C2C4A;
+                --gdg-bg-bubble-selected: #3D3D63;
+                --gdg-bg-search-result: rgba(255,152,0,0.18);
+                --gdg-border-color: rgba(255,255,255,0.14);
+                --gdg-horizontal-border-color: rgba(255,255,255,0.11);
+                --gdg-link-color: #FFB74D;
+            }
+
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataFrame"] canvas,
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) [data-testid="stDataEditor"] canvas {
+                background-color: #22223A !important;
             }
 
             /* Tablas HTML */
-            :is(.main, [data-testid="stMain"]) table {
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) table {
                 background-color: #22223A !important;
             }
 
-            :is(.main, [data-testid="stMain"]) th {
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) th {
                 background-color: #2C2C4A !important;
                 color: #FFFFFF !important;
                 border-color: rgba(255,255,255,0.12) !important;
             }
 
-            :is(.main, [data-testid="stMain"]) td {
+            :is(.main, [data-testid="stMain"], section[data-testid="stDialog"], [data-testid="stDialog"], [role="dialog"]) td {
                 color: #F0F0FF !important;
                 border-color: rgba(255,255,255,0.08) !important;
             }

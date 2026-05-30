@@ -709,10 +709,14 @@ with tab_gestion:
             [data-testid="stDataFrame"] div[class*="StyledDataGridHeaderCell"] {
                 justify-content: center !important;
                 text-align: center !important;
+                border-right: 1px solid rgba(255,255,255,0.16) !important;
+                border-bottom: 1px solid rgba(255,255,255,0.20) !important;
             }
             [data-testid="stDataFrame"] div[role="columnheader"] > div {
                 justify-content: center !important;
                 text-align: center !important;
+                border-right: 1px solid rgba(255,255,255,0.16) !important;
+                border-bottom: 1px solid rgba(255,255,255,0.20) !important;
             }
             /* Refuerzo para el texto dentro de la cabecera */
             [data-testid="stDataFrame"] div[role="columnheader"] span {
@@ -853,15 +857,31 @@ with tab_gestion:
         }
 
         # Función para aplicar colores según el tiempo restante y el estado
+        dark_mode = st.session_state.get("dark_mode", False)
+
         def style_rows(row):
-            styles = [""] * len(row)
+            # Base: en modo oscuro pintamos toda la fila oscura; en claro dejamos estilo por defecto.
+            base_style = (
+                "background-color: #22223A; color: #F0F0FF; "
+                "border-right: 1px solid rgba(255,255,255,0.10); "
+                "border-bottom: 1px solid rgba(255,255,255,0.11);"
+            ) if dark_mode else ""
+            styles = [base_style] * len(row)
             
             # --- PALETA DE COLORES TENUES ---
-            ROJO_TENUE = "background-color: #FFEBEE; color: #B71C1C;"
-            NARANJA_TENUE = "background-color: #FFF3E0; color: #E65100;"
-            AMARILLO_TENUE = "background-color: #FFFDE7; color: #F57F17;"
-            VERDE_TENUE = "background-color: #E8F5E9; color: #1B5E20;"
-            GRIS_TENUE = "background-color: #F5F5F5; color: #616161;"
+            if dark_mode:
+                BORDE_DARK = "border-right: 1px solid rgba(255,255,255,0.12); border-bottom: 1px solid rgba(255,255,255,0.12);"
+                ROJO_TENUE = f"background-color: #5A1F24; color: #FFDDE0; font-weight: 600; {BORDE_DARK}"
+                NARANJA_TENUE = f"background-color: #5B3311; color: #FFD8A8; font-weight: 600; {BORDE_DARK}"
+                AMARILLO_TENUE = f"background-color: #4D430F; color: #FFF2A6; font-weight: 600; {BORDE_DARK}"
+                VERDE_TENUE = f"background-color: #1F4A35; color: #D8FFE8; font-weight: 600; {BORDE_DARK}"
+                GRIS_TENUE = f"background-color: #3A3A4F; color: #E2E2F5; font-weight: 600; {BORDE_DARK}"
+            else:
+                ROJO_TENUE = "background-color: #FFEBEE; color: #B71C1C;"
+                NARANJA_TENUE = "background-color: #FFF3E0; color: #E65100;"
+                AMARILLO_TENUE = "background-color: #FFFDE7; color: #F57F17;"
+                VERDE_TENUE = "background-color: #E8F5E9; color: #1B5E20;"
+                GRIS_TENUE = "background-color: #F5F5F5; color: #616161;"
 
             # --- Estilo para columna TIEMPO ---
             dias = row["_dias_num"]
@@ -896,6 +916,14 @@ with tab_gestion:
         # Aplicar el estilo al dataframe (excluyendo _id para visualización pero manteniéndolo en df original para selección)
         df_display = df.drop(columns=["_id"])
         styled_df = df_display.style.apply(style_rows, axis=1)
+        if dark_mode:
+            # Refuerzo visual del encabezado en modo oscuro.
+            styled_df = styled_df.set_table_styles(
+                [
+                    {"selector": "th", "props": [("background-color", "#2C2C4A"), ("color", "#FFFFFF"), ("border-color", "rgba(255,255,255,0.18)")]},
+                    {"selector": "td", "props": [("border-color", "rgba(255,255,255,0.10)")]},
+                ]
+            )
 
         # Renderizar dataframe interactivo
         event = st.dataframe(
