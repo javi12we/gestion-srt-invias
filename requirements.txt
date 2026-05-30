@@ -7,3 +7,4 @@ holidays>=0.48
 reportlab>=4.2
 xlsxwriter>=3.1
 streamlit-pdf-viewer>=0.0.15
+mammoth>=1.8.0

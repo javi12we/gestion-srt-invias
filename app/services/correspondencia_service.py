@@ -329,3 +329,67 @@ class CorrespondenciaService:
             "recientes": self.repo.contar(query_recientes)
         }
 
+    def obtener_estado_formatos(self) -> List[Dict]:
+        """Obtiene el estado de correspondencia pendiente de todos los responsables activos."""
+        from app.services.usuario_service import UsuarioService
+        from app.core.zona_horaria import utc_a_bogota, ZONA_BOGOTA
+        
+        usuario_service = UsuarioService()
+        
+        # 1. Obtener todos los usuarios activos
+        usuarios = usuario_service.listar_usuarios()
+        usuarios_activos = [u for u in usuarios if u.get("activo", True)]
+        
+        # 2. Obtener todas las correspondencias en estado activo
+        query_activos = {"estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]}}
+        # Usamos listar con un límite alto para traer todos los documentos activos
+        correspondencias_activas = self.repo.listar(query_activos, limit=100000)
+        
+        # 3. Agrupar por responsable
+        from collections import defaultdict
+        corr_por_responsable = defaultdict(list)
+        for corr in correspondencias_activas:
+            resp_info = corr.get("responsable_actual")
+            if resp_info and "usuario_id" in resp_info:
+                id_resp = str(resp_info["usuario_id"])
+                corr_por_responsable[id_resp].append(corr)
+                
+        # 4. Determinar fecha actual en Bogotá
+        hoy_colombia = datetime.now(ZONA_BOGOTA)
+        
+        resultados = []
+        for u in usuarios_activos:
+            id_usuario = str(u["_id"])
+            nombre_completo = u.get("nombre_completo") or u.get("usuario")
+            
+            corrs_usuario = corr_por_responsable.get(id_usuario, [])
+            
+            cantidad_pendientes = len(corrs_usuario)
+            cantidad_vencidas = 0
+            
+            for corr in corrs_usuario:
+                fecha_venc = corr.get("fecha_vencimiento")
+                if fecha_venc:
+                    fecha_venc_bogota = utc_a_bogota(fecha_venc)
+                    if fecha_venc_bogota.date() < hoy_colombia.date():
+                        cantidad_vencidas += 1
+                        
+            if cantidad_pendientes == 0:
+                estado_pendiente = "gris"
+            elif cantidad_vencidas > 0:
+                estado_pendiente = "rojo"
+            else:
+                estado_pendiente = "verde"
+                
+            resultados.append({
+                "usuario_id": id_usuario,
+                "responsable": nombre_completo,
+                "estado_pendiente": estado_pendiente,
+                "cantidad_pendientes": cantidad_pendientes,
+                "cantidad_vencidas": cantidad_vencidas
+            })
+            
+        # Ordenar por nombre del responsable
+        resultados.sort(key=lambda x: x["responsable"].lower())
+        return resultados
+

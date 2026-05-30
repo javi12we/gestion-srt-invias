@@ -1430,6 +1430,8 @@ else:
         admin_pages.append(st.Page("pages/5_dashboard.py", title="Dashboard", icon="📊"))
     if "reporte.ver" in sesion.get("permisos", []):
         admin_pages.append(st.Page("pages/4_reportes.py", title="Reportes y Evidencias", icon="📄"))
+    if "admin" in sesion.get("roles", []):
+        admin_pages.append(st.Page("pages/6_gestion_formatos.py", title="Gestión Formatos", icon="📋"))
     
     # Agrupar páginas
     menu_dict = {
