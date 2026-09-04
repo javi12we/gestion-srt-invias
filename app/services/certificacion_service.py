@@ -407,14 +407,18 @@ class CertificacionService:
         codigo_normalizado = codigo.strip().upper().replace(" ", "")
         return self.repo.buscar_por_hash(codigo_normalizado)
 
-    def obtener_empleados_para_certificar(self, tipo_formato: str = None) -> List[Dict]:
-        """Lista todos los colaboradores con correspondencia, estado de firmas y contrato activo."""
+    def obtener_empleados_para_certificar(
+        self, tipo_formato: str = None, año: int = None, mes: int = None
+    ) -> List[Dict]:
+        """Lista todos los colaboradores con correspondencia, estado de firmas y contrato
+        (vigente hoy si es el período actual, o vigente en ese mes si es un período pasado)."""
         from app.services.correspondencia_service import CorrespondenciaService
         from app.repositories.usuario_repo import UsuarioRepositorio
 
         corr_service = CorrespondenciaService()
         usuario_repo = UsuarioRepositorio()
-        año, mes = self.periodo_certificable()
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
 
         estado_formatos = corr_service.obtener_estado_formatos()
         todos_usuarios = {str(u["_id"]): u for u in usuario_repo.listar()}
@@ -431,7 +435,7 @@ class CertificacionService:
 
             usuario_data = todos_usuarios.get(uid, {})
             contratos = usuario_data.get("contratos") or []
-            contrato = self._contrato_vigente(contratos)
+            contrato = self._contrato_relevante(contratos, año, mes)
             tiene_contrato = bool(contrato.get("numero"))
 
             resultados.append({
@@ -519,10 +523,14 @@ class CertificacionService:
         firmante_id: str,
         firmante_nombre: str,
         comentario: str | None = None,
+        año: int | None = None,
+        mes: int | None = None,
     ) -> bool:
-        """Registra la aprobación del firmante. Si con esta firma se completan
-        las 3 y el contratista cumple requisitos, se certifica automáticamente."""
-        año, mes = self.periodo_certificable()
+        """Registra la aprobación del firmante para el período dado (por defecto, el
+        período certificable actual). Si con esta firma se completan las 3 y el
+        contratista cumple requisitos, se certifica automáticamente para ESE período."""
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
         self.repo.registrar_firma(
             empleado_id, empleado_nombre, año, mes, tipo, firmante_id, firmante_nombre, comentario
         )
@@ -540,7 +548,8 @@ class CertificacionService:
         año: int,
         mes: int,
     ) -> None:
-        """Auto-certifica cuando hay 3 firmas + contrato activo (sin importar estado de correspondencia)."""
+        """Auto-certifica cuando hay 3 firmas + contrato vigente en ESE período
+        (sin importar estado de correspondencia)."""
         from app.repositories.usuario_repo import UsuarioRepositorio
 
         cert = self.repo.buscar_por_usuario_periodo(empleado_id, año, mes)
@@ -553,14 +562,18 @@ class CertificacionService:
 
         usuario = UsuarioRepositorio().buscar_por_id(empleado_id)
         contratos = (usuario.get("contratos") or []) if usuario else []
-        if not self._contrato_vigente(contratos).get("numero"):
+        if not self._contrato_relevante(contratos, año, mes).get("numero"):
             return
 
-        self.certificar_empleado(empleado_id, empleado_nombre, firmante_id, firmante_nombre)
+        self.certificar_empleado(empleado_id, empleado_nombre, firmante_id, firmante_nombre, año=año, mes=mes)
 
-    def revocar_firma(self, empleado_id: str, tipo: str) -> bool:
-        """Revoca una firma previamente registrada."""
-        año, mes = self.periodo_certificable()
+    def revocar_firma(
+        self, empleado_id: str, tipo: str, año: int | None = None, mes: int | None = None
+    ) -> bool:
+        """Revoca una firma previamente registrada del período dado (por defecto, el
+        período certificable actual)."""
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
         return self.repo.revocar_firma(empleado_id, año, mes, tipo)
 
     def registrar_firma_actas(
@@ -648,9 +661,9 @@ class CertificacionService:
         return True
 
     def recuperar_auto_cert(self, empleado_id: str, cert: dict) -> bool:
-        """Certifica retroactivamente si el cert ya tiene las 3 firmas + contrato activo
-        pero quedó en 'pendiente' por un fallo anterior en _intentar_auto_certificar.
-        Retorna True si se certificó ahora."""
+        """Certifica retroactivamente si el cert ya tiene las 3 firmas + contrato vigente
+        en su propio período pero quedó en 'pendiente' por un fallo anterior en
+        _intentar_auto_certificar. Retorna True si se certificó ahora."""
         from app.repositories.usuario_repo import UsuarioRepositorio
 
         if not cert or cert.get("estado") == "aprobado":
@@ -660,9 +673,12 @@ class CertificacionService:
         if not all(firmas.get(t) for t in ("corr", "gd", "secop")):
             return False
 
+        año_cert = cert.get("año")
+        mes_cert = cert.get("mes")
+
         usuario = UsuarioRepositorio().buscar_por_id(empleado_id)
         contratos = (usuario.get("contratos") or []) if usuario else []
-        if not self._contrato_vigente(contratos).get("numero"):
+        if not self._contrato_relevante(contratos, año_cert, mes_cert).get("numero"):
             return False
 
         # Usar la última firma como firmante registrado en el certificado
@@ -673,7 +689,9 @@ class CertificacionService:
         firmante_nombre = ultima_firma.get("firmante_nombre", "") if ultima_firma else ""
         nombre_empleado = cert.get("nombre_usuario", "")
 
-        self.certificar_empleado(empleado_id, nombre_empleado, firmante_id, firmante_nombre)
+        self.certificar_empleado(
+            empleado_id, nombre_empleado, firmante_id, firmante_nombre, año=año_cert, mes=mes_cert
+        )
         return True
 
     # ──────────────────────────────────────────────────────────────
@@ -687,11 +705,15 @@ class CertificacionService:
         supervisor_id: str,
         supervisor_nombre: str,
         observaciones: str = "",
+        año: int = None,
+        mes: int = None,
     ) -> bool:
-        """Certifica al colaborador para el período actual.
+        """Certifica al colaborador para el período dado (por defecto, el período
+        certificable actual).
         Si ya existe un hash previo, lo preserva para que los PDFs ya entregados
         sigan siendo verificables con el código original."""
-        año, mes = self.periodo_certificable()
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
         ahora_utc = datetime.now(timezone.utc)
 
         cert_existente = self.repo.buscar_por_usuario_periodo(usuario_id_empleado, año, mes)
