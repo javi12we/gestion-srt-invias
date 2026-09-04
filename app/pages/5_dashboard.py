@@ -41,24 +41,52 @@ usuarios_map = usuarios_activos_para_seleccion()  # id -> nombre, ya ordenado
 opciones_gestores = ["Todos"] + list(usuarios_map.values())
 nombre_a_id = {nombre: uid for uid, nombre in usuarios_map.items()}
 
-gestor_seleccionado = st.selectbox(
-    "Por usuario gestor",
-    options=opciones_gestores,
-    index=0,
-    key="dashboard_filtro_gestor"
-)
+TIPOS_DASHBOARD = {"Todos": None, "PQRD": "pqrds", "MEMORANDO": "memorandos", "OFICIO": "oficios"}
+OPCIONES_ESTADO_DASHBOARD = [
+    "Todos", "pendiente", "en_tramite", "en_revision", "respondido", "archivado", "traslado_competencia"
+]
+
+col_f1, col_f2, col_f3 = st.columns(3)
+
+with col_f1:
+    gestor_seleccionado = st.selectbox(
+        "Por usuario gestor",
+        options=opciones_gestores,
+        index=0,
+        key="dashboard_filtro_gestor"
+    )
+
+with col_f2:
+    tipo_seleccionado = st.selectbox(
+        "Por tipo",
+        options=list(TIPOS_DASHBOARD.keys()),
+        index=0,
+        key="dashboard_filtro_tipo"
+    )
+
+with col_f3:
+    estado_seleccionado = st.selectbox(
+        "Por estado",
+        options=OPCIONES_ESTADO_DASHBOARD,
+        index=0,
+        format_func=lambda x: x.replace("_", " ").title(),
+        key="dashboard_filtro_estado"
+    )
 
 usuario_id_filtro = nombre_a_id.get(gestor_seleccionado) if gestor_seleccionado != "Todos" else None
+tipo_id_filtro = TIPOS_DASHBOARD.get(tipo_seleccionado)
+estado_id_filtro = None if estado_seleccionado == "Todos" else estado_seleccionado
 
 # --- Carga de Servicios ---
 try:
-    datos = datos_dashboard_admin(usuario_id_filtro)
+    datos = datos_dashboard_admin(usuario_id_filtro, tipo_id_filtro, estado_id_filtro)
     resumen = datos["resumen"]
     dist_estado = datos["dist_estado"]
     carga_usuarios = datos["carga_usuarios"]
     vencimientos = datos["vencimientos"]
     tendencia_d = datos["tendencia_d"]
     tiempos_resp = datos["tiempos_resp"]
+    conteo_tipo = datos["conteo_tipo"]
 except Exception as e:
     st.error(f"Error al cargar las métricas: {e}")
     st.stop()
@@ -70,13 +98,22 @@ m1, m2, m3, m4 = st.columns(4)
 vencidos = resumen.get("vencidos_criticos", 0)
 m1.metric("Trámites Activos", resumen.get("tramites_activos", 0))
 m2.metric(
-    "Vencidos Críticos", 
-    vencidos, 
-    delta=f"{vencidos} hoy" if vencidos > 0 else None, 
+    "Vencidos Críticos",
+    vencidos,
+    delta=f"{vencidos} hoy" if vencidos > 0 else None,
     delta_color="inverse"
 )
 m3.metric("Finalizados", resumen.get("tramites_finalizados", 0))
 m4.metric("% Cumplimiento", f"{resumen.get('porcentaje_cumplimiento', 0)}%")
+
+st.divider()
+
+# --- 1b. Radicados por Tipo de Documento ---
+st.markdown("### 🗂️ Radicados por Tipo de Documento")
+t1, t2, t3 = st.columns(3)
+t1.metric("PQRD", conteo_tipo.get("pqrds", 0))
+t2.metric("Memorandos", conteo_tipo.get("memorandos", 0))
+t3.metric("Oficios", conteo_tipo.get("oficios", 0))
 
 st.divider()
 

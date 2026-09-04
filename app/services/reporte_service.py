@@ -9,29 +9,51 @@ class ReporteService:
     def __init__(self) -> None:
         self.repo = CorrespondenciaRepositorio()
 
-    def resumen_operativo(self, usuario_id: str = None) -> dict:
-        """Obtiene métricas clave de alto nivel."""
+    def _filtro_comun(self, usuario_id: str = None, tipo: str = None, estado: str = None) -> dict:
+        """Filtros compartidos por todos los reportes (usuario, tipo y estado)."""
         from bson import ObjectId
-        query = {}
+        filtro = {}
         if usuario_id:
-            query["responsable_actual.usuario_id"] = ObjectId(usuario_id)
+            filtro["responsable_actual.usuario_id"] = ObjectId(usuario_id)
+        if tipo:
+            filtro["tipo"] = tipo
+        if estado:
+            filtro["estado_actual"] = estado
+        return filtro
+
+    def _combinar_query(self, *filtros: dict) -> dict:
+        """Combina varios filtros con $and, evitando colisión de claves repetidas."""
+        partes = [f for f in filtros if f]
+        if not partes:
+            return {}
+        if len(partes) == 1:
+            return partes[0]
+        return {"$and": partes}
+
+    def resumen_operativo(self, usuario_id: str = None, tipo: str = None, estado: str = None) -> dict:
+        """Obtiene métricas clave de alto nivel."""
+        query = self._filtro_comun(usuario_id, tipo, estado)
 
         total = self.repo.contar(query)
-        
-        activos_query = {"estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]}}
-        activos_query.update(query)
+
+        activos_query = self._combinar_query(
+            {"estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]}}, query
+        )
         activos = self.repo.contar(activos_query)
-        
-        finalizados_query = {"estado_actual": {"$in": ["respondido", "archivado", "traslado_competencia"]}}
-        finalizados_query.update(query)
+
+        finalizados_query = self._combinar_query(
+            {"estado_actual": {"$in": ["respondido", "archivado", "traslado_competencia"]}}, query
+        )
         finalizados = self.repo.contar(finalizados_query)
-        
+
         hoy = datetime.now(timezone.utc)
-        vencidos_query = {
-            "estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]},
-            "fecha_vencimiento": {"$lt": hoy}
-        }
-        vencidos_query.update(query)
+        vencidos_query = self._combinar_query(
+            {
+                "estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]},
+                "fecha_vencimiento": {"$lt": hoy},
+            },
+            query,
+        )
         vencidos = self.repo.contar(vencidos_query)
 
         return {
@@ -42,12 +64,9 @@ class ReporteService:
             "porcentaje_cumplimiento": round((finalizados / total * 100), 1) if total > 0 else 0
         }
 
-    def distribucion_por_estado(self, usuario_id: str = None) -> pd.DataFrame:
+    def distribucion_por_estado(self, usuario_id: str = None, tipo: str = None, estado: str = None) -> pd.DataFrame:
         """Datos para gráfico de torta de estados."""
-        from bson import ObjectId
-        match_stage = {}
-        if usuario_id:
-            match_stage["responsable_actual.usuario_id"] = ObjectId(usuario_id)
+        match_stage = self._filtro_comun(usuario_id, tipo, estado)
 
         pipeline = []
         if match_stage:
@@ -63,12 +82,12 @@ class ReporteService:
         df["estado"] = df["estado"].apply(lambda x: x.replace("_", " ").title())
         return df
 
-    def carga_por_usuario(self, usuario_id: str = None) -> pd.DataFrame:
+    def carga_por_usuario(self, usuario_id: str = None, tipo: str = None, estado: str = None) -> pd.DataFrame:
         """Datos para gráfico de barras de carga de trabajo por usuario (solo activos)."""
-        from bson import ObjectId
-        match_stage = {"estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]}}
-        if usuario_id:
-            match_stage["responsable_actual.usuario_id"] = ObjectId(usuario_id)
+        match_stage = self._combinar_query(
+            {"estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]}},
+            self._filtro_comun(usuario_id, tipo, estado),
+        )
 
         pipeline = [
             {"$match": match_stage},
@@ -79,15 +98,15 @@ class ReporteService:
         datos = list(self.repo.coleccion.aggregate(pipeline))
         return pd.DataFrame(datos) if datos else pd.DataFrame(columns=["usuario", "cantidad"])
 
-    def analisis_vencimiento(self, usuario_id: str = None) -> pd.DataFrame:
+    def analisis_vencimiento(self, usuario_id: str = None, tipo: str = None, estado: str = None) -> pd.DataFrame:
         """Clasifica los trámites activos por su proximidad al vencimiento (agregado en servidor)."""
-        from bson import ObjectId
         hoy = datetime.now(timezone.utc)
         limite_urgente = hoy + timedelta(days=5)
 
-        match_stage = {"estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]}}
-        if usuario_id:
-            match_stage["responsable_actual.usuario_id"] = ObjectId(usuario_id)
+        match_stage = self._combinar_query(
+            {"estado_actual": {"$in": ["pendiente", "en_tramite", "en_revision"]}},
+            self._filtro_comun(usuario_id, tipo, estado),
+        )
 
         pipeline = [
             {"$match": match_stage},
@@ -111,13 +130,13 @@ class ReporteService:
                 categorias[k] = fila.get(k, 0)
         return pd.DataFrame([{"categoria": k, "cantidad": v} for k, v in categorias.items()])
 
-    def tendencia_diaria(self, dias: int = 30, usuario_id: str = None) -> pd.DataFrame:
+    def tendencia_diaria(self, dias: int = 30, usuario_id: str = None, tipo: str = None, estado: str = None) -> pd.DataFrame:
         """Tendencia de radicación diaria en los últimos N días."""
-        from bson import ObjectId
         fecha_desde = datetime.now(timezone.utc) - timedelta(days=dias)
-        match_stage = {"fecha_radicacion": {"$gte": fecha_desde}}
-        if usuario_id:
-            match_stage["responsable_actual.usuario_id"] = ObjectId(usuario_id)
+        match_stage = self._combinar_query(
+            {"fecha_radicacion": {"$gte": fecha_desde}},
+            self._filtro_comun(usuario_id, tipo, estado),
+        )
 
         pipeline = [
             {"$match": match_stage},
@@ -131,12 +150,12 @@ class ReporteService:
         resultado = [{"fecha": d["_id"], "radicados": d["cantidad"]} for d in datos]
         return pd.DataFrame(resultado) if resultado else pd.DataFrame(columns=["fecha", "radicados"])
 
-    def analisis_tiempos_respuesta(self, usuario_id: str = None) -> pd.DataFrame:
+    def analisis_tiempos_respuesta(self, usuario_id: str = None, tipo: str = None, estado: str = None) -> pd.DataFrame:
         """Tiempo promedio de respuesta/cierre por tipo (agregado en servidor)."""
-        from bson import ObjectId
-        match_stage = {"estado_actual": {"$in": ["respondido", "archivado", "traslado_competencia"]}}
-        if usuario_id:
-            match_stage["responsable_actual.usuario_id"] = ObjectId(usuario_id)
+        match_stage = self._combinar_query(
+            {"estado_actual": {"$in": ["respondido", "archivado", "traslado_competencia"]}},
+            self._filtro_comun(usuario_id, tipo, estado),
+        )
 
         # Fecha de cierre: respuesta.fecha_salida si el estado es "respondido"
         # (con fallback al último evento de trazabilidad), si no, el último
@@ -171,3 +190,19 @@ class ReporteService:
             [{"Tipo": d["_id"], "Días Promedio": round(d["dias_promedio"], 1)} for d in datos]
         )
         return resumen
+
+    def conteo_por_tipo(self, usuario_id: str = None, tipo: str = None, estado: str = None) -> dict:
+        """Cantidad de radicados por tipo fijo (PQRD, memorando, oficio)."""
+        match_stage = self._filtro_comun(usuario_id, tipo, estado)
+
+        pipeline = []
+        if match_stage:
+            pipeline.append({"$match": match_stage})
+        pipeline.append({"$group": {"_id": "$tipo", "cantidad": {"$sum": 1}}})
+
+        datos = {d["_id"]: d["cantidad"] for d in self.repo.coleccion.aggregate(pipeline)}
+        return {
+            "pqrds": datos.get("pqrds", 0),
+            "memorandos": datos.get("memorandos", 0),
+            "oficios": datos.get("oficios", 0),
+        }
