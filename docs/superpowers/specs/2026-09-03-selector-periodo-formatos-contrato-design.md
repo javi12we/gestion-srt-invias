@@ -13,6 +13,12 @@ No existe ningún `st.selectbox` de año/mes en ninguna de las tres páginas. La
 
 El dato para soportar selección de período ya existe sin cambios de esquema: cada documento de `certificaciones` tiene `año`/`mes` obligatorios (`ESQUEMA_CERTIFICACIONES`, `app/core/esquemas.py:288-393`), con índice compuesto `(año, mes)` (`idx_cert_periodo`) y `(usuario_id, año, mes)` (`idx_cert_usuario_periodo`). La generación de PDF ya es "período-consciente": usa `_contrato_para_periodo(contratos, año_cert, mes_cert)` (:692) para tomar el contrato vigente en el mes del **documento**, no el de hoy — es decir, descargar un PDF histórico ya funciona correctamente hoy. Lo único atado al "hoy" está en las funciones que *crean o firman* documentos.
 
+## Adenda (post-implementación): adelanto de 1 mes
+
+Además de navegar hacia atrás, el selector permite adelantarse **exactamente 1 mes** por delante del período certificable actual (`MESES_ADELANTO_FIRMA = 1` en `certificacion_service.py`), en **ambas páginas** (contratista y supervisor) y para los 8 formatos por igual — mismo mecanismo, mismo selector, sin páginas ni lógica nuevas. Valor fijo en código (no configurable por admin) por decisión explícita del usuario. El límite superior real del selector es entonces "período certificable + 1 mes", no "período certificable".
+
+`leyenda_periodo` gana un tercer caso ("Período futuro — ... (adelanto de firma, aún no ha transcurrido)") para los períodos por delante del actual, y el índice por defecto de ambos `st.selectbox` ya no es `0` sino la posición de `periodo_certificable()` dentro de la lista (el mes de adelanto queda primero en la lista pero **no** preseleccionado, preservando "cero cambios si nadie toca el selector").
+
 ## Alcance
 
 - Selector de año/mes en **"Formatos de contrato"** (`app/pages/6_certificaciones.py`, vista contratista): permite generar/gestionar retroactivamente cualquiera de los 8 formatos para un mes pasado, no solo el período certificable actual.

@@ -544,7 +544,7 @@ def render(sesion=None):
         "📅 Período a firmar",
         options=periodos_globales,
         format_func=lambda p: f"{MESES_ES[p[1] - 1]} {p[0]}",
-        index=0,
+        index=periodos_globales.index(servicio.periodo_certificable()),
         key="sup_periodo_seleccionado",
     )
     nombre_mes = MESES_ES[mes - 1]

@@ -30,6 +30,10 @@ MESES_ES = [
 # (ver ParametrosService, parámetro "dia_inicio_periodo_certificacion").
 DIA_INICIO_PERIODO = 29
 
+# Cantidad de meses hacia adelante del período certificable que se pueden
+# seleccionar en "Formatos de contrato" y "Sup. Formatos" (adelanto de firma).
+MESES_ADELANTO_FIRMA = 1
+
 # ── Firmas secuenciales de Actas (Financiera → Abogado → Jefe) ────────────────
 TIPOS_FIRMA_CORR = ("corr", "gd", "secop")
 TIPOS_FIRMA_ACTAS = ("financiera", "abogado", "jefe")
@@ -96,21 +100,29 @@ class CertificacionService:
         return True
 
     def _construir_rango_periodos(self, contratos: list) -> List[tuple]:
-        """Genera la lista descendente de (año, mes) desde el mes de inicio del
-        contrato más antiguo (fecha_inicio) hasta el período certificable actual,
-        ambos inclusive. Si no hay contratos con fecha_inicio, devuelve solo el
-        período certificable actual."""
+        """Genera la lista descendente de (año, mes) desde MESES_ADELANTO_FIRMA meses
+        después del período certificable actual (adelanto de firma) hasta el mes de
+        inicio del contrato más antiguo (fecha_inicio), ambos inclusive. Si no hay
+        contratos con fecha_inicio, devuelve solo el período certificable actual y
+        los meses de adelanto."""
         año_max, mes_max = self.periodo_certificable()
+        for _ in range(MESES_ADELANTO_FIRMA):
+            mes_max += 1
+            if mes_max == 13:
+                mes_max = 1
+                año_max += 1
 
         fechas_inicio = [c.get("fecha_inicio") for c in contratos if c.get("fecha_inicio")]
         if not fechas_inicio:
-            return [(año_max, mes_max)]
-
-        fecha_min = min(fechas_inicio)
-        if fecha_min.tzinfo is None:
-            fecha_min = fecha_min.replace(tzinfo=timezone.utc)
-        fecha_min_bogota = fecha_min.astimezone(ZONA_BOGOTA)
-        año_min, mes_min = fecha_min_bogota.year, fecha_min_bogota.month
+            # Sin historial de contrato: el rango baja solo hasta el período
+            # certificable actual (no hay desde cuándo retroceder más).
+            año_min, mes_min = self.periodo_certificable()
+        else:
+            fecha_min = min(fechas_inicio)
+            if fecha_min.tzinfo is None:
+                fecha_min = fecha_min.replace(tzinfo=timezone.utc)
+            fecha_min_bogota = fecha_min.astimezone(ZONA_BOGOTA)
+            año_min, mes_min = fecha_min_bogota.year, fecha_min_bogota.month
 
         periodos = []
         año, mes = año_max, mes_max
@@ -145,11 +157,13 @@ class CertificacionService:
 
     def leyenda_periodo(self, año: int, mes: int) -> str:
         """Texto coherente con el período efectivamente indicado: el actual, el mes
-        anterior dentro de la ventana automática de gracia, o un período pasado
-        elegido manualmente. Reemplaza los mensajes hardcodeados que asumían que el
-        único período posible era 'hoy' o 'el mes anterior automático'."""
+        anterior dentro de la ventana automática de gracia, un período pasado
+        elegido manualmente, o un período futuro dentro del adelanto de firma
+        permitido. Reemplaza los mensajes hardcodeados que asumían que el único
+        período posible era 'hoy' o 'el mes anterior automático'."""
         nombre_mes = MESES_ES[mes - 1]
-        if (año, mes) == self.periodo_certificable():
+        actual = self.periodo_certificable()
+        if (año, mes) == actual:
             if self.es_mes_anterior():
                 dia_cierre = self._dia_inicio_periodo() - 1
                 return (
@@ -157,6 +171,8 @@ class CertificacionService:
                     f"(ponerse al día, disponible hasta el día {dia_cierre} del mes en curso)"
                 )
             return f"Período actual — {nombre_mes} {año}"
+        if (año, mes) > actual:
+            return f"Período futuro — {nombre_mes} {año} (adelanto de firma, aún no ha transcurrido)"
         return f"Período pasado — {nombre_mes} {año} (gestión retroactiva)"
 
     # ──────────────────────────────────────────────────────────────

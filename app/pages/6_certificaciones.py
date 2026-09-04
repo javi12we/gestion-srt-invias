@@ -1129,7 +1129,7 @@ def render(sesion=None):
         "📅 Período de trabajo",
         options=periodos_usuario,
         format_func=lambda p: f"{MESES_ES[p[1] - 1]} {p[0]}",
-        index=0,
+        index=periodos_usuario.index(servicio.periodo_certificable()),
         key="cert_periodo_seleccionado",
     )
     nombre_mes_cert = MESES_ES[mes_cert - 1]
