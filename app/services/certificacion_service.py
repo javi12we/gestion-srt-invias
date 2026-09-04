@@ -163,13 +163,20 @@ class CertificacionService:
     # Consultas de certificaciones
     # ──────────────────────────────────────────────────────────────
 
-    def obtener_certificacion_periodo_actual(self, usuario_id: str, tipo_formato: str = None) -> Optional[Dict]:
-        """Devuelve la certificación del período certificable hoy (mes actual o anterior)."""
-        año, mes = self.periodo_certificable()
+    def obtener_certificacion_periodo_actual(
+        self, usuario_id: str, tipo_formato: str = None, año: int = None, mes: int = None
+    ) -> Optional[Dict]:
+        """Devuelve la certificación del período dado (por defecto, el período
+        certificable hoy: mes actual o anterior)."""
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
         return self.repo.buscar_por_usuario_periodo(usuario_id, año, mes, tipo_formato)
 
-    def firmar_y_generar_dependencia(self, usuario_id: str, nombre_usuario: str) -> bool:
-        año, mes = self.periodo_certificable()
+    def firmar_y_generar_dependencia(
+        self, usuario_id: str, nombre_usuario: str, año: int = None, mes: int = None
+    ) -> bool:
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
         ahora_utc = datetime.now(timezone.utc)
         
         cert_existente = self.repo.buscar_por_usuario_periodo(usuario_id, año, mes, "dependencia_economica")
@@ -199,8 +206,11 @@ class CertificacionService:
                 "mes": mes,
             })
             self.repo.crear(campos)
-    def firmar_y_generar_cuenta_cobro(self, usuario_id: str, nombre_usuario: str) -> bool:
-        año, mes = self.periodo_certificable()
+    def firmar_y_generar_cuenta_cobro(
+        self, usuario_id: str, nombre_usuario: str, año: int = None, mes: int = None
+    ) -> bool:
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
         ahora_utc = datetime.now(timezone.utc)
         
         cert_existente = self.repo.buscar_por_usuario_periodo(usuario_id, año, mes, "cuenta_cobro")
@@ -232,8 +242,11 @@ class CertificacionService:
             self.repo.crear(campos)
         return True
 
-    def firmar_y_generar_retencion_primera(self, usuario_id: str, nombre_usuario: str) -> bool:
-        año, mes = self.periodo_certificable()
+    def firmar_y_generar_retencion_primera(
+        self, usuario_id: str, nombre_usuario: str, año: int = None, mes: int = None
+    ) -> bool:
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
         ahora_utc = datetime.now(timezone.utc)
         
         cert_existente = self.repo.buscar_por_usuario_periodo(usuario_id, año, mes, "retencion_fuente_primera")
@@ -265,8 +278,11 @@ class CertificacionService:
             self.repo.crear(campos)
         return True
 
-    def firmar_y_generar_retencion_segunda(self, usuario_id: str, nombre_usuario: str) -> bool:
-        año, mes = self.periodo_certificable()
+    def firmar_y_generar_retencion_segunda(
+        self, usuario_id: str, nombre_usuario: str, año: int = None, mes: int = None
+    ) -> bool:
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
         ahora_utc = datetime.now(timezone.utc)
         
         cert_existente = self.repo.buscar_por_usuario_periodo(usuario_id, año, mes, "retencion_fuente_segunda")
@@ -298,8 +314,11 @@ class CertificacionService:
             self.repo.crear(campos)
         return True
 
-    def firmar_y_generar_acta_compromiso(self, usuario_id: str, nombre_usuario: str) -> bool:
-        año, mes = self.periodo_certificable()
+    def firmar_y_generar_acta_compromiso(
+        self, usuario_id: str, nombre_usuario: str, año: int = None, mes: int = None
+    ) -> bool:
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
         cert_existente = self.repo.buscar_por_usuario_periodo(usuario_id, año, mes, "acta_compromiso")
         if cert_existente:
             return True
@@ -319,13 +338,16 @@ class CertificacionService:
         self.repo.crear(campos)
         return True
 
-    def firmar_y_generar_acta_recibo_entrega(self, usuario_id: str, nombre_usuario: str) -> bool:
+    def firmar_y_generar_acta_recibo_entrega(
+        self, usuario_id: str, nombre_usuario: str, año: int = None, mes: int = None
+    ) -> bool:
         from app.services.usuario_service import UsuarioService
         req_bg = UsuarioService().validar_datos_balance_general_cps(usuario_id)
         if not req_bg["valido"]:
             raise ValueError(f"Faltan requisitos para generar el Balance General CPS: {', '.join(req_bg['faltantes'])}")
 
-        año, mes = self.periodo_certificable()
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
         cert_existente = self.repo.buscar_por_usuario_periodo(usuario_id, año, mes, "acta_recibo_entrega_cps")
         if cert_existente:
             return True
@@ -345,13 +367,16 @@ class CertificacionService:
         self.repo.crear(campos)
         return True
 
-    def firmar_y_generar_acta_recibo_entrega_cps_real(self, usuario_id: str, nombre_usuario: str) -> bool:
+    def firmar_y_generar_acta_recibo_entrega_cps_real(
+        self, usuario_id: str, nombre_usuario: str, año: int = None, mes: int = None
+    ) -> bool:
         from app.services.usuario_service import UsuarioService
         req_acta = UsuarioService().validar_datos_acta_recibo_entrega_cps(usuario_id)
         if not req_acta["valido"]:
             raise ValueError(f"Faltan requisitos para generar el Acta de Recibo y Entrega CPS: {', '.join(req_acta['faltantes'])}")
 
-        año, mes = self.periodo_certificable()
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
         cert_existente = self.repo.buscar_por_usuario_periodo(usuario_id, año, mes, "acta_recibo_entrega_cps_real")
         if cert_existente:
             return True
