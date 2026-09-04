@@ -258,6 +258,42 @@ class CertificacionService:
             self.repo.crear(campos)
         return True
 
+    def firmar_y_generar_informe_actividades_final(
+        self, usuario_id: str, nombre_usuario: str, año: int = None, mes: int = None
+    ) -> bool:
+        if año is None or mes is None:
+            año, mes = self.periodo_certificable()
+        ahora_utc = datetime.now(timezone.utc)
+
+        cert_existente = self.repo.buscar_por_usuario_periodo(usuario_id, año, mes, "informe_actividades_final_cps")
+
+        hash_code = (
+            cert_existente["hash_verificacion"]
+            if cert_existente and cert_existente.get("hash_verificacion")
+            else self._generar_hash(usuario_id, año, mes, usuario_id, ahora_utc.isoformat())
+        )
+
+        campos = {
+            "estado": "aprobado",  # Ya queda aprobado porque lo firma el contratista
+            "fecha_corte": ahora_utc,
+            "snapshot_al_dia": True,
+            "tipo_formato": "informe_actividades_final_cps",
+            "hash_verificacion": hash_code,
+            "creado_en": ahora_utc,
+        }
+
+        if cert_existente:
+            self.repo.actualizar(str(cert_existente["_id"]), campos)
+        else:
+            campos.update({
+                "usuario_id": ObjectId(usuario_id),
+                "nombre_usuario": nombre_usuario,
+                "año": año,
+                "mes": mes,
+            })
+            self.repo.crear(campos)
+        return True
+
     def firmar_y_generar_retencion_primera(
         self, usuario_id: str, nombre_usuario: str, año: int = None, mes: int = None
     ) -> bool:
@@ -874,6 +910,431 @@ class CertificacionService:
         if (año, mes) == self.periodo_certificable():
             return self._contrato_vigente(contratos)
         return self._contrato_para_periodo(contratos, año, mes)
+
+    def _ultimo_contrato_usuario(self, contratos: list) -> dict:
+        """Contrato activo hoy del usuario; si ninguno está activo (todos terminados),
+        el último que tuvo por fecha_inicio. Usado en formatos que no dependen del
+        período seleccionado sino del contrato más reciente del usuario."""
+        contrato = self._contrato_vigente(contratos)
+        if contrato:
+            return contrato
+        if not contratos:
+            return {}
+        return max(contratos, key=lambda c: c.get("fecha_inicio") or datetime.min)
+
+    def generar_docx(self, certificacion: Dict) -> bytes:
+        """Genera formatos en .docx (Word) con python-docx en memoria."""
+        if certificacion.get("tipo_formato") == "informe_actividades_final_cps":
+            return self.generar_docx_informe_actividades_final(certificacion)
+        raise ValueError(f"No hay generador .docx para el tipo de formato '{certificacion.get('tipo_formato')}'.")
+
+    def generar_docx_informe_actividades_final(self, certificacion: Dict) -> bytes:
+        from docx import Document
+        from docx.shared import Pt, Cm
+        from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+
+        def _quitar_bordes_tabla(tabla):
+            tblPr = tabla._tbl.tblPr
+            bordes = OxmlElement("w:tblBorders")
+            for borde in ("top", "left", "bottom", "right", "insideH", "insideV"):
+                el = OxmlElement(f"w:{borde}")
+                el.set(qn("w:val"), "none")
+                el.set(qn("w:sz"), "0")
+                el.set(qn("w:space"), "0")
+                el.set(qn("w:color"), "auto")
+                bordes.append(el)
+            tblPr.append(bordes)
+
+        def _sin_relleno_celdas(tabla):
+            """Pone a 0 el margen interno izq/der por defecto de las celdas de una tabla
+            (~0.19cm por lado en el estilo de tabla por defecto de Word), que de otro modo
+            hace que una tabla anidada del mismo ancho que su celda contenedora se desborde
+            y su borde derecho no se vea."""
+            tblPr = tabla._tbl.tblPr
+            tblCellMar = OxmlElement("w:tblCellMar")
+            for lado in ("left", "right"):
+                el = OxmlElement(f"w:{lado}")
+                el.set(qn("w:w"), "0")
+                el.set(qn("w:type"), "dxa")
+                tblCellMar.append(el)
+            tblPr.append(tblCellMar)
+
+        def _borde_inferior_celda(celda):
+            """Línea horizontal (borde inferior) sobre una celda, usada como línea de firma."""
+            tcPr = celda._tc.get_or_add_tcPr()
+            tcBorders = OxmlElement("w:tcBorders")
+            bottom = OxmlElement("w:bottom")
+            bottom.set(qn("w:val"), "single")
+            bottom.set(qn("w:sz"), "6")
+            bottom.set(qn("w:space"), "0")
+            bottom.set(qn("w:color"), "000000")
+            tcBorders.append(bottom)
+            tcPr.append(tcBorders)
+
+        def _set_ancho_celda(celda, ancho):
+            celda.width = ancho
+            for p in celda.paragraphs:
+                p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+
+        def _set_celda(celda, texto, negrita=False, subrayado=False, alineacion=WD_ALIGN_PARAGRAPH.CENTER, tam=10):
+            celda.text = ""
+            p = celda.paragraphs[0]
+            p.alignment = alineacion
+            p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+            run = p.add_run(texto)
+            run.font.name = "Arial"
+            run.font.size = Pt(tam)
+            run.bold = negrita
+            run.underline = subrayado
+            return p
+
+        def _agregar_linea_celda(celda, texto, negrita=False, tam=10):
+            p = celda.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+            run = p.add_run(texto)
+            run.font.name = "Arial"
+            run.font.size = Pt(tam)
+            run.bold = negrita
+            return p
+
+        def _agregar_salto_celda(parrafo, texto, negrita=False, tam=10):
+            parrafo.add_run().add_break()
+            run = parrafo.add_run(texto)
+            run.font.name = "Arial"
+            run.font.size = Pt(tam)
+            run.bold = negrita
+            return run
+
+        doc = Document()
+
+        # El margen lateral por defecto de la plantilla (3.17cm) deja menos de los
+        # 16.3cm que ocupan las dos tablas lado a lado; se reduce a 2cm por lado.
+        seccion = doc.sections[0]
+        seccion.left_margin = Cm(2)
+        seccion.right_margin = Cm(2)
+
+        normal = doc.styles["Normal"]
+        normal.font.name = "Arial"
+        normal.font.size = Pt(11)
+        normal.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        normal.paragraph_format.space_before = Pt(0)
+        normal.paragraph_format.space_after = Pt(0)
+
+        def _parrafo_centrado(contenedor, texto: str, negrita: bool = False, space_after: int = 0):
+            p = contenedor.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+            p.paragraph_format.space_after = Pt(space_after)
+            run = p.add_run(texto)
+            run.font.name = "Arial"
+            run.font.size = Pt(11)
+            run.bold = negrita
+            return p
+
+        # El bloque logo + Ministerio + título va en el encabezado de página de Word
+        # (se repite en todas las hojas), no en el cuerpo del documento.
+        header = doc.sections[0].header
+
+        # Espacio reservado para el logo institucional (pendiente en app/assets/)
+        logo_placeholder = header.paragraphs[0]
+        logo_placeholder.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        logo_placeholder.paragraph_format.space_after = Pt(45)
+
+        _parrafo_centrado(header, "MINISTERIO DE TRANSPORTE", negrita=True)
+        _parrafo_centrado(header, "INSTITUTO NACIONAL DE VIAS", negrita=True)
+
+        _parrafo_centrado(header, "")  # renglón de espacio (interlineado 1.0)
+
+        p_titulo = _parrafo_centrado(
+            header, "INFORME DE ACTIVIDADES CONTRATO DE PRESTACIÓN DE SERVICIOS PROFESIONALES"
+        )
+        p_titulo.add_run().add_break()
+        run_titulo_2 = p_titulo.add_run("Y DE APOYO A LA GESTIÓN")
+        run_titulo_2.font.name = "Arial"
+        run_titulo_2.font.size = Pt(11)
+
+        # ── Datos para las tablas ──
+        usuario_id = str(certificacion.get("usuario_id", ""))
+        usuario_data: dict = {}
+        if usuario_id:
+            try:
+                from app.repositories.usuario_repo import UsuarioRepositorio
+                usuario_data = UsuarioRepositorio().buscar_por_id(usuario_id) or {}
+            except Exception:
+                pass
+        contratos = usuario_data.get("contratos") or []
+        contrato = self._ultimo_contrato_usuario(contratos)
+        no_contrato = contrato.get("numero") or "—"
+        fecha_ini_contrato = contrato.get("fecha_inicio")
+        año_contrato = str(fecha_ini_contrato.year) if fecha_ini_contrato else "—"
+
+        fecha_corte = certificacion.get("fecha_corte")
+        dt_informe = utc_a_bogota(fecha_corte) if fecha_corte else datetime.now(ZONA_BOGOTA)
+        dia_informe = f"{dt_informe.day:02d}"
+        mes_informe = f"{dt_informe.month:02d}"
+        año_informe = str(dt_informe.year)
+
+        # ── Contenedor sin bordes: tabla izquierda + espacio + tabla derecha ──
+        # Los anchos de las columnas 0 y 2 deben coincidir exactamente con el ancho
+        # total de las tablas anidadas que van dentro (10.8cm y 4.5cm).
+        anchos_contenedor = [Cm(10.8), Cm(1.0), Cm(4.5)]
+        contenedor = doc.add_table(rows=1, cols=3)
+        contenedor.autofit = False
+        contenedor.alignment = WD_TABLE_ALIGNMENT.CENTER
+        _quitar_bordes_tabla(contenedor)
+        _sin_relleno_celdas(contenedor)
+        celda_izq, celda_gap, celda_der = contenedor.rows[0].cells
+        for celda, ancho in zip(contenedor.rows[0].cells, anchos_contenedor):
+            _set_ancho_celda(celda, ancho)
+        for col, ancho in zip(contenedor.columns, anchos_contenedor):
+            col.width = ancho
+
+        # ── Tabla izquierda: INFORME No. / FECHA DEL INFORME / DIRIGIDO A ──
+        tabla1 = celda_izq.add_table(rows=4, cols=4)
+        tabla1.style = "Table Grid"
+        tabla1.autofit = False
+        anchos_t1 = [Cm(3.6), Cm(2.2), Cm(2.2), Cm(2.8)]
+        for fila in tabla1.rows:
+            for celda, ancho in zip(fila.cells, anchos_t1):
+                _set_ancho_celda(celda, ancho)
+        for col, ancho in zip(tabla1.columns, anchos_t1):
+            col.width = ancho
+
+        _set_celda(tabla1.cell(0, 0), "INFORME No.", negrita=True)
+        celda_final = tabla1.cell(0, 1).merge(tabla1.cell(0, 3))
+        _set_celda(celda_final, "FINAL")
+
+        celda_fecha_lbl = tabla1.cell(1, 0).merge(tabla1.cell(2, 0))
+        p_fecha_lbl = _set_celda(celda_fecha_lbl, "FECHA DEL", negrita=True)
+        _agregar_salto_celda(p_fecha_lbl, "INFORME", negrita=True)
+
+        _set_celda(tabla1.cell(1, 1), "dd", negrita=True, subrayado=True)
+        _set_celda(tabla1.cell(1, 2), "mm", negrita=True, subrayado=True)
+        _set_celda(tabla1.cell(1, 3), "aa", negrita=True, subrayado=True)
+
+        _set_celda(tabla1.cell(2, 1), dia_informe)
+        _set_celda(tabla1.cell(2, 2), mes_informe)
+        _set_celda(tabla1.cell(2, 3), año_informe)
+
+        _set_celda(tabla1.cell(3, 0), "DIRIGIDO A:", negrita=True)
+        celda_dirigido = tabla1.cell(3, 1).merge(tabla1.cell(3, 3))
+        _set_celda(celda_dirigido, "GLADYS GUTIERREZ BUITRAGO")
+        _agregar_linea_celda(celda_dirigido, "Subdirectora de Reglamentación Técnica e")
+        _agregar_linea_celda(celda_dirigido, "Innovación")
+
+        # ── Tabla derecha: No. DEL CONTRATO Y FECHA ──
+        tabla2 = celda_der.add_table(rows=3, cols=1)
+        tabla2.style = "Table Grid"
+        tabla2.autofit = False
+        for fila in tabla2.rows:
+            _set_ancho_celda(fila.cells[0], Cm(4.5))
+        tabla2.columns[0].width = Cm(4.5)
+
+        p_header_t2 = _set_celda(tabla2.cell(0, 0), "No. DEL CONTRATO Y", negrita=True)
+        _agregar_salto_celda(p_header_t2, "FECHA", negrita=True)
+
+        _set_celda(tabla2.cell(1, 0), "")  # fila espaciadora
+        _set_celda(tabla2.cell(2, 0), f"{no_contrato} de {año_contrato}", negrita=True)
+
+        # ── 3 renglones de espacio antes de la tabla de datos del contratista ──
+        for _ in range(3):
+            _parrafo_centrado(doc, "")
+
+        # ── Datos del contratista y del contrato para la tabla siguiente ──
+        # Todo lo que el sistema no detecte en esta tabla se muestra como "N/A".
+        nombre_contratista = usuario_data.get("nombre_completo") or "N/A"
+        num_doc_raw = usuario_data.get("numero_documento")
+        if num_doc_raw and str(num_doc_raw).isdigit():
+            num_doc_str = f"{int(num_doc_raw):,}".replace(",", ".")
+        else:
+            num_doc_str = str(num_doc_raw) if num_doc_raw else "N/A"
+
+        objeto_contrato = contrato.get("objeto") or "N/A"
+        fecha_fin_contrato = contrato.get("fecha_fin")
+
+        if fecha_fin_contrato:
+            plazo_ejecucion = (
+                f"Hasta {MESES_ES[fecha_fin_contrato.month - 1].lower()} "
+                f"{fecha_fin_contrato.day} de {fecha_fin_contrato.year}"
+            )
+            fecha_prevista_term = (
+                f"{fecha_fin_contrato.day:02d}/{fecha_fin_contrato.month:02d}/{fecha_fin_contrato.year}"
+            )
+        else:
+            plazo_ejecucion = "N/A"
+            fecha_prevista_term = "N/A"
+
+        fecha_orden_inicio = (
+            f"{fecha_ini_contrato.day:02d}/{fecha_ini_contrato.month:02d}/{fecha_ini_contrato.year}"
+            if fecha_ini_contrato else "N/A"
+        )
+
+        valor_base_contrato = contrato.get("valor")
+        valor_inicial_str = (
+            f"$ {valor_base_contrato:,.0f}".replace(",", ".") if valor_base_contrato is not None else "N/A"
+        )
+
+        adiciones = contrato.get("adiciones_contrato") or {}
+        valor_adicion = adiciones.get("valor_adicion") or 0 if adiciones.get("tiene_adiciones") else 0
+        valor_total_str = (
+            f"$ {(valor_base_contrato + valor_adicion):,.0f}".replace(",", ".")
+            if valor_base_contrato is not None else "N/A"
+        )
+
+        prorroga_contrato = contrato.get("prorrogra_contrato") or {}
+        fecha_prorroga = (
+            prorroga_contrato.get("fecha_prorrogra") if prorroga_contrato.get("tiene_prorroga") else None
+        )
+        fecha_terminacion_prorrogas = (
+            f"{fecha_prorroga.day:02d}/{fecha_prorroga.month:02d}/{fecha_prorroga.year}"
+            if fecha_prorroga else "N/A"
+        )
+
+        mes_periodo = certificacion.get("mes", 1)
+        año_periodo = certificacion.get("año", dt_informe.year)
+        nombre_mes_periodo = MESES_ES[mes_periodo - 1].lower()
+        nombre_mes_inicio_contrato = (
+            MESES_ES[fecha_ini_contrato.month - 1].lower() if fecha_ini_contrato else None
+        )
+        periodo_actividades = (
+            f"De {nombre_mes_inicio_contrato} a {nombre_mes_periodo} de {año_periodo}"
+            if nombre_mes_inicio_contrato else "N/A"
+        )
+
+        FILAS_DATOS_CONTRATO = [
+            ("NOMBRE DEL CONTRATISTA", nombre_contratista),
+            ("N° DE IDENTIFICACIÓN", num_doc_str),
+            ("OBJETO DEL CONTRATO", objeto_contrato),
+            ("PLAZO DE EJECUCIÓN", plazo_ejecucion),
+            ("VALOR INICIAL", valor_inicial_str),
+            ("FECHA ORDEN DE INICIO", fecha_orden_inicio),
+            ("FECHA PREVISTA DE TERMINACIÓN", fecha_prevista_term),
+            ("ADICIÓN Y/O PRÓRROGA\n(solo cuando aplique)", ""),
+            ("SUSPENSIONES\n(solo cuando aplique)", ""),
+            ("VALOR TOTAL\n(INCLUIDO ADICION(ES))", valor_total_str),
+            ("FECHA DE TERMINACION\n(DESPUES DE LAS PRORROGAS)", fecha_terminacion_prorrogas),
+            ("PERIODO DE ACTIVIDADES DE ESTE INFORME", periodo_actividades),
+        ]
+
+        # ── Tabla: datos del contratista y del contrato (más angosta, centrada) ──
+        tabla3 = doc.add_table(rows=len(FILAS_DATOS_CONTRATO), cols=2)
+        tabla3.style = "Table Grid"
+        tabla3.autofit = False
+        tabla3.alignment = WD_TABLE_ALIGNMENT.CENTER
+        _sin_relleno_celdas(tabla3)
+        anchos_t3 = [Cm(4.8), Cm(8.2)]
+        for fila in tabla3.rows:
+            for celda, ancho in zip(fila.cells, anchos_t3):
+                _set_ancho_celda(celda, ancho)
+        for col, ancho in zip(tabla3.columns, anchos_t3):
+            col.width = ancho
+
+        for i, (etiqueta, valor) in enumerate(FILAS_DATOS_CONTRATO):
+            lineas_etiqueta = etiqueta.split("\n")
+            p_lbl = _set_celda(
+                tabla3.cell(i, 0), lineas_etiqueta[0], negrita=True, alineacion=WD_ALIGN_PARAGRAPH.LEFT
+            )
+            for linea_extra in lineas_etiqueta[1:]:
+                _agregar_salto_celda(p_lbl, linea_extra, negrita=False, tam=8)
+            _set_celda(tabla3.cell(i, 1), valor, alineacion=WD_ALIGN_PARAGRAPH.LEFT)
+
+        # ══════════════════════════ Hoja 2 ══════════════════════════
+        doc.add_page_break()
+
+        p_titulo2 = doc.add_paragraph()
+        p_titulo2.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        p_titulo2.paragraph_format.space_before = Pt(8)
+        p_titulo2.paragraph_format.space_after = Pt(6)
+        run_titulo2 = p_titulo2.add_run("2. DESCRIPCIÓN DE ACTIVIDADES")
+        run_titulo2.font.name = "Arial"
+        run_titulo2.font.size = Pt(11)
+        run_titulo2.bold = True
+
+        p_instr = doc.add_paragraph()
+        p_instr.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        p_instr.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        p_instr.paragraph_format.space_after = Pt(10)
+        run_instr = p_instr.add_run(
+            "Enunciar cada una de las obligaciones específicas establecidas en el contrato y "
+            "describir las actividades realizadas en el período para el cumplimiento de esta, "
+            "así como enunciar las evidencias y su ubicación (actas, documentos, planillas, "
+            "listados, etc.)"
+        )
+        run_instr.font.name = "Arial"
+        run_instr.font.size = Pt(11)
+
+        # ── Tabla de obligaciones específicas / evidencias (para diligenciar manualmente) ──
+        tabla4 = doc.add_table(rows=7, cols=2)
+        tabla4.style = "Table Grid"
+        tabla4.autofit = False
+        tabla4.alignment = WD_TABLE_ALIGNMENT.CENTER
+        _sin_relleno_celdas(tabla4)
+        anchos_t4 = [Cm(8.15), Cm(8.15)]
+        for fila in tabla4.rows:
+            for celda, ancho in zip(fila.cells, anchos_t4):
+                _set_ancho_celda(celda, ancho)
+        for col, ancho in zip(tabla4.columns, anchos_t4):
+            col.width = ancho
+
+        _set_celda(tabla4.cell(0, 0), "Obligaciones específicas", negrita=True)
+        _set_celda(tabla4.cell(0, 1), "Evidencias y ubicación", negrita=True)
+        for i in range(1, 7):
+            _set_celda(tabla4.cell(i, 0), f"Obligación No. {i}:", alineacion=WD_ALIGN_PARAGRAPH.LEFT)
+            _set_celda(tabla4.cell(i, 1), "", alineacion=WD_ALIGN_PARAGRAPH.LEFT)
+
+        p_manifiesto = doc.add_paragraph()
+        p_manifiesto.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        p_manifiesto.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        p_manifiesto.paragraph_format.space_before = Pt(10)
+        p_manifiesto.paragraph_format.space_after = Pt(18)
+        run_manifiesto = p_manifiesto.add_run(
+            "Para todos los efectos manifiesto que la información bajo mi responsabilidad se "
+            "encuentra actualizada en el SIGEP y que no tengo trámite de radicaciones pendientes "
+            "ya que lo relacionado con peticiones, quejas, reclamos y pruebas que son radicadas "
+            "para esta Subdirección a través del Grupo de Atención al Ciudadano por AZ DIGITAL y "
+            "Correo Electrónico, está centralizada en la coordinación y la parte secretarial. Por "
+            "lo anterior, estoy a paz y salvo por correspondencia radicada en dichos canales de "
+            "información."
+        )
+        run_manifiesto.font.name = "Arial"
+        run_manifiesto.font.size = Pt(11)
+
+        # ── Bloque de firma: imagen + datos reales del usuario guardados en el sistema ──
+        from app.services.firma_service import FirmaService
+        firma_bytes = FirmaService().obtener_imagen(usuario_id)
+        lugar_exp_usuario = usuario_data.get("lugar_expedicion_documento") or "—"
+
+        tabla_firma = doc.add_table(rows=4, cols=1)
+        tabla_firma.autofit = False
+        tabla_firma.alignment = WD_TABLE_ALIGNMENT.CENTER
+        _quitar_bordes_tabla(tabla_firma)
+        _sin_relleno_celdas(tabla_firma)
+        ancho_firma = Cm(6.5)
+        for fila in tabla_firma.rows:
+            _set_ancho_celda(fila.cells[0], ancho_firma)
+        tabla_firma.columns[0].width = ancho_firma
+
+        celda_img = tabla_firma.cell(0, 0)
+        celda_img.text = ""
+        p_img = celda_img.paragraphs[0]
+        p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        if firma_bytes:
+            run_img = p_img.add_run()
+            run_img.add_picture(io.BytesIO(firma_bytes), width=Cm(4.0))
+        _borde_inferior_celda(celda_img)
+
+        _set_celda(tabla_firma.cell(1, 0), "FIRMA")
+        _set_celda(tabla_firma.cell(2, 0), f"NOMBRE: {nombre_contratista.upper()}")
+        _set_celda(tabla_firma.cell(3, 0), f"CC: {num_doc_str} de {lugar_exp_usuario}")
+
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        return buffer.getvalue()
 
     def generar_pdf(self, certificacion: Dict) -> bytes:
         """Genera el PDF del certificado con ReportLab en memoria."""

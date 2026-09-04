@@ -37,6 +37,7 @@ _PREFIJO_ARCHIVO = {
     "acta_compromiso": "Acta_Compromiso",
     "acta_recibo_entrega_cps": "Balance_General_CPS",
     "acta_recibo_entrega_cps_real": "Acta_Recibo_Entrega_CPS",
+    "informe_actividades_final_cps": "Informe_Actividades_Final",
 }
 _PREFIJO_ARCHIVO_DEFAULT = "Certificado_correspondencia"
 
@@ -74,6 +75,12 @@ def _nombre_archivo_pdf(cert: dict, mes_nombre: str, año) -> str:
     """Construye el nombre del PDF según el tipo de formato del certificado."""
     prefijo = _PREFIJO_ARCHIVO.get(cert.get("tipo_formato"), _PREFIJO_ARCHIVO_DEFAULT)
     return f"{prefijo}_{mes_nombre}_{año}.pdf"
+
+
+def _nombre_archivo_docx(cert: dict, mes_nombre: str, año) -> str:
+    """Construye el nombre del .docx según el tipo de formato del certificado."""
+    prefijo = _PREFIJO_ARCHIVO.get(cert.get("tipo_formato"), _PREFIJO_ARCHIVO_DEFAULT)
+    return f"{prefijo}_{mes_nombre}_{año}.docx"
 
 
 @st.dialog("Vista previa del certificado", width="large")
@@ -1089,6 +1096,67 @@ def _render_opcion_8_acta_recibo_entrega(servicio, sesion, año_cert, mes_cert, 
 
 
 
+def _render_opcion_10_informe_actividades_final(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado=False):
+    usuario_id = sesion["id"]
+    nombre_usuario_actual = sesion.get("nombre_completo") or sesion.get("usuario")
+    mostrar_titulo_decorado("Informe de actividades Final CPS")
+
+    if bloqueado:
+        _aviso_bloqueado()
+        return
+
+    st.subheader(servicio.leyenda_periodo(año_cert, mes_cert))
+
+    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "informe_actividades_final_cps", año=año_cert, mes=mes_cert)
+
+    if cert_actual:
+        st.success(
+            f"Tu formato de **Informe de actividades Final CPS** para **{nombre_mes_cert} {año_cert}** "
+            f"ha sido generado y firmado digitalmente."
+        )
+
+        try:
+            docx_bytes = servicio.generar_docx(cert_actual)
+        except Exception as e:
+            st.error(f"No se pudo generar el documento Word del formato: {e}")
+            docx_bytes = None
+
+        if docx_bytes:
+            nombre_archivo = _nombre_archivo_docx(cert_actual, nombre_mes_cert, año_cert)
+            st.download_button(
+                "⬇️ Descargar Word (.docx)",
+                data=docx_bytes,
+                file_name=nombre_archivo,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                type="primary",
+                use_container_width=True,
+            )
+    else:
+        st.warning(f"Aún no has generado el formato para el período **{nombre_mes_cert} {año_cert}**.")
+
+        from app.repositories.usuario_repo import UsuarioRepositorio
+        usuario_data = UsuarioRepositorio().buscar_por_id(usuario_id) or {}
+        contratos = usuario_data.get("contratos") or []
+        contrato_vig = servicio._contrato_relevante(contratos, año_cert, mes_cert)
+
+        st.write("### Datos para generación de formato")
+        st.write(f"**Contratista:** {usuario_data.get('nombre_completo', '')}")
+        st.write(f"**Identificación:** {usuario_data.get('tipo_documento', '')} Nº {usuario_data.get('numero_documento', '')}")
+        if contrato_vig:
+            st.write(f"**Contrato:** {contrato_vig.get('numero', '')}")
+        else:
+            st.write("**Contrato:** No se detectó contrato vigente")
+
+        st.caption("Si alguno de estos datos es incorrecto o deseas modificarlo, ve a tu perfil.")
+        st.page_link("pages/2_mi_perfil.py", label="Ir a Mi Perfil →", icon="👤")
+
+        st.write("---")
+        if st.button("✍️ Firmar y Generar Formato", type="primary", use_container_width=True, disabled=not bool(contrato_vig.get("numero"))):
+            if servicio.firmar_y_generar_informe_actividades_final(usuario_id, nombre_usuario_actual, año=año_cert, mes=mes_cert):
+                st.success("¡Formato generado y firmado digitalmente con éxito!")
+                st.rerun()
+
+
 def _render_alerta_faltantes(faltantes: dict) -> None:
     """Alerta superior que enumera los datos pendientes que bloquean la descarga."""
     msg = (
@@ -1216,6 +1284,9 @@ def render(sesion=None):
             if st.button("3- Formato de acta de recibo y entrega CPS.", type="primary", disabled=False, use_container_width=True):
                 st.session_state["tab_formato_activo"] = 9
                 st.rerun()
+            if st.button("4- Informe de actividades Final CPS.", type="primary", disabled=False, use_container_width=True):
+                st.session_state["tab_formato_activo"] = 12
+                st.rerun()
         
         # Segundo contenedor para el botón de instructivos (viñeta separada)
         with st.container(border=True):
@@ -1282,6 +1353,8 @@ def render(sesion=None):
             _render_opcion_8_historial(servicio, usuario_id, año_cert, mes_cert, bloqueado)
         elif tab_activa == 11:
             _render_verificador_codigo(servicio)
+        elif tab_activa == 12:
+            _render_opcion_10_informe_actividades_final(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado)
         else:
             st.info("👈 Selecciona un formato en el menú de la izquierda para visualizar su contenido.")
 
