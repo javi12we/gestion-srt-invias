@@ -38,7 +38,7 @@ class ExcelReportService:
             
         return datos_filtrados
 
-    def _crear_excel_reporte(self, datos: list, sheet_name: str) -> io.BytesIO:
+    def _crear_excel_reporte(self, datos: list, sheet_name: str, incluir_resumen_extra: bool = False) -> io.BytesIO:
         buffer = io.BytesIO()
         filas = []
         for doc in datos:
@@ -180,7 +180,50 @@ class ExcelReportService:
                 worksheet.write(row_offset + 1, start_col + 1, 0, cell_format)
                 worksheet.set_column(start_col, start_col, 25)
                 worksheet.set_column(start_col + 1, start_col + 1, 15)
-                
+
+            if incluir_resumen_extra:
+                # Columna O/P: resumen por tipo de correspondencia (PQRD/Memorandos/Oficios)
+                start_col_tipo = start_col + 3
+                worksheet.write(row_offset, start_col_tipo, "Tipo", header_format)
+                worksheet.write(row_offset, start_col_tipo + 1, "Cantidad", header_format)
+
+                tipo_map = {"pqrds": "PQRD", "memorandos": "MEMORANDOS", "oficios": "OFICIOS"}
+                tipos_limpios = [
+                    tipo_map.get(str(doc.get("tipo", "")).lower(), "SIN TIPO")
+                    for doc in datos
+                ]
+                resumen_tipo = pd.Series(tipos_limpios, dtype=object).value_counts().reset_index()
+                resumen_tipo.columns = ["Tipo", "Cantidad"]
+
+                if not resumen_tipo.empty:
+                    for row_num, (_, row) in enumerate(resumen_tipo.iterrows(), start=row_offset + 1):
+                        worksheet.write(row_num, start_col_tipo, str(row["Tipo"]), cell_format)
+                        worksheet.write(row_num, start_col_tipo + 1, row["Cantidad"], cell_format)
+                else:
+                    worksheet.write(row_offset + 1, start_col_tipo, "Sin datos", cell_format)
+                    worksheet.write(row_offset + 1, start_col_tipo + 1, 0, cell_format)
+
+                worksheet.set_column(start_col_tipo, start_col_tipo, 25)
+                worksheet.set_column(start_col_tipo + 1, start_col_tipo + 1, 15)
+
+                # Columna R/S: resumen por responsable (deja Q vacía como separador con la tabla de Tipo)
+                start_col_resp = start_col_tipo + 3
+                worksheet.write(row_offset, start_col_resp, "Responsable", header_format)
+                worksheet.write(row_offset, start_col_resp + 1, "Cantidad", header_format)
+
+                if not df.empty:
+                    resumen_resp = df["Responsable"].value_counts().reset_index()
+                    resumen_resp.columns = ["Responsable", "Cantidad"]
+                    for row_num, (_, row) in enumerate(resumen_resp.iterrows(), start=row_offset + 1):
+                        worksheet.write(row_num, start_col_resp, str(row["Responsable"]), cell_format)
+                        worksheet.write(row_num, start_col_resp + 1, row["Cantidad"], cell_format)
+                else:
+                    worksheet.write(row_offset + 1, start_col_resp, "Sin datos", cell_format)
+                    worksheet.write(row_offset + 1, start_col_resp + 1, 0, cell_format)
+
+                worksheet.set_column(start_col_resp, start_col_resp, 25)
+                worksheet.set_column(start_col_resp + 1, start_col_resp + 1, 15)
+
         buffer.seek(0)
         return buffer
 
@@ -248,7 +291,7 @@ class ExcelReportService:
         nombre_archivo = f"Consolidado Correspondencia Anual {anio} {fecha_str}.xlsx"
         
         datos = self._obtener_datos_consolidado_anual(anio)
-        buffer = self._crear_excel_reporte(datos, "Correspondencia")
+        buffer = self._crear_excel_reporte(datos, "Correspondencia", incluir_resumen_extra=True)
         return buffer, nombre_archivo
 
     def generar_excel_usuarios(self) -> tuple[io.BytesIO, str]:
