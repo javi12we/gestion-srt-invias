@@ -54,18 +54,23 @@ def metricas_inicio(id_usuario: Optional[str]) -> dict:
 
 
 @st.cache_data(ttl=60, show_spinner=False)
-def datos_dashboard_admin(usuario_id: Optional[str]) -> dict:
+def datos_dashboard_admin(
+    usuario_id: Optional[str],
+    tipo_id: Optional[str] = None,
+    estado_id: Optional[str] = None,
+) -> dict:
     """Todas las consultas del dashboard admin en una sola entrada de caché."""
     from app.services.reporte_service import ReporteService
 
     svc = ReporteService()
     return {
-        "resumen": svc.resumen_operativo(usuario_id=usuario_id),
-        "dist_estado": svc.distribucion_por_estado(usuario_id=usuario_id),
-        "carga_usuarios": svc.carga_por_usuario(usuario_id=usuario_id),
-        "vencimientos": svc.analisis_vencimiento(usuario_id=usuario_id),
-        "tendencia_d": svc.tendencia_diaria(dias=30, usuario_id=usuario_id),
-        "tiempos_resp": svc.analisis_tiempos_respuesta(usuario_id=usuario_id),
+        "resumen": svc.resumen_operativo(usuario_id=usuario_id, tipo=tipo_id, estado=estado_id),
+        "dist_estado": svc.distribucion_por_estado(usuario_id=usuario_id, tipo=tipo_id, estado=estado_id),
+        "carga_usuarios": svc.carga_por_usuario(usuario_id=usuario_id, tipo=tipo_id, estado=estado_id),
+        "vencimientos": svc.analisis_vencimiento(usuario_id=usuario_id, tipo=tipo_id, estado=estado_id),
+        "tendencia_d": svc.tendencia_diaria(dias=30, usuario_id=usuario_id, tipo=tipo_id, estado=estado_id),
+        "tiempos_resp": svc.analisis_tiempos_respuesta(usuario_id=usuario_id, tipo=tipo_id, estado=estado_id),
+        "conteo_tipo": svc.conteo_por_tipo(usuario_id=usuario_id, tipo=tipo_id, estado=estado_id),
     }
 
 
