@@ -183,7 +183,7 @@ class UsuarioService:
         if d is None:
             return None
         if isinstance(d, datetime):
-            return d
+            return d if d.tzinfo is not None else d.replace(tzinfo=timezone.utc)
         return datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
 
     def obtener_usuario(self, id_usuario: str):
@@ -421,8 +421,10 @@ class UsuarioService:
         contrato_actual = next((c for c in contratos if c.get("numero") == numero_contrato), None)
         if not contrato_actual:
             raise ValueError("Contrato no encontrado.")
-        if self._contrato_finalizado(contrato_actual):
-            raise ValueError("El contrato ya finalizó y no puede ser modificado.")
+        if self._contrato_finalizado(contrato_actual, dias_gracia=DIAS_GRACIA_DESCARGA_FORMATOS):
+            raise ValueError(
+                f"El contrato finalizó hace más de {DIAS_GRACIA_DESCARGA_FORMATOS} días y ya no puede ser modificado."
+            )
         nuevo_numero = (datos_contrato.get("numero") or "").strip()
         if not nuevo_numero:
             raise ValueError("El número de contrato es obligatorio.")

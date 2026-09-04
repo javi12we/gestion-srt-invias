@@ -240,7 +240,7 @@ def _dialog_confirmar_firma(
     with c1:
         if st.button("Confirmar aprobación", type="primary", use_container_width=True):
             firmante_nombre = sesion.get("nombre_completo") or sesion["usuario"]
-            servicio.registrar_firma(uid, nombre, tipo, sesion["id"], firmante_nombre, comentario)
+            servicio.registrar_firma(uid, nombre, tipo, sesion["id"], firmante_nombre, comentario, año=año, mes=mes)
             st.session_state.pop("_confirmar_firma", None)
             st.rerun()
     with c2:
@@ -249,7 +249,9 @@ def _dialog_confirmar_firma(
             st.rerun()
 
 
-def _render_panel_actas(servicio: CertificacionService, sesion: dict, tipo_formato: str) -> None:
+def _render_panel_actas(
+    servicio: CertificacionService, sesion: dict, tipo_formato: str, año: int, mes: int
+) -> None:
     permisos = sesion.get("permisos", [])
     roles_sesion = sesion.get("roles", [])
     es_admin = any(r in {"admin", "administrador"} for r in roles_sesion)
@@ -286,7 +288,7 @@ def _render_panel_actas(servicio: CertificacionService, sesion: dict, tipo_forma
     st.divider()
 
     with st.spinner("Consultando colaboradores…"):
-        empleados = servicio.obtener_empleados_para_certificar(tipo_formato=tipo_formato)
+        empleados = servicio.obtener_empleados_para_certificar(tipo_formato=tipo_formato, año=año, mes=mes)
     empleados = [e for e in empleados if e.get("certificacion")]
 
     if not empleados:
@@ -516,10 +518,6 @@ def render(sesion=None):
         st.error("No tienes permiso para acceder a esta sección.")
         st.stop()
 
-    año, mes = servicio.periodo_certificable()
-    nombre_mes = MESES_ES[mes - 1]
-    es_anterior = servicio.es_mes_anterior()
-
     # Inyectar CSS para dar fondo verde al botón de certificado
     st.markdown(
         """
@@ -540,14 +538,17 @@ def render(sesion=None):
     )
 
     mostrar_titulo_decorado("Sup. Formatos")
-    st.caption(f"Período certificable: **{nombre_mes} {año}**")
 
-    if es_anterior:
-        _dia_cierre = servicio._dia_inicio_periodo() - 1
-        st.warning(
-            f"Estás aprobando el **mes anterior: {nombre_mes} {año}** "
-            f"(ventana disponible hasta el día {_dia_cierre} del mes en curso)."
-        )
+    periodos_globales = servicio.periodos_disponibles_global()
+    año, mes = st.selectbox(
+        "📅 Período a firmar",
+        options=periodos_globales,
+        format_func=lambda p: f"{MESES_ES[p[1] - 1]} {p[0]}",
+        index=periodos_globales.index(servicio.periodo_certificable()),
+        key="sup_periodo_seleccionado",
+    )
+    nombre_mes = MESES_ES[mes - 1]
+    st.caption(servicio.leyenda_periodo(año, mes))
 
     # Inicializar estado para mostrar/ocultar el formato de control
     if "ver_formato_control" not in st.session_state:
@@ -622,7 +623,7 @@ def render(sesion=None):
         st.divider()
 
         with st.spinner("Consultando estado de correspondencia…"):
-            empleados = servicio.obtener_empleados_para_certificar()
+            empleados = servicio.obtener_empleados_para_certificar(año=año, mes=mes)
 
         if not empleados:
             st.info("No hay colaboradores con correspondencia registrada.")
@@ -799,7 +800,7 @@ def render(sesion=None):
                                     use_container_width=True,
                                     help="Revocar mi aprobación.",
                                 ):
-                                    servicio.revocar_firma(uid, tipo_mi_firma)
+                                    servicio.revocar_firma(uid, tipo_mi_firma, año=año, mes=mes)
                                     st.rerun()
                             else:
                                 if st.button(
@@ -817,7 +818,7 @@ def render(sesion=None):
 
     tab_actas = st.session_state.get("tab_actas_activo")
     if tab_actas:
-        _render_panel_actas(servicio, sesion, tab_actas)
+        _render_panel_actas(servicio, sesion, tab_actas, año, mes)
 
     if st.session_state.get("_confirmar_firma_actas"):
         _dialog_confirmar_firma_actas(servicio, sesion)

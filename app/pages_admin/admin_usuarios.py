@@ -16,7 +16,7 @@ from app.core.ui_laboral import (
     limpiar_estado_laboral,
     render_seccion_firma,
 )
-from app.services.usuario_service import UsuarioService
+from app.services.usuario_service import DIAS_GRACIA_DESCARGA_FORMATOS, UsuarioService
 
 TIPOS_DOCUMENTO = {
     "": "— Sin especificar —",
@@ -200,11 +200,17 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
     )
 
     for _c in _contratos:
-        _c_fin = UsuarioService._contrato_finalizado(_c)
+        _c_vencido = UsuarioService._contrato_finalizado(_c)
+        _c_fin = UsuarioService._contrato_finalizado(_c, dias_gracia=DIAS_GRACIA_DESCARGA_FORMATOS)
         _c_num = _c.get("numero", "")
         _c_fi = _c.get("fecha_inicio")
         _c_ff = _c.get("fecha_fin")
-        _estado = "🔴 Finalizado" if _c_fin else "🟢 Activo"
+        if not _c_vencido:
+            _estado = "🟢 Activo"
+        elif not _c_fin:
+            _estado = "🟡 Abierto temporalmente (2 meses)"
+        else:
+            _estado = "🔴 Finalizado"
         with st.expander(f"{_c_num} — {_estado}"):
             _d1, _d2 = st.columns(2)
             with _d1:
