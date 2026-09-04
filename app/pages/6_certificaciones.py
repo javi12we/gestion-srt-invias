@@ -109,14 +109,14 @@ _META_FIRMA = {
 }
 
 
-def _mostrar_avance(usuario_id: str, cert_actual) -> None:
+def _mostrar_avance(servicio: CertificacionService, usuario_id: str, año: int, mes: int, cert_actual) -> None:
     from app.repositories.usuario_repo import UsuarioRepositorio
 
     firmas = cert_actual.get("firmas", {}) if cert_actual else {}
 
     usuario_data = UsuarioRepositorio().buscar_por_id(usuario_id) or {}
     contratos = usuario_data.get("contratos") or []
-    contrato = CertificacionService._contrato_vigente(contratos)
+    contrato = servicio._contrato_relevante(contratos, año, mes)
     tiene_contrato = bool(contrato.get("numero"))
 
     n_firmas = sum(1 for t in _META_FIRMA if firmas.get(t))
@@ -209,25 +209,20 @@ def _render_verificador_codigo(servicio: CertificacionService):
             st.caption("Revisa que el código esté completo y en el formato XXXX-XXXX-XXXX-XXXX.")
 
 
-def _render_opcion_6_gestion_corr(servicio, usuario_id, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado=False):
+def _render_opcion_6_gestion_corr(servicio, usuario_id, año_cert, mes_cert, nombre_mes_cert, bloqueado=False):
     mostrar_titulo_decorado("Formato de control a la correspondencia - Gestión documental - SECOP II")
 
     if bloqueado:
         _aviso_bloqueado()
         return
 
-    etiqueta = (
-        f"Período anterior — {nombre_mes_cert} {año_cert} (ponerse al día)"
-        if es_anterior
-        else f"Período actual — {nombre_mes_cert} {año_cert}"
-    )
-    st.subheader(etiqueta)
+    st.subheader(servicio.leyenda_periodo(año_cert, mes_cert))
 
-    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id)
+    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, año=año_cert, mes=mes_cert)
 
     if cert_actual and cert_actual.get("estado") != "aprobado":
         if servicio.recuperar_auto_cert(usuario_id, cert_actual):
-            cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id)
+            cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, año=año_cert, mes=mes_cert)
 
     if cert_actual and cert_actual.get("estado") == "aprobado":
         aprobado_por = cert_actual.get("aprobado_por", {})
@@ -270,7 +265,7 @@ def _render_opcion_6_gestion_corr(servicio, usuario_id, año_cert, mes_cert, nom
                     st.rerun()
     else:
         st.warning(f"Tu certificado de **{nombre_mes_cert} {año_cert}** aún está en proceso.")
-        _mostrar_avance(usuario_id, cert_actual)
+        _mostrar_avance(servicio, usuario_id, año_cert, mes_cert, cert_actual)
 
 
 def _render_opcion_7_herramientas():
@@ -467,7 +462,7 @@ def _render_opcion_8_historial(servicio, usuario_id, año_cert, mes_cert, bloque
                             st.rerun()
 
 
-def _render_opcion_1_cuenta_cobro(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado=False):
+def _render_opcion_1_cuenta_cobro(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado=False):
     usuario_id = sesion["id"]
     nombre_usuario_actual = sesion.get("nombre_completo") or sesion.get("usuario")
     mostrar_titulo_decorado("Cuenta de Cobro")
@@ -476,14 +471,9 @@ def _render_opcion_1_cuenta_cobro(servicio, sesion, año_cert, mes_cert, nombre_
         _aviso_bloqueado()
         return
 
-    etiqueta = (
-        f"Período anterior — {nombre_mes_cert} {año_cert} (ponerse al día)"
-        if es_anterior
-        else f"Período actual — {nombre_mes_cert} {año_cert}"
-    )
-    st.subheader(etiqueta)
+    st.subheader(servicio.leyenda_periodo(año_cert, mes_cert))
 
-    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "cuenta_cobro")
+    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "cuenta_cobro", año=año_cert, mes=mes_cert)
 
     if cert_actual:
         st.success(
@@ -528,13 +518,13 @@ def _render_opcion_1_cuenta_cobro(servicio, sesion, año_cert, mes_cert, nombre_
         
         # Contrato vigente
         contratos = usuario_data.get("contratos") or []
-        contrato_vig = servicio._contrato_vigente(contratos)
-        
+        contrato_vig = servicio._contrato_relevante(contratos, año_cert, mes_cert)
+
         st.write("### Datos para generación de formato")
         st.write(f"**Contratista:** {usuario_data.get('nombre_completo', '')}")
         st.write(f"**Identificación:** {usuario_data.get('tipo_documento', '')} Nº {usuario_data.get('numero_documento', '')}")
         st.write(f"**Lugar de expedición:** {usuario_data.get('lugar_expedicion_documento', '—')}")
-        
+
         from app.services.opciones_service import OpcionesService
         banco_clave = bancaria.get("banco")
         banco_nombre = (
@@ -556,12 +546,12 @@ def _render_opcion_1_cuenta_cobro(servicio, sesion, año_cert, mes_cert, nombre_
         
         st.write("---")
         if st.button("✍️ Firmar y Generar Formato", type="primary", use_container_width=True, disabled=not bool(contrato_vig.get("numero"))):
-            if servicio.firmar_y_generar_cuenta_cobro(usuario_id, nombre_usuario_actual):
+            if servicio.firmar_y_generar_cuenta_cobro(usuario_id, nombre_usuario_actual, año=año_cert, mes=mes_cert):
                 st.success("¡Formato generado y firmado digitalmente con éxito!")
                 st.rerun()
 
 
-def _render_opcion_2_retencion_primera(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado=False):
+def _render_opcion_2_retencion_primera(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado=False):
     usuario_id = sesion["id"]
     nombre_usuario_actual = sesion.get("nombre_completo") or sesion.get("usuario")
     mostrar_titulo_decorado("Disminución Base Retención en la Fuente Contrato - Primera Cuenta")
@@ -570,14 +560,9 @@ def _render_opcion_2_retencion_primera(servicio, sesion, año_cert, mes_cert, no
         _aviso_bloqueado()
         return
 
-    etiqueta = (
-        f"Período anterior — {nombre_mes_cert} {año_cert} (ponerse al día)"
-        if es_anterior
-        else f"Período actual — {nombre_mes_cert} {año_cert}"
-    )
-    st.subheader(etiqueta)
+    st.subheader(servicio.leyenda_periodo(año_cert, mes_cert))
 
-    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "retencion_fuente_primera")
+    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "retencion_fuente_primera", año=año_cert, mes=mes_cert)
 
     if cert_actual:
         st.success(
@@ -623,13 +608,13 @@ def _render_opcion_2_retencion_primera(servicio, sesion, año_cert, mes_cert, no
         
         # Contrato vigente
         contratos = usuario_data.get("contratos") or []
-        contrato_vig = servicio._contrato_vigente(contratos)
-        
+        contrato_vig = servicio._contrato_relevante(contratos, año_cert, mes_cert)
+
         st.write("### Datos para generación de formato")
         st.write(f"**Contratista:** {usuario_data.get('nombre_completo', '')}")
         st.write(f"**Identificación:** {usuario_data.get('tipo_documento', '')} Nº {usuario_data.get('numero_documento', '')}")
         st.write(f"**Lugar de expedición:** {usuario_data.get('lugar_expedicion_documento', '—')}")
-        
+
         renta_str = "Declarante de Renta" if declarante_renta else "No Declarante de Renta"
         st.write(f"**Condición Tributaria:** {renta_str}")
         st.write(f"**RUT:** {tributaria.get('rut') or 'No registrado'}")
@@ -648,18 +633,18 @@ def _render_opcion_2_retencion_primera(servicio, sesion, año_cert, mes_cert, no
             st.write(f"**Honorarios Mensuales:** $ {contrato_vig.get('valor_mensual', 0):,}")
         else:
             st.write("**Contrato:** No se detectó contrato vigente")
-            
+
         st.caption("Si alguno de estos datos es incorrecto o deseas modificarlo, ve a tu perfil.")
         st.page_link("pages/2_mi_perfil.py", label="Ir a Mi Perfil →", icon="👤")
-        
+
         st.write("---")
         if st.button("✍️ Firmar y Generar Formato", type="primary", use_container_width=True, disabled=not bool(contrato_vig.get("numero"))):
-            if servicio.firmar_y_generar_retencion_primera(usuario_id, nombre_usuario_actual):
+            if servicio.firmar_y_generar_retencion_primera(usuario_id, nombre_usuario_actual, año=año_cert, mes=mes_cert):
                 st.success("¡Formato generado y firmado digitalmente con éxito!")
                 st.rerun()
 
 
-def _render_opcion_3_retencion_segunda(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado=False):
+def _render_opcion_3_retencion_segunda(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado=False):
     usuario_id = sesion["id"]
     nombre_usuario_actual = sesion.get("nombre_completo") or sesion.get("usuario")
     mostrar_titulo_decorado("Disminución Base Retención en la Fuente Contrato - Segunda Cuenta ++")
@@ -668,14 +653,9 @@ def _render_opcion_3_retencion_segunda(servicio, sesion, año_cert, mes_cert, no
         _aviso_bloqueado()
         return
 
-    etiqueta = (
-        f"Período anterior — {nombre_mes_cert} {año_cert} (ponerse al día)"
-        if es_anterior
-        else f"Período actual — {nombre_mes_cert} {año_cert}"
-    )
-    st.subheader(etiqueta)
+    st.subheader(servicio.leyenda_periodo(año_cert, mes_cert))
 
-    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "retencion_fuente_segunda")
+    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "retencion_fuente_segunda", año=año_cert, mes=mes_cert)
 
     if cert_actual:
         st.success(
@@ -721,13 +701,13 @@ def _render_opcion_3_retencion_segunda(servicio, sesion, año_cert, mes_cert, no
         
         # Contrato vigente
         contratos = usuario_data.get("contratos") or []
-        contrato_vig = servicio._contrato_vigente(contratos)
-        
+        contrato_vig = servicio._contrato_relevante(contratos, año_cert, mes_cert)
+
         st.write("### Datos para generación de formato")
         st.write(f"**Contratista:** {usuario_data.get('nombre_completo', '')}")
         st.write(f"**Identificación:** {usuario_data.get('tipo_documento', '')} Nº {usuario_data.get('numero_documento', '')}")
         st.write(f"**Lugar de expedición:** {usuario_data.get('lugar_expedicion_documento', '—')}")
-        
+
         renta_str = "Declarante de Renta" if declarante_renta else "No Declarante de Renta"
         st.write(f"**Condición Tributaria:** {renta_str}")
         st.write(f"**RUT:** {tributaria.get('rut') or 'No registrado'}")
@@ -746,18 +726,18 @@ def _render_opcion_3_retencion_segunda(servicio, sesion, año_cert, mes_cert, no
             st.write(f"**Honorarios Mensuales:** $ {contrato_vig.get('valor_mensual', 0):,}")
         else:
             st.write("**Contrato:** No se detectó contrato vigente")
-            
+
         st.caption("Si alguno de estos datos es incorrecto o deseas modificarlo, ve a tu perfil.")
         st.page_link("pages/2_mi_perfil.py", label="Ir a Mi Perfil →", icon="👤")
-        
+
         st.write("---")
         if st.button("✍️ Firmar y Generar Formato", type="primary", use_container_width=True, disabled=not bool(contrato_vig.get("numero"))):
-            if servicio.firmar_y_generar_retencion_segunda(usuario_id, nombre_usuario_actual):
+            if servicio.firmar_y_generar_retencion_segunda(usuario_id, nombre_usuario_actual, año=año_cert, mes=mes_cert):
                 st.success("¡Formato generado y firmado digitalmente con éxito!")
                 st.rerun()
 
 
-def _render_opcion_4_declarante_dependencia(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado=False):
+def _render_opcion_4_declarante_dependencia(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado=False):
     usuario_id = sesion["id"]
     nombre_usuario_actual = sesion.get("nombre_completo") or sesion.get("usuario")
     mostrar_titulo_decorado("Condición de Declarante y Existencia y Dependencia Económica")
@@ -766,14 +746,9 @@ def _render_opcion_4_declarante_dependencia(servicio, sesion, año_cert, mes_cer
         _aviso_bloqueado()
         return
 
-    etiqueta = (
-        f"Período anterior — {nombre_mes_cert} {año_cert} (ponerse al día)"
-        if es_anterior
-        else f"Período actual — {nombre_mes_cert} {año_cert}"
-    )
-    st.subheader(etiqueta)
+    st.subheader(servicio.leyenda_periodo(año_cert, mes_cert))
 
-    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "dependencia_economica")
+    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "dependencia_economica", año=año_cert, mes=mes_cert)
 
     if cert_actual:
         st.success(
@@ -820,21 +795,21 @@ def _render_opcion_4_declarante_dependencia(servicio, sesion, año_cert, mes_cer
 
         # Contrato vigente
         contratos = usuario_data.get("contratos") or []
-        contrato_vig = servicio._contrato_vigente(contratos)
+        contrato_vig = servicio._contrato_relevante(contratos, año_cert, mes_cert)
 
         st.write("### Datos para generación de formato")
         st.write(f"**Contratista:** {usuario_data.get('nombre_completo', '')}")
         st.write(f"**Identificación:** {usuario_data.get('tipo_documento', '')} Nº {usuario_data.get('numero_documento', '')}")
         st.write(f"**Lugar de expedición:** {usuario_data.get('lugar_expedicion_documento', '—')}")
-        
+
         if contrato_vig:
             st.write(f"**Contrato:** {contrato_vig.get('numero', '')}")
         else:
             st.write("**Contrato:** No se detectó contrato vigente")
-            
+
         renta_str = "Declarante de Renta" if declarante_renta else "No Declarante de Renta"
         st.write(f"**Condición Tributaria:** {renta_str}")
-        
+
         st.write("**Dependientes Económicos:**")
         if dependientes:
             import pandas as pd
@@ -849,12 +824,12 @@ def _render_opcion_4_declarante_dependencia(servicio, sesion, año_cert, mes_cer
         
         st.write("---")
         if st.button("✍️ Firmar y Generar Formato", type="primary", use_container_width=True, disabled=not bool(contrato_vig.get("numero"))):
-            if servicio.firmar_y_generar_dependencia(usuario_id, nombre_usuario_actual):
+            if servicio.firmar_y_generar_dependencia(usuario_id, nombre_usuario_actual, año=año_cert, mes=mes_cert):
                 st.success("¡Formato generado y firmado digitalmente con éxito!")
                 st.rerun()
 
 
-def _render_opcion_5_acta_compromiso(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado=False):
+def _render_opcion_5_acta_compromiso(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado=False):
     usuario_id = sesion["id"]
     nombre_usuario_actual = sesion.get("nombre_completo") or sesion.get("usuario")
     mostrar_titulo_decorado("Acta de Compromiso")
@@ -863,14 +838,9 @@ def _render_opcion_5_acta_compromiso(servicio, sesion, año_cert, mes_cert, nomb
         _aviso_bloqueado()
         return
 
-    etiqueta = (
-        f"Período anterior — {nombre_mes_cert} {año_cert} (ponerse al día)"
-        if es_anterior
-        else f"Período actual — {nombre_mes_cert} {año_cert}"
-    )
-    st.subheader(etiqueta)
+    st.subheader(servicio.leyenda_periodo(año_cert, mes_cert))
 
-    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "acta_compromiso")
+    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "acta_compromiso", año=año_cert, mes=mes_cert)
 
     if cert_actual and cert_actual.get("estado") == "aprobado":
         st.success(
@@ -909,13 +879,13 @@ def _render_opcion_5_acta_compromiso(servicio, sesion, año_cert, mes_cert, nomb
 
         # Contrato vigente
         contratos = usuario_data.get("contratos") or []
-        contrato_vig = servicio._contrato_vigente(contratos)
-        
+        contrato_vig = servicio._contrato_relevante(contratos, año_cert, mes_cert)
+
         st.write("### Datos para generación de formato")
         st.write(f"**Contratista:** {usuario_data.get('nombre_completo', '')}")
         st.write(f"**Identificación:** {usuario_data.get('tipo_documento', '')} Nº {usuario_data.get('numero_documento', '')}")
         st.write(f"**Lugar de expedición:** {usuario_data.get('lugar_expedicion_documento', '—')}")
-        
+
         if contrato_vig:
             st.write(f"**Contrato:** {contrato_vig.get('numero', '')}")
             st.write(f"**Vigencia del Contrato:** {contrato_vig.get('fecha_inicio').strftime('%d/%m/%Y') if contrato_vig.get('fecha_inicio') else '—'} a {contrato_vig.get('fecha_fin').strftime('%d/%m/%Y') if contrato_vig.get('fecha_fin') else '—'}")
@@ -951,12 +921,12 @@ def _render_opcion_5_acta_compromiso(servicio, sesion, año_cert, mes_cert, nomb
         
         st.write("---")
         if st.button("✍️ Firmar y Generar Formato", type="primary", use_container_width=True, disabled=not bool(contrato_vig.get("numero"))):
-            if servicio.firmar_y_generar_acta_compromiso(usuario_id, nombre_usuario_actual):
+            if servicio.firmar_y_generar_acta_compromiso(usuario_id, nombre_usuario_actual, año=año_cert, mes=mes_cert):
                 st.success("¡Formato generado y firmado digitalmente con éxito!")
                 st.rerun()
 
 
-def _render_opcion_9_acta_recibo_entrega_real(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado=False):
+def _render_opcion_9_acta_recibo_entrega_real(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado=False):
     usuario_id = sesion["id"]
     nombre_usuario_actual = sesion.get("nombre_completo") or sesion.get("usuario")
     mostrar_titulo_decorado("Acta de recibo y entrega CPS")
@@ -965,14 +935,9 @@ def _render_opcion_9_acta_recibo_entrega_real(servicio, sesion, año_cert, mes_c
         _aviso_bloqueado()
         return
 
-    etiqueta = (
-        f"Período anterior — {nombre_mes_cert} {año_cert} (ponerse al día)"
-        if es_anterior
-        else f"Período actual — {nombre_mes_cert} {año_cert}"
-    )
-    st.subheader(etiqueta)
+    st.subheader(servicio.leyenda_periodo(año_cert, mes_cert))
 
-    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "acta_recibo_entrega_cps_real")
+    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "acta_recibo_entrega_cps_real", año=año_cert, mes=mes_cert)
 
     if cert_actual and cert_actual.get("estado") == "aprobado":
         st.success(
@@ -1022,8 +987,8 @@ def _render_opcion_9_acta_recibo_entrega_real(servicio, sesion, año_cert, mes_c
 
         # Contrato vigente
         contratos = usuario_data.get("contratos") or []
-        contrato_vig = servicio._contrato_vigente(contratos)
-        
+        contrato_vig = servicio._contrato_relevante(contratos, año_cert, mes_cert)
+
         st.write("### Datos para generación de formato")
         st.write(f"**Contratista:** {usuario_data.get('nombre_completo', '')}")
         st.write(f"**Identificación:** {usuario_data.get('tipo_documento', '')} Nº {usuario_data.get('numero_documento', '')}")
@@ -1031,18 +996,18 @@ def _render_opcion_9_acta_recibo_entrega_real(servicio, sesion, año_cert, mes_c
             st.write(f"**Contrato:** {contrato_vig.get('numero', '')}")
         else:
             st.write("**Contrato:** No se detectó contrato vigente")
-            
+
         st.caption("Si alguno de estos datos es incorrecto o deseas modificarlo, ve a tu perfil.")
         st.page_link("pages/2_mi_perfil.py", label="Ir a Mi Perfil →", icon="👤")
-        
+
         st.write("---")
         if st.button("✍️ Firmar y Generar Formato", type="primary", use_container_width=True, disabled=not bool(contrato_vig.get("numero"))):
-            if servicio.firmar_y_generar_acta_recibo_entrega_cps_real(usuario_id, nombre_usuario_actual):
+            if servicio.firmar_y_generar_acta_recibo_entrega_cps_real(usuario_id, nombre_usuario_actual, año=año_cert, mes=mes_cert):
                 st.success("¡Formato generado y firmado digitalmente con éxito!")
                 st.rerun()
 
 
-def _render_opcion_8_acta_recibo_entrega(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado=False):
+def _render_opcion_8_acta_recibo_entrega(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado=False):
     usuario_id = sesion["id"]
     nombre_usuario_actual = sesion.get("nombre_completo") or sesion.get("usuario")
     mostrar_titulo_decorado("Balance General CPS")
@@ -1051,14 +1016,9 @@ def _render_opcion_8_acta_recibo_entrega(servicio, sesion, año_cert, mes_cert, 
         _aviso_bloqueado()
         return
 
-    etiqueta = (
-        f"Período anterior — {nombre_mes_cert} {año_cert} (ponerse al día)"
-        if es_anterior
-        else f"Período actual — {nombre_mes_cert} {año_cert}"
-    )
-    st.subheader(etiqueta)
+    st.subheader(servicio.leyenda_periodo(año_cert, mes_cert))
 
-    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "acta_recibo_entrega_cps")
+    cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "acta_recibo_entrega_cps", año=año_cert, mes=mes_cert)
 
     if cert_actual and cert_actual.get("estado") == "aprobado":
         st.success(
@@ -1108,8 +1068,8 @@ def _render_opcion_8_acta_recibo_entrega(servicio, sesion, año_cert, mes_cert, 
 
         # Contrato vigente
         contratos = usuario_data.get("contratos") or []
-        contrato_vig = servicio._contrato_vigente(contratos)
-        
+        contrato_vig = servicio._contrato_relevante(contratos, año_cert, mes_cert)
+
         st.write("### Datos para generación de formato")
         st.write(f"**Contratista:** {usuario_data.get('nombre_completo', '')}")
         st.write(f"**Identificación:** {usuario_data.get('tipo_documento', '')} Nº {usuario_data.get('numero_documento', '')}")
@@ -1117,13 +1077,13 @@ def _render_opcion_8_acta_recibo_entrega(servicio, sesion, año_cert, mes_cert, 
             st.write(f"**Contrato:** {contrato_vig.get('numero', '')}")
         else:
             st.write("**Contrato:** No se detectó contrato vigente")
-            
+
         st.caption("Si alguno de estos datos es incorrecto o deseas modificarlo, ve a tu perfil.")
         st.page_link("pages/2_mi_perfil.py", label="Ir a Mi Perfil →", icon="👤")
-        
+
         st.write("---")
         if st.button("✍️ Firmar y Generar Formato", type="primary", use_container_width=True, disabled=not bool(contrato_vig.get("numero"))):
-            if servicio.firmar_y_generar_acta_recibo_entrega(usuario_id, nombre_usuario_actual):
+            if servicio.firmar_y_generar_acta_recibo_entrega(usuario_id, nombre_usuario_actual, año=año_cert, mes=mes_cert):
                 st.success("¡Formato generado y firmado digitalmente con éxito!")
                 st.rerun()
 
@@ -1164,9 +1124,15 @@ def render(sesion=None):
     servicio = CertificacionService()
     usuario_id = sesion["id"]
 
-    año_cert, mes_cert = servicio.periodo_certificable()
+    periodos_usuario = servicio.periodos_disponibles_usuario(usuario_id)
+    año_cert, mes_cert = st.selectbox(
+        "📅 Período de trabajo",
+        options=periodos_usuario,
+        format_func=lambda p: f"{MESES_ES[p[1] - 1]} {p[0]}",
+        index=0,
+        key="cert_periodo_seleccionado",
+    )
     nombre_mes_cert = MESES_ES[mes_cert - 1]
-    es_anterior = servicio.es_mes_anterior()
 
     tab_activa = st.session_state.get("tab_formato_activo")
     if tab_activa == 5:
@@ -1295,23 +1261,23 @@ def render(sesion=None):
     with col_contenido:
         tab_activa = st.session_state.get("tab_formato_activo")
         if tab_activa == 1:
-            _render_opcion_1_cuenta_cobro(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado)
+            _render_opcion_1_cuenta_cobro(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado)
         elif tab_activa == 2:
-            _render_opcion_2_retencion_primera(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado)
+            _render_opcion_2_retencion_primera(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado)
         elif tab_activa == 3:
-            _render_opcion_3_retencion_segunda(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado)
+            _render_opcion_3_retencion_segunda(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado)
         elif tab_activa == 4:
-            _render_opcion_4_declarante_dependencia(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado)
+            _render_opcion_4_declarante_dependencia(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado)
         elif tab_activa == 5:
-            _render_opcion_5_acta_compromiso(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado)
+            _render_opcion_5_acta_compromiso(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado)
         elif tab_activa == 6:
-            _render_opcion_6_gestion_corr(servicio, usuario_id, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado)
+            _render_opcion_6_gestion_corr(servicio, usuario_id, año_cert, mes_cert, nombre_mes_cert, bloqueado)
         elif tab_activa == 7:
             _render_opcion_7_herramientas()
         elif tab_activa == 8:
-            _render_opcion_8_acta_recibo_entrega(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado)
+            _render_opcion_8_acta_recibo_entrega(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado)
         elif tab_activa == 9:
-            _render_opcion_9_acta_recibo_entrega_real(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, es_anterior, bloqueado)
+            _render_opcion_9_acta_recibo_entrega_real(servicio, sesion, año_cert, mes_cert, nombre_mes_cert, bloqueado)
         elif tab_activa == 10:
             _render_opcion_8_historial(servicio, usuario_id, año_cert, mes_cert, bloqueado)
         elif tab_activa == 11:
