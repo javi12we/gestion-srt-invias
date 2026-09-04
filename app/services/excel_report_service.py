@@ -206,8 +206,8 @@ class ExcelReportService:
                 worksheet.set_column(start_col_tipo, start_col_tipo, 25)
                 worksheet.set_column(start_col_tipo + 1, start_col_tipo + 1, 15)
 
-                # Columna Q/R: resumen por responsable
-                start_col_resp = start_col_tipo + 2
+                # Columna R/S: resumen por responsable (deja Q vacía como separador con la tabla de Tipo)
+                start_col_resp = start_col_tipo + 3
                 worksheet.write(row_offset, start_col_resp, "Responsable", header_format)
                 worksheet.write(row_offset, start_col_resp + 1, "Cantidad", header_format)
 
