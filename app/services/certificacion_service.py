@@ -1039,10 +1039,15 @@ class CertificacionService:
         # (se repite en todas las hojas), no en el cuerpo del documento.
         header = doc.sections[0].header
 
-        # Espacio reservado para el logo institucional (pendiente en app/assets/)
-        logo_placeholder = header.paragraphs[0]
-        logo_placeholder.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        logo_placeholder.paragraph_format.space_after = Pt(45)
+        # Logo institucional
+        p_logo = header.paragraphs[0]
+        p_logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_logo.paragraph_format.space_after = Pt(6)
+        ruta_logo = os.path.join("app", "assets", "inv_ff.png")
+        if os.path.exists(ruta_logo):
+            p_logo.add_run().add_picture(ruta_logo, width=Cm(2.2))
+        else:
+            p_logo.paragraph_format.space_after = Pt(45)  # deja el espacio reservado de antes
 
         _parrafo_centrado(header, "MINISTERIO DE TRANSPORTE", negrita=True)
         _parrafo_centrado(header, "INSTITUTO NACIONAL DE VIAS", negrita=True)
