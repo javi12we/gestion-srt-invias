@@ -95,6 +95,70 @@ class CertificacionService:
         del 29 en adelante se certifica el mes actual."""
         return True
 
+    def _construir_rango_periodos(self, contratos: list) -> List[tuple]:
+        """Genera la lista descendente de (año, mes) desde el mes de inicio del
+        contrato más antiguo (fecha_inicio) hasta el período certificable actual,
+        ambos inclusive. Si no hay contratos con fecha_inicio, devuelve solo el
+        período certificable actual."""
+        año_max, mes_max = self.periodo_certificable()
+
+        fechas_inicio = [c.get("fecha_inicio") for c in contratos if c.get("fecha_inicio")]
+        if not fechas_inicio:
+            return [(año_max, mes_max)]
+
+        fecha_min = min(fechas_inicio)
+        if fecha_min.tzinfo is None:
+            fecha_min = fecha_min.replace(tzinfo=timezone.utc)
+        fecha_min_bogota = fecha_min.astimezone(ZONA_BOGOTA)
+        año_min, mes_min = fecha_min_bogota.year, fecha_min_bogota.month
+
+        periodos = []
+        año, mes = año_max, mes_max
+        while (año, mes) >= (año_min, mes_min):
+            periodos.append((año, mes))
+            mes -= 1
+            if mes == 0:
+                mes = 12
+                año -= 1
+        return periodos
+
+    def periodos_disponibles_usuario(self, usuario_id: str) -> List[tuple]:
+        """Períodos (año, mes) seleccionables por este contratista en 'Formatos de
+        contrato': desde el inicio de su contrato más antiguo hasta el período
+        certificable actual, orden descendente (más reciente primero)."""
+        from app.repositories.usuario_repo import UsuarioRepositorio
+
+        usuario = UsuarioRepositorio().buscar_por_id(usuario_id)
+        contratos = (usuario.get("contratos") or []) if usuario else []
+        return self._construir_rango_periodos(contratos)
+
+    def periodos_disponibles_global(self) -> List[tuple]:
+        """Períodos (año, mes) seleccionables en 'Sup. Formatos': desde el contrato
+        más antiguo registrado en todo el sistema hasta el período certificable
+        actual, orden descendente."""
+        from app.repositories.usuario_repo import UsuarioRepositorio
+
+        todos_contratos = []
+        for usuario in UsuarioRepositorio().listar():
+            todos_contratos.extend(usuario.get("contratos") or [])
+        return self._construir_rango_periodos(todos_contratos)
+
+    def leyenda_periodo(self, año: int, mes: int) -> str:
+        """Texto coherente con el período efectivamente indicado: el actual, el mes
+        anterior dentro de la ventana automática de gracia, o un período pasado
+        elegido manualmente. Reemplaza los mensajes hardcodeados que asumían que el
+        único período posible era 'hoy' o 'el mes anterior automático'."""
+        nombre_mes = MESES_ES[mes - 1]
+        if (año, mes) == self.periodo_certificable():
+            if self.es_mes_anterior():
+                dia_cierre = self._dia_inicio_periodo() - 1
+                return (
+                    f"Período anterior — {nombre_mes} {año} "
+                    f"(ponerse al día, disponible hasta el día {dia_cierre} del mes en curso)"
+                )
+            return f"Período actual — {nombre_mes} {año}"
+        return f"Período pasado — {nombre_mes} {año} (gestión retroactiva)"
+
     # ──────────────────────────────────────────────────────────────
     # Consultas de certificaciones
     # ──────────────────────────────────────────────────────────────
@@ -738,6 +802,15 @@ class CertificacionService:
             reverse=True,
         )
         return pool[0]
+
+    def _contrato_relevante(self, contratos: list, año: int, mes: int) -> dict:
+        """Contrato a usar para mostrar/validar en el período (año, mes): el vigente
+        hoy en tiempo real si es el período certificable actual (preserva el
+        comportamiento exacto de hoy cuando nadie toca el selector), o el vigente
+        históricamente en ese año/mes si es un período pasado elegido manualmente."""
+        if (año, mes) == self.periodo_certificable():
+            return self._contrato_vigente(contratos)
+        return self._contrato_para_periodo(contratos, año, mes)
 
     def generar_pdf(self, certificacion: Dict) -> bytes:
         """Genera el PDF del certificado con ReportLab en memoria."""
