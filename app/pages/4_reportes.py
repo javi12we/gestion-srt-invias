@@ -48,6 +48,9 @@ with col_btn:
         st.session_state.pop("show_consolidado_download", None)
         st.session_state.pop("consolidado_buffer", None)
         st.session_state.pop("consolidado_name", None)
+        st.session_state.pop("show_conglomerado_persona_download", None)
+        st.session_state.pop("conglomerado_persona_buffer", None)
+        st.session_state.pop("conglomerado_persona_name", None)
         st.session_state.pop("pdf_pqrd", None)
         st.session_state.pop("pdf_conglomerado", None)
         st.session_state.pop("pdf_total", None)
@@ -364,6 +367,49 @@ with col_r3_1:
                 width="stretch",
                 key="dl_users"
             )
+
+with col_r3_2:
+    if es_admin:
+        with st.container(border=True):
+            st.markdown("### 🗂️ Conglomerado por Persona (Excel)")
+            st.write(
+                "Genera un libro de Excel con la correspondencia total del año seleccionado, "
+                "con una hoja por cada responsable y sus tablas de resumen por Clase, Tipo y "
+                "Responsable. Cada hoja trae el filtro de Excel activado en 'En trámite', "
+                "que se puede quitar para ver toda la correspondencia de esa persona."
+            )
+
+            # Selector de año para Conglomerado por Persona
+            anio_actual_p = datetime.date.today().year
+            anio_conglomerado_persona = st.selectbox(
+                "Seleccione el año del conglomerado",
+                options=[anio_actual_p - 1, anio_actual_p, anio_actual_p + 1],
+                index=1,
+                key="anio_conglomerado_persona_sel"
+            )
+
+            if st.button("Generar Conglomerado por Persona", width="stretch", key="gen_conglomerado_persona", type="primary"):
+                with st.spinner("Procesando correspondencia por responsable..."):
+                    try:
+                        excel_service = ExcelReportService()
+                        buffer_p, nombre_p = excel_service.generar_excel_conglomerado_persona(anio_conglomerado_persona)
+                        st.session_state["conglomerado_persona_buffer"] = buffer_p
+                        st.session_state["conglomerado_persona_name"] = nombre_p
+                        st.session_state["show_conglomerado_persona_download"] = True
+                        st.success("¡Conglomerado por Persona generado con éxito!")
+                    except Exception as e:
+                        st.error(f"Error generando Conglomerado por Persona: {e}")
+
+            if st.session_state.get("show_conglomerado_persona_download", False):
+                st.write("")
+                st.download_button(
+                    label="⬇️ Descargar Conglomerado por Persona (Excel)",
+                    data=st.session_state.get("conglomerado_persona_buffer", b""),
+                    file_name=st.session_state.get("conglomerado_persona_name", "Conglomerado_Correspondencia_Por_Persona.xlsx"),
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    width="stretch",
+                    key="dl_conglomerado_persona"
+                )
 
 
 # --- Visualizador de PDF Incrustado ---

@@ -1763,8 +1763,12 @@ else:
     page_perfil = st.Page("pages/2_mi_perfil.py", title="Mi Perfil", icon="👤", url_path="mi_perfil")
     page_correspondencia = st.Page("pages/2_correspondencia.py", title="Correspondencia", icon="📬")
     page_instructivos = st.Page("pages/3_instructivos.py", title="Instructivos", icon="📚")
-    page_permisos_suit = st.Page("pages/11_permisos_suit.py", title="Permisos SUIT", icon="🔑")
-    
+    page_grupo_despacho = st.Page("pages/12_grupo_despacho.py", title="Despacho", icon="🏛️")
+    page_grupo_permisos = st.Page("pages/11_permisos_suit.py", title="SUIT", icon="🔑")
+    page_grupo_normativa = st.Page("pages/13_grupo_normativa_tecnica.py", title="Normativa Técnica", icon="📜")
+    page_grupo_innovacion = st.Page("pages/14_grupo_innovacion_tecnica.py", title="Innovación Técnica", icon="💡")
+    page_gestores_permisos = st.Page("pages/15_gestores_permisos.py", title="Gestores Perm.", icon="🛠️")
+
     permisos_sesion = sesion.get("permisos", [])
 
     # Páginas de administración
@@ -1796,14 +1800,38 @@ else:
     if "certificacion.aprobar" in permisos_sesion:
         supervision_pages.append(st.Page("pages/7_admin_certif.py", title="Seguimiento - Formatos", icon="📊"))
 
-    # Agrupar páginas
-    gestion_permisos = [page_permisos_suit]
+    # Cada grupo de trabajo es su propia categoría de primer nivel. Es visible si el
+    # usuario es admin, si su grupo_trabajo coincide, o si tiene el permiso grupo.X.ver
+    # asignado (por rol o permiso_extra) independientemente de su grupo_trabajo.
+    categorias_por_grupo = {
+        "despacho": ("Despacho", page_grupo_despacho, "grupo.despacho.ver"),
+        "permisos": ("Permisos", page_grupo_permisos, "grupo.permisos.ver"),
+        "normativa_tecnica": ("Normativa Técnica", page_grupo_normativa, "grupo.normativa_tecnica.ver"),
+        "innovacion_tecnica": ("Innovación Técnica", page_grupo_innovacion, "grupo.innovacion_tecnica.ver"),
+    }
+    grupo_usuario = sesion.get("grupo_trabajo") or ""
+    if es_admin_main:
+        grupos_visibles = list(categorias_por_grupo.keys())
+    else:
+        grupos_visibles = [
+            clave for clave, (_, _, permiso_ver) in categorias_por_grupo.items()
+            if clave == grupo_usuario or permiso_ver in permisos_sesion
+        ]
 
     menu_dict = {
         "Principal": [page_dashboard, page_correspondencia, page_perfil, page_instructivos],
         "Gestión contratos": supervision_pages,
-        "Gestion Permisos": gestion_permisos,
     }
+    for clave in ["despacho", "permisos", "normativa_tecnica", "innovacion_tecnica"]:
+        if clave in grupos_visibles:
+            nombre_categoria, pagina, _ = categorias_por_grupo[clave]
+            menu_dict[nombre_categoria] = [pagina]
+
+    # "Gestores Perm." es una segunda página dentro de la categoría Permisos, visible
+    # solo para admin o para coordinador/líder del propio grupo de trabajo Permisos.
+    es_lider_o_coordinador = any(r in {"coordinador", "lider"} for r in sesion.get("roles", []))
+    if "Permisos" in menu_dict and (es_admin_main or (es_lider_o_coordinador and grupo_usuario == "permisos")):
+        menu_dict["Permisos"].append(page_gestores_permisos)
 
     if admin_pages:
         menu_dict["Administración"] = admin_pages

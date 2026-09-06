@@ -25,6 +25,7 @@ class AuthService:
 
         permisos = self._obtener_permisos(registro)
         self.repositorio.actualizar(str(registro["_id"]), {"ultimo_acceso": datetime.now(timezone.utc)})
+        informacion_laboral = registro.get("informacion_laboral") or {}
         sesion = {
             "id": str(registro["_id"]),
             "usuario": registro["usuario"],
@@ -34,6 +35,7 @@ class AuthService:
             "permisos": permisos,
             "tipo_documento": registro.get("tipo_documento", ""),
             "numero_documento": registro.get("numero_documento", ""),
+            "grupo_trabajo": informacion_laboral.get("grupo_trabajo") or "",
         }
         sesion["id_sesion"] = self.sesion_service.abrir_sesion(sesion)
         return sesion, None
