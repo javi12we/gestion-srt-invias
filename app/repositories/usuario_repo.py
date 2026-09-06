@@ -49,6 +49,13 @@ class UsuarioRepositorio:
     def listar(self):
         return list(self.coleccion.find({}, {"password_hash": 0}).sort("usuario", 1))
 
+    def listar_por_grupo_trabajo(self, grupo: str):
+        return list(
+            self.coleccion.find(
+                {"informacion_laboral.grupo_trabajo": grupo}, {"password_hash": 0}
+            ).sort("usuario", 1)
+        )
+
     def crear(self, datos: dict):
         datos["fecha_creacion"] = datetime.now(timezone.utc)
         datos["fecha_actualizacion"] = datetime.now(timezone.utc)

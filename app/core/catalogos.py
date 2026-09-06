@@ -35,6 +35,55 @@ GRUPOS_TRABAJO = {
 }
 
 
+# Fuente única de los 7 permisos SUIT que puede tramitar la entidad. Se usa para
+# generar el catálogo de permisos de app (PERMISOS_BASE) y para construir tanto los
+# botones de "Cargue SUIT Permiso" como el multiselect de asignación en Gestores Perm.
+PERMISOS_SUIT_CARGUE = [
+    {
+        "clave": "suit.ver_carga_extradimensionada",
+        "label_corto": "Movilización de carga extradimensionada",
+        "nombre_completo": "Permiso para movilización de carga extradimensionada por las vías nacionales.",
+    },
+    {
+        "clave": "suit.ver_carga_indivisible_vcc",
+        "label_corto": "Carga indivisible y extra pesada ..-V.C.C",
+        "nombre_completo": (
+            "Permiso para la movilización de carga indivisible extrapesada, indivisible extradimensionada "
+            "o indivisible extrapesada y extradimensionada a la vez y permiso para el transporte de carga "
+            "divisible con vehículos combinados de carga - V.C.C."
+        ),
+    },
+    {
+        "clave": "suit.ver_concepto_estaciones_servicio",
+        "label_corto": "Concepto Técnico de Ubicación de Estaciones de Servicios",
+        "nombre_completo": "Concepto Técnico de Ubicación de Estaciones de Servicios.",
+    },
+    {
+        "clave": "suit.ver_cierre_vias",
+        "label_corto": "Permiso de cierre de vías",
+        "nombre_completo": "Permiso de cierre de vías.",
+    },
+    {
+        "clave": "suit.ver_uso_zona_via",
+        "label_corto": "Permiso de uso de zona de vía",
+        "nombre_completo": "Permiso de uso de zona de vía.",
+    },
+    {
+        "clave": "suit.ver_tarifa_diferencial_peajes",
+        "label_corto": "Permiso Tarifa Diferencial o Exenta en peajes INVIAS",
+        "nombre_completo": "Permiso Tarifa Diferencial o Exenta en las estaciones de peaje a cargo del INVIAS.",
+    },
+    {
+        "clave": "suit.ver_obras_riberas_rios",
+        "label_corto": "Construcción de obras en riberas de ríos y vías fluviales",
+        "nombre_completo": (
+            "Permiso para la construcción de obras en las riberas de los ríos o dentro de su cauce "
+            "y en las demás vías fluviales."
+        ),
+    },
+]
+
+
 PERMISOS_BASE = [
     {"clave": "usuario.ver", "descripcion": "Ver usuarios", "modulo": "usuarios"},
     {"clave": "usuario.crear", "descripcion": "Crear usuarios", "modulo": "usuarios"},
@@ -58,6 +107,13 @@ PERMISOS_BASE = [
     {"clave": "certificacion.firmar_abogado", "descripcion": "Firmar aprobación Jurídica (actas)", "modulo": "certificaciones"},
     {"clave": "certificacion.firmar_jefe", "descripcion": "Firmar aprobación del Jefe (actas)", "modulo": "certificaciones"},
     {"clave": "certificacion.gestionar_firmantes", "descripcion": "Configurar firmantes designados de certificaciones", "modulo": "certificaciones"},
+    {"clave": "grupo.despacho.ver", "descripcion": "Ver sección de Despacho", "modulo": "grupos"},
+    {"clave": "grupo.permisos.ver", "descripcion": "Ver sección de Permisos (SUIT)", "modulo": "grupos"},
+    {"clave": "grupo.normativa_tecnica.ver", "descripcion": "Ver sección de Normativa Técnica", "modulo": "grupos"},
+    {"clave": "grupo.innovacion_tecnica.ver", "descripcion": "Ver sección de Innovación Técnica", "modulo": "grupos"},
+] + [
+    {"clave": p["clave"], "descripcion": f"Ver y cargar: {p['label_corto']}", "modulo": "suit"}
+    for p in PERMISOS_SUIT_CARGUE
 ]
 
 _PERMISOS_SOLO_FIRMANTES = {

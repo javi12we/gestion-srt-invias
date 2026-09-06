@@ -1284,7 +1284,7 @@ def render(sesion=None):
             if st.button("3- Formato de acta de recibo y entrega CPS.", type="primary", disabled=False, use_container_width=True):
                 st.session_state["tab_formato_activo"] = 9
                 st.rerun()
-            if st.button("4- Informe de actividades Final CPS.", type="primary", disabled=False, use_container_width=True):
+            if st.button("4- Informe de actividades Final CPS.", type="primary", disabled=True, use_container_width=True):
                 st.session_state["tab_formato_activo"] = 12
                 st.rerun()
         
