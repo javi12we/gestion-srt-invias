@@ -26,6 +26,9 @@ def obtener_sesion():
                     for r in roles_docs:
                         permisos.update(r.get("permisos", []))
                 usuario_sesion["permisos"] = sorted(permisos)
+                # Recargar grupo de trabajo
+                informacion_laboral = registro.get("informacion_laboral") or {}
+                usuario_sesion["grupo_trabajo"] = informacion_laboral.get("grupo_trabajo") or ""
                 st.session_state[CLAVE_SESION] = usuario_sesion
         except Exception:
             pass

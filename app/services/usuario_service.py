@@ -4,10 +4,13 @@ from datetime import datetime, timedelta, timezone
 import pytz
 
 from app.core.autorizacion import ValidacionAutorizacion, validar_permiso
+from app.core.catalogos import PERMISOS_SUIT_CARGUE
 from app.core.seguridad import generar_hash_password
 from app.config import configuracion
 from app.repositories.usuario_repo import UsuarioRepositorio
 from app.services.auditoria_service import AuditoriaService
+
+_CLAVES_SUIT_CARGUE = {p["clave"] for p in PERMISOS_SUIT_CARGUE}
 
 _ZONA_BOGOTA = pytz.timezone("America/Bogota")
 
@@ -81,6 +84,22 @@ class UsuarioService:
         if dias_gracia:
             fecha_limite += timedelta(days=dias_gracia)
         return fecha_limite < hoy
+
+    @classmethod
+    def _contrato_para_validacion(cls, contratos: list) -> dict:
+        """Contrato a usar al validar requisitos de un formato: el último activo
+        (dentro de los días de gracia) si existe; si todos los contratos ya
+        finalizaron y no hay uno más reciente, el último por fecha_inicio, para
+        que el formato se siga pudiendo generar con los datos del contrato cerrado."""
+        if not contratos:
+            return {}
+        activos = [
+            c for c in contratos
+            if not cls._contrato_finalizado(c, dias_gracia=DIAS_GRACIA_DESCARGA_FORMATOS)
+        ]
+        if activos:
+            return activos[-1]
+        return max(contratos, key=lambda c: c.get("fecha_inicio") or datetime.min)
 
     @staticmethod
     def _afiliacion(datos) -> dict:
@@ -191,6 +210,26 @@ class UsuarioService:
 
     def listar_usuarios(self):
         return self.repositorio.listar()
+
+    def listar_usuarios_grupo_trabajo(self, grupo: str):
+        return self.repositorio.listar_por_grupo_trabajo(grupo)
+
+    def actualizar_permisos_suit_usuario(self, id_usuario: str, claves_seleccionadas: list, actor: str) -> None:
+        """Asigna/quita los permisos de cargue SUIT de un usuario, sin tocar el resto de sus permisos_extra."""
+        usuario = self.repositorio.buscar_por_id(id_usuario)
+        if not usuario:
+            raise ValueError("El usuario no existe")
+
+        permisos_extra = set(usuario.get("permisos_extra", [])) - _CLAVES_SUIT_CARGUE
+        permisos_extra |= (set(claves_seleccionadas) & _CLAVES_SUIT_CARGUE)
+        self.repositorio.actualizar(id_usuario, {"permisos_extra": sorted(permisos_extra)})
+
+        self.auditoria.registrar_accion(
+            actor,
+            "editar_permisos_suit",
+            "usuario",
+            {"usuario_id": id_usuario, "permisos_suit": sorted(set(claves_seleccionadas) & _CLAVES_SUIT_CARGUE)},
+        )
 
     def crear_usuario(self, datos: dict, validar_permisos: bool = True, permisos_usuario: list = None):
         usuario_existente = self.repositorio.buscar_por_usuario(datos["usuario"])
@@ -604,18 +643,13 @@ class UsuarioService:
         """
         usuario = self.repositorio.buscar_por_id(id_usuario) or {}
         contratos = usuario.get("contratos") or []
-        activos = [
-            c for c in contratos
-            if not self._contrato_finalizado(c, dias_gracia=DIAS_GRACIA_DESCARGA_FORMATOS)
-        ]
+        contrato_activo = self._contrato_para_validacion(contratos)
 
         faltantes = []
 
-        if not activos:
-            faltantes.append("No tienes ningún contrato activo registrado.")
+        if not contrato_activo:
+            faltantes.append("No tienes ningún contrato registrado.")
             return {"valido": False, "faltantes": faltantes}
-
-        contrato_activo = activos[-1]
 
         # 1. Valor contratado (campo 'valor')
         valor_contratado = contrato_activo.get("valor")
