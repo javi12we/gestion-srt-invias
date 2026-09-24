@@ -740,7 +740,7 @@ with tab_gestion:
     if "page_correspondencia" not in st.session_state:
         st.session_state["page_correspondencia"] = 1
         
-    page_size = 50
+    page_size = 150
 
     current_page = max(1, st.session_state["page_correspondencia"])
     st.session_state["page_correspondencia"] = current_page
