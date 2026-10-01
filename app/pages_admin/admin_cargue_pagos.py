@@ -35,6 +35,7 @@ def _dialog_confirmar(servicio: CarguePagosService, filas_marcadas: list, sesion
             resultado = servicio.confirmar_carga(filas_marcadas, usuario_que_carga=usuario_sesion)
             st.session_state["_cargue_pagos_resultado"] = resultado
             st.session_state.pop("_cargue_pagos_datos", None)
+            st.session_state.pop("_cargue_pagos_archivo_clave", None)
             st.session_state.pop("_cargue_pagos_confirmar", None)
             st.rerun()
     with c2:
@@ -76,7 +77,7 @@ def render(sesion=None):
         if st.session_state.get("_cargue_pagos_archivo_clave") != clave_archivo:
             try:
                 datos = servicio.procesar_archivo(archivo)
-            except ValueError as e:
+            except Exception as e:
                 st.error(f"No se pudo procesar el archivo: {e}")
                 st.stop()
             st.session_state["_cargue_pagos_datos"] = datos
@@ -98,12 +99,15 @@ def render(sesion=None):
     filas_otras = [f for f in datos["filas"] if f["categoria"] != CAT_VALIDO]
 
     seleccion = {}
+    clave_archivo_actual = st.session_state.get("_cargue_pagos_archivo_clave", "")
     for fila in filas_validas:
         etiqueta = (
             f"{fila['nombre']} (CC {fila['cedula']}) · contrato {fila['numero_contrato']} · "
             f"{fila['numero_pago']} · ${fila['valor_neto_pago']:,} · {fila['concepto'][:60]}"
         )
-        seleccion[fila["id"]] = st.checkbox(etiqueta, value=True, key=f"_cargue_pagos_fila_{fila['id']}")
+        seleccion[fila["id"]] = st.checkbox(
+            etiqueta, value=True, key=f"_cargue_pagos_fila_{clave_archivo_actual}_{fila['id']}"
+        )
 
     if filas_otras:
         with st.expander(f"Registros con error o informativos ({len(filas_otras)})"):
