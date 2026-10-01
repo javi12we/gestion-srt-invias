@@ -4,7 +4,7 @@ Ver docs/superpowers/specs/2026-09-30-cargue-pagos-excel-design.md para el dise�
 """
 
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 
@@ -107,6 +107,33 @@ MOTIVOS = {
 }
 
 
+def _fecha_utc(fecha):
+    """Normaliza un datetime a tz-aware UTC sin importar si llegó naive (como lo
+    retorna PyMongo al leer una fecha de un documento existente, ya que el
+    MongoClient de app/db/mongo.py no usa tz_aware=True) o ya tz-aware (como lo
+    produce limpiar_fecha_pago para datos recién leídos del Excel). Mismo patrón
+    que usuario_service.py y certificacion_service.py para esta misma situación."""
+    if fecha is None:
+        return None
+    if fecha.tzinfo is None:
+        return fecha.replace(tzinfo=timezone.utc)
+    return fecha.astimezone(timezone.utc)
+
+
+def _texto_o_vacio(crudo) -> str:
+    """Convierte una celda de texto del Excel a string limpio, tratando como
+    vacío tanto None como un NaN de pandas (float) y la literal 'nan' que
+    resultaría de hacer str() sobre ese NaN sin esta guarda."""
+    if crudo is None:
+        return ""
+    if isinstance(crudo, float) and math.isnan(crudo):
+        return ""
+    texto = str(crudo).strip()
+    if texto.lower() == "nan":
+        return ""
+    return texto
+
+
 def _ultimo_contrato_activo(contratos: list) -> dict:
     """Contrato activo hoy del usuario (incluye período de gracia), usando el
     classmethod puro CertificacionService._contrato_vigente para no instanciar el
@@ -140,7 +167,8 @@ class CarguePagosService:
         candidatos_por_grupo = {}
 
         for _, registro in df.iterrows():
-            if registro.get("Tipo Identificacion") != TIPO_IDENTIFICACION_CEDULA:
+            tipo_identificacion = _texto_o_vacio(registro.get("Tipo Identificacion"))
+            if tipo_identificacion != TIPO_IDENTIFICACION_CEDULA:
                 continue
 
             cedula = limpiar_cedula(registro.get("Identificacion"))
@@ -149,7 +177,10 @@ class CarguePagosService:
             valor_bruto = limpiar_valor_monetario(registro.get("Valor Bruto"))
             deducciones = limpiar_valor_monetario(registro.get("Valor Deducciones"))
             valor_neto = limpiar_valor_monetario(registro.get("Valor Neto"))
-            concepto = str(registro.get("Concepto Pago") or registro.get("Objeto del Compromiso") or "").strip()
+            concepto = (
+                _texto_o_vacio(registro.get("Concepto Pago"))
+                or _texto_o_vacio(registro.get("Objeto del Compromiso"))
+            )
 
             fila = {
                 "id": len(filas),
@@ -211,9 +242,10 @@ class CarguePagosService:
 
             pagos_actuales = contrato.get("pagos") or []
             existentes = {
-                (p["numero_pago"], p["fecha_pago"], p["valor_neto_pago"]) for p in pagos_actuales
+                (p["numero_pago"], _fecha_utc(p["fecha_pago"]), p["valor_neto_pago"])
+                for p in pagos_actuales
             }
-            if (numero_pago, fecha_pago, valor_neto) in existentes:
+            if (numero_pago, _fecha_utc(fecha_pago), valor_neto) in existentes:
                 fila["categoria"] = CAT_YA_EXISTE
                 fila["motivo"] = MOTIVOS[CAT_YA_EXISTE]
                 filas.append(fila)
@@ -242,7 +274,9 @@ class CarguePagosService:
 
         return {"resumen": resumen, "filas": filas}
 
-    def confirmar_carga(self, filas_seleccionadas: list[dict], usuario_que_carga: str) -> dict:
+    def confirmar_carga(
+        self, filas_seleccionadas: list[dict], usuario_que_carga: str, nombre_archivo: str = ""
+    ) -> dict:
         candidatas = [f for f in filas_seleccionadas if f["categoria"] == CAT_VALIDO]
 
         grupos = {}
@@ -264,17 +298,22 @@ class CarguePagosService:
                 )
                 if not contrato:
                     raise ValueError("El contrato ya no existe para este usuario.")
-                if UsuarioService._contrato_finalizado(contrato):
+                if not CertificacionService._contrato_vigente([contrato]):
                     raise ValueError("El contrato ya no está activo.")
 
                 pagos_actuales = contrato.get("pagos") or []
                 existentes = {
-                    (p["numero_pago"], p["fecha_pago"], p["valor_neto_pago"]) for p in pagos_actuales
+                    (p["numero_pago"], _fecha_utc(p["fecha_pago"]), p["valor_neto_pago"])
+                    for p in pagos_actuales
                 }
 
                 pagos_nuevos = []
                 for fila in filas_grupo:
-                    clave_pago = (fila["numero_pago"], fila["fecha_pago"], fila["valor_neto_pago"])
+                    clave_pago = (
+                        fila["numero_pago"],
+                        _fecha_utc(fila["fecha_pago"]),
+                        fila["valor_neto_pago"],
+                    )
                     if clave_pago in existentes:
                         continue
                     pagos_nuevos.append({
@@ -310,14 +349,14 @@ class CarguePagosService:
                     usuario=usuario_que_carga,
                     accion="cargue_pagos_excel",
                     recurso=f"usuario:{id_usuario}:contrato:{numero_contrato}",
-                    detalle={"pagos_agregados": len(pagos_nuevos)},
+                    detalle={"pagos_agregados": len(pagos_nuevos), "archivo": nombre_archivo},
                 )
                 ok.append({
                     "id_usuario": id_usuario,
                     "numero_contrato": numero_contrato,
                     "agregados": len(pagos_nuevos),
                 })
-            except ValueError as e:
+            except Exception as e:
                 fallidos.append({
                     "id_usuario": id_usuario,
                     "numero_contrato": numero_contrato,

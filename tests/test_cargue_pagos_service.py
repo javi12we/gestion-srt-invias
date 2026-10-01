@@ -1,5 +1,5 @@
 import io
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
@@ -192,10 +192,15 @@ def test_filas_duplicadas_en_el_mismo_archivo():
 
 
 def test_pago_ya_existente_en_bd():
+    # fecha_pago naive (sin tzinfo): así es como PyMongo realmente devuelve una
+    # fecha leída de un documento existente, porque el MongoClient de
+    # app/db/mongo.py no usa tz_aware=True. El lado del Excel (limpiar_fecha_pago)
+    # sí produce un datetime tz-aware, así que este test fuerza exactamente el
+    # desajuste naive-vs-aware que _fecha_utc debe resolver.
     usuario = _usuario_con_contrato_activo()
     usuario["contratos"][0]["pagos"] = [{
         "numero_pago": "100185826",
-        "fecha_pago": datetime(2026, 3, 31, tzinfo=timezone.utc),
+        "fecha_pago": datetime(2026, 3, 31),
         "valor_bruto_pago": 1_000_000,
         "deducciones_pago": 0,
         "valor_neto_pago": 1_000_000,
@@ -212,7 +217,7 @@ def test_excede_limite_de_20_pagos_rechaza_el_contrato_completo():
     usuario["contratos"][0]["pagos"] = [
         {
             "numero_pago": f"existente-{i}",
-            "fecha_pago": datetime(2026, 3, 31, tzinfo=timezone.utc),
+            "fecha_pago": datetime(2026, 3, 31),  # naive, como lo devuelve Mongo realmente
             "valor_bruto_pago": 100,
             "deducciones_pago": 0,
             "valor_neto_pago": 100,
@@ -293,7 +298,9 @@ def test_confirmar_carga_agrega_pago_y_recalcula_totales():
     servicio = CarguePagosService(repositorio=repo)
     servicio.auditoria = auditoria
 
-    resultado = servicio.confirmar_carga([_fila_valida_para_confirmar()], usuario_que_carga="admin1")
+    resultado = servicio.confirmar_carga(
+        [_fila_valida_para_confirmar()], usuario_que_carga="admin1", nombre_archivo="balances_marzo.xlsx"
+    )
 
     assert resultado["ok"] == [{"id_usuario": "u1", "numero_contrato": "3123123", "agregados": 1}]
     assert resultado["fallidos"] == []
@@ -302,6 +309,8 @@ def test_confirmar_carga_agrega_pago_y_recalcula_totales():
     assert contrato_guardado["valor_total_pagado"] == 1_000_000
     assert contrato_guardado["valor_total_por_pagar_contrato"] == 49_000_000  # 50M - 1M
     assert len(auditoria.registros) == 1
+    _, _, _, detalle, _ = auditoria.registros[0]
+    assert detalle == {"pagos_agregados": 1, "archivo": "balances_marzo.xlsx"}
 
 
 def test_confirmar_carga_ignora_filas_que_no_son_validas():
@@ -327,6 +336,15 @@ def test_confirmar_carga_es_idempotente_si_se_llama_dos_veces():
 
     fila = _fila_valida_para_confirmar()
     primera = servicio.confirmar_carga([fila], usuario_que_carga="admin1")
+
+    # Simula el round-trip real por Mongo: una fecha recién escrita por este mismo
+    # proceso queda tz-aware en memoria, pero al releerla de una BD real (el
+    # MongoClient no usa tz_aware=True) vuelve naive. Forzamos esa forma aquí para
+    # que la segunda llamada ejercite el mismo desajuste naive-vs-aware que en
+    # producción, no una comparación aware-contra-aware que nunca falla.
+    pago_guardado = repo._por_id["u1"]["contratos"][0]["pagos"][0]
+    pago_guardado["fecha_pago"] = pago_guardado["fecha_pago"].replace(tzinfo=None)
+
     segunda = servicio.confirmar_carga([fila], usuario_que_carga="admin1")
 
     assert primera["ok"][0]["agregados"] == 1
@@ -337,8 +355,8 @@ def test_confirmar_carga_es_idempotente_si_se_llama_dos_veces():
 def test_confirmar_carga_revalida_cupo_al_momento_de_escribir():
     usuario = _usuario_con_contrato_activo()
     usuario["contratos"][0]["pagos"] = [
-        {"numero_pago": f"x{i}", "fecha_pago": datetime_import_helper(), "valor_bruto_pago": 1,
-         "deducciones_pago": 0, "valor_neto_pago": 1}
+        {"numero_pago": f"x{i}", "fecha_pago": datetime(2026, 3, 31),  # naive, como Mongo
+         "valor_bruto_pago": 1, "deducciones_pago": 0, "valor_neto_pago": 1}
         for i in range(20)
     ]
     repo = _FakeRepoEscritura([usuario])
@@ -373,3 +391,126 @@ def test_confirmar_carga_aisla_fallos_entre_contratos():
     assert resultado["ok"][0]["id_usuario"] == "u_ok"
     assert len(resultado["fallidos"]) == 1
     assert resultado["fallidos"][0]["id_usuario"] == "u_fail"
+
+
+def test_contrato_en_periodo_de_gracia_es_valido_en_preview_y_confirma_ok():
+    """Un contrato cuya fecha_fin quedó hace ~30 días (dentro de los 60 días de
+    gracia de CertificacionService._contrato_vigente) debe clasificarse como
+    CAT_VALIDO en procesar_archivo Y debe poder confirmarse con éxito: antes de
+    este fix, confirmar_carga usaba UsuarioService._contrato_finalizado(contrato)
+    con dias_gracia=0 (sin gracia), por lo que una fila "válida" en el preview
+    fallaba igual al confirmar con "El contrato ya no está activo."."""
+    usuario = _usuario_con_contrato_activo()
+    usuario["contratos"][0]["fecha_fin"] = datetime.now(timezone.utc) - timedelta(days=30)
+    repo = _FakeRepoEscritura([usuario])
+    servicio = CarguePagosService(repositorio=repo)
+    servicio.auditoria = _FakeAuditoria()
+
+    resultado_preview = servicio.procesar_archivo(_excel_bytes([_fila_excel()]))
+    assert resultado_preview["filas"][0]["categoria"] == CAT_VALIDO
+
+    resultado_confirmar = servicio.confirmar_carga(resultado_preview["filas"], usuario_que_carga="admin1")
+
+    assert resultado_confirmar["fallidos"] == []
+    assert resultado_confirmar["ok"] == [{"id_usuario": "u1", "numero_contrato": "3123123", "agregados": 1}]
+
+
+class _FakeRepoEscrituraConFalloInesperado(_FakeRepoEscritura):
+    """Simula que editar_contrato_en_usuario lanza una excepción que NO es
+    ValueError (p. ej. un pymongo.errors.WriteError por validación de esquema,
+    o un KeyError por un documento existente malformado) para un contrato
+    puntual, mientras otro contrato independiente en el mismo lote se procesa
+    con normalidad."""
+
+    def __init__(self, usuarios, numero_contrato_que_falla, excepcion):
+        super().__init__(usuarios)
+        self._numero_contrato_que_falla = numero_contrato_que_falla
+        self._excepcion = excepcion
+
+    def editar_contrato_en_usuario(self, id_usuario, numero_contrato, nuevo_contrato):
+        if numero_contrato == self._numero_contrato_que_falla:
+            raise self._excepcion
+        super().editar_contrato_en_usuario(id_usuario, numero_contrato, nuevo_contrato)
+
+
+def test_confirmar_carga_aisla_fallos_que_no_son_value_error():
+    """Antes de este fix, el loop de confirmar_carga solo capturaba ValueError;
+    cualquier otra excepción (RuntimeError, KeyError, un WriteError real de
+    pymongo por la validación de esquema de la colección) escapaba del loop
+    completo, abortando el resto del lote sin reportar nada al admin."""
+    usuario_ok = _usuario_con_contrato_activo(numero_documento="1", numero_contrato="A")
+    usuario_ok["_id"] = "u_ok"
+    usuario_falla = _usuario_con_contrato_activo(numero_documento="2", numero_contrato="B")
+    usuario_falla["_id"] = "u_falla"
+
+    repo = _FakeRepoEscrituraConFalloInesperado(
+        [usuario_ok, usuario_falla],
+        numero_contrato_que_falla="B",
+        excepcion=RuntimeError("fallo de conexión inesperado"),
+    )
+    servicio = CarguePagosService(repositorio=repo)
+    servicio.auditoria = _FakeAuditoria()
+
+    filas = [
+        _fila_valida_para_confirmar(id_usuario="u_ok", numero_contrato="A"),
+        _fila_valida_para_confirmar(id_usuario="u_falla", numero_contrato="B"),
+    ]
+    resultado = servicio.confirmar_carga(filas, usuario_que_carga="admin1")
+
+    assert len(resultado["ok"]) == 1
+    assert resultado["ok"][0]["id_usuario"] == "u_ok"
+    assert len(resultado["fallidos"]) == 1
+    assert resultado["fallidos"][0]["id_usuario"] == "u_falla"
+    assert "fallo de conexión inesperado" in resultado["fallidos"][0]["motivo"]
+
+
+def test_confirmar_carga_aisla_key_error_sin_abortar_el_lote():
+    """Mismo caso que arriba pero con KeyError, el ejemplo concreto que el
+    reviewer señaló para datos malformados leídos de un pagos[] existente."""
+    usuario_ok = _usuario_con_contrato_activo(numero_documento="1", numero_contrato="A")
+    usuario_ok["_id"] = "u_ok"
+    usuario_falla = _usuario_con_contrato_activo(numero_documento="2", numero_contrato="B")
+    usuario_falla["_id"] = "u_falla"
+
+    repo = _FakeRepoEscrituraConFalloInesperado(
+        [usuario_ok, usuario_falla],
+        numero_contrato_que_falla="B",
+        excepcion=KeyError("numero_pago"),
+    )
+    servicio = CarguePagosService(repositorio=repo)
+    servicio.auditoria = _FakeAuditoria()
+
+    filas = [
+        _fila_valida_para_confirmar(id_usuario="u_ok", numero_contrato="A"),
+        _fila_valida_para_confirmar(id_usuario="u_falla", numero_contrato="B"),
+    ]
+    resultado = servicio.confirmar_carga(filas, usuario_que_carga="admin1")
+
+    assert len(resultado["ok"]) == 1
+    assert resultado["ok"][0]["id_usuario"] == "u_ok"
+    assert len(resultado["fallidos"]) == 1
+    assert resultado["fallidos"][0]["id_usuario"] == "u_falla"
+
+
+def test_concepto_vacio_en_excel_no_se_vuelve_literal_nan():
+    """Una celda vacía de 'Concepto Pago' y 'Objeto del Compromiso' llega como
+    NaN (float) desde pandas; sin guarda, str(nan) produce la cadena literal
+    'nan', que no ayuda al admin a juzgar si el pago corresponde a honorarios."""
+    repo = _FakeRepo([_usuario_con_contrato_activo()])
+    servicio = CarguePagosService(repositorio=repo)
+    fila = _fila_excel(concepto=None)
+    resultado = servicio.procesar_archivo(_excel_bytes([fila]))
+
+    assert resultado["filas"][0]["concepto"] == ""
+
+
+def test_tipo_identificacion_con_espacios_se_reconoce_como_cedula():
+    """Un espacio accesorio alrededor de 'Cédula de Ciudadanía' no debe hacer que
+    la fila se trate como si no tuviera ningún tipo de identificación reconocido."""
+    repo = _FakeRepo([_usuario_con_contrato_activo()])
+    servicio = CarguePagosService(repositorio=repo)
+    resultado = servicio.procesar_archivo(
+        _excel_bytes([_fila_excel(tipo_id="  Cédula de Ciudadanía  ")])
+    )
+
+    assert resultado["filas"][0]["categoria"] == CAT_VALIDO
