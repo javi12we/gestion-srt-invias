@@ -240,3 +240,136 @@ def test_archivo_sin_columnas_requeridas_lanza_error_claro():
     servicio = CarguePagosService(repositorio=_FakeRepo([]))
     with pytest.raises(ValueError, match="columnas"):
         servicio.procesar_archivo(buffer)
+
+
+def datetime_import_helper():
+    """Fecha de pago fija reutilizada por los fixtures de confirmar_carga."""
+    return datetime(2026, 3, 31, tzinfo=timezone.utc)
+
+
+class _FakeRepoEscritura(_FakeRepo):
+    def __init__(self, usuarios):
+        super().__init__(usuarios)
+        self._por_id = {u["_id"]: u for u in usuarios}
+        self.llamadas_editar = []
+
+    def buscar_por_id(self, id_usuario):
+        return self._por_id.get(id_usuario)
+
+    def editar_contrato_en_usuario(self, id_usuario, numero_contrato, nuevo_contrato):
+        self.llamadas_editar.append((id_usuario, numero_contrato, nuevo_contrato))
+        usuario = self._por_id[id_usuario]
+        for i, c in enumerate(usuario["contratos"]):
+            if c["numero"] == numero_contrato:
+                usuario["contratos"][i] = nuevo_contrato
+
+
+class _FakeAuditoria:
+    def __init__(self):
+        self.registros = []
+
+    def registrar_accion(self, usuario, accion, recurso, detalle=None, exito=True):
+        self.registros.append((usuario, accion, recurso, detalle, exito))
+
+
+def _fila_valida_para_confirmar(id_usuario="u1", numero_contrato="3123123", numero_pago="100185826",
+                                  valor_bruto=1_000_000, valor_neto=1_000_000):
+    return {
+        "categoria": CAT_VALIDO,
+        "id_usuario": id_usuario,
+        "numero_contrato": numero_contrato,
+        "numero_pago": numero_pago,
+        "fecha_pago": datetime_import_helper(),
+        "valor_bruto_pago": valor_bruto,
+        "deducciones_pago": 0,
+        "valor_neto_pago": valor_neto,
+    }
+
+
+def test_confirmar_carga_agrega_pago_y_recalcula_totales():
+    usuario = _usuario_con_contrato_activo()
+    repo = _FakeRepoEscritura([usuario])
+    auditoria = _FakeAuditoria()
+    servicio = CarguePagosService(repositorio=repo)
+    servicio.auditoria = auditoria
+
+    resultado = servicio.confirmar_carga([_fila_valida_para_confirmar()], usuario_que_carga="admin1")
+
+    assert resultado["ok"] == [{"id_usuario": "u1", "numero_contrato": "3123123", "agregados": 1}]
+    assert resultado["fallidos"] == []
+    _, _, contrato_guardado = repo.llamadas_editar[0]
+    assert contrato_guardado["pagos"][0]["numero_pago"] == "100185826"
+    assert contrato_guardado["valor_total_pagado"] == 1_000_000
+    assert contrato_guardado["valor_total_por_pagar_contrato"] == 49_000_000  # 50M - 1M
+    assert len(auditoria.registros) == 1
+
+
+def test_confirmar_carga_ignora_filas_que_no_son_validas():
+    usuario = _usuario_con_contrato_activo()
+    repo = _FakeRepoEscritura([usuario])
+    servicio = CarguePagosService(repositorio=repo)
+    servicio.auditoria = _FakeAuditoria()
+
+    fila_no_valida = _fila_valida_para_confirmar()
+    fila_no_valida["categoria"] = CAT_DATO_INVALIDO
+
+    resultado = servicio.confirmar_carga([fila_no_valida], usuario_que_carga="admin1")
+
+    assert resultado["ok"] == []
+    assert repo.llamadas_editar == []
+
+
+def test_confirmar_carga_es_idempotente_si_se_llama_dos_veces():
+    usuario = _usuario_con_contrato_activo()
+    repo = _FakeRepoEscritura([usuario])
+    servicio = CarguePagosService(repositorio=repo)
+    servicio.auditoria = _FakeAuditoria()
+
+    fila = _fila_valida_para_confirmar()
+    primera = servicio.confirmar_carga([fila], usuario_que_carga="admin1")
+    segunda = servicio.confirmar_carga([fila], usuario_que_carga="admin1")
+
+    assert primera["ok"][0]["agregados"] == 1
+    assert segunda["ok"] == []  # ya existe, no se vuelve a agregar ni duplicar
+    assert len(repo._por_id["u1"]["contratos"][0]["pagos"]) == 1
+
+
+def test_confirmar_carga_revalida_cupo_al_momento_de_escribir():
+    usuario = _usuario_con_contrato_activo()
+    usuario["contratos"][0]["pagos"] = [
+        {"numero_pago": f"x{i}", "fecha_pago": datetime_import_helper(), "valor_bruto_pago": 1,
+         "deducciones_pago": 0, "valor_neto_pago": 1}
+        for i in range(20)
+    ]
+    repo = _FakeRepoEscritura([usuario])
+    servicio = CarguePagosService(repositorio=repo)
+    servicio.auditoria = _FakeAuditoria()
+
+    resultado = servicio.confirmar_carga([_fila_valida_para_confirmar()], usuario_que_carga="admin1")
+
+    assert resultado["ok"] == []
+    assert len(resultado["fallidos"]) == 1
+    assert "20" in resultado["fallidos"][0]["motivo"] or "límite" in resultado["fallidos"][0]["motivo"].lower()
+
+
+def test_confirmar_carga_aisla_fallos_entre_contratos():
+    usuario_ok = _usuario_con_contrato_activo(numero_documento="1", numero_contrato="A")
+    usuario_ok["_id"] = "u_ok"
+    usuario_sin_contrato = _usuario_con_contrato_activo(numero_documento="2", numero_contrato="B")
+    usuario_sin_contrato["_id"] = "u_fail"
+    usuario_sin_contrato["contratos"] = []  # ya no tiene el contrato "B" al momento de confirmar
+
+    repo = _FakeRepoEscritura([usuario_ok, usuario_sin_contrato])
+    servicio = CarguePagosService(repositorio=repo)
+    servicio.auditoria = _FakeAuditoria()
+
+    filas = [
+        _fila_valida_para_confirmar(id_usuario="u_ok", numero_contrato="A"),
+        _fila_valida_para_confirmar(id_usuario="u_fail", numero_contrato="B"),
+    ]
+    resultado = servicio.confirmar_carga(filas, usuario_que_carga="admin1")
+
+    assert len(resultado["ok"]) == 1
+    assert resultado["ok"][0]["id_usuario"] == "u_ok"
+    assert len(resultado["fallidos"]) == 1
+    assert resultado["fallidos"][0]["id_usuario"] == "u_fail"

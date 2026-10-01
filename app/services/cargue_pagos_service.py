@@ -9,6 +9,7 @@ from datetime import datetime
 import pandas as pd
 
 from app.repositories.usuario_repo import UsuarioRepositorio
+from app.services.auditoria_service import AuditoriaService
 from app.services.certificacion_service import CertificacionService
 from app.services.usuario_service import UsuarioService
 
@@ -121,6 +122,7 @@ def _ultimo_contrato_activo(contratos: list) -> dict:
 class CarguePagosService:
     def __init__(self, repositorio=None):
         self.repositorio = repositorio or UsuarioRepositorio()
+        self.auditoria = AuditoriaService()
 
     def procesar_archivo(self, archivo) -> dict:
         df = pd.read_excel(archivo, header=0, engine="openpyxl")
@@ -239,3 +241,87 @@ class CarguePagosService:
             resumen[fila["categoria"]] = resumen.get(fila["categoria"], 0) + 1
 
         return {"resumen": resumen, "filas": filas}
+
+    def confirmar_carga(self, filas_seleccionadas: list[dict], usuario_que_carga: str) -> dict:
+        candidatas = [f for f in filas_seleccionadas if f["categoria"] == CAT_VALIDO]
+
+        grupos = {}
+        for fila in candidatas:
+            clave = (fila["id_usuario"], fila["numero_contrato"])
+            grupos.setdefault(clave, []).append(fila)
+
+        ok = []
+        fallidos = []
+
+        for (id_usuario, numero_contrato), filas_grupo in grupos.items():
+            try:
+                usuario = self.repositorio.buscar_por_id(id_usuario)
+                if not usuario:
+                    raise ValueError("El usuario ya no existe.")
+                contrato = next(
+                    (c for c in usuario.get("contratos") or [] if c.get("numero") == numero_contrato),
+                    None,
+                )
+                if not contrato:
+                    raise ValueError("El contrato ya no existe para este usuario.")
+                if UsuarioService._contrato_finalizado(contrato):
+                    raise ValueError("El contrato ya no está activo.")
+
+                pagos_actuales = contrato.get("pagos") or []
+                existentes = {
+                    (p["numero_pago"], p["fecha_pago"], p["valor_neto_pago"]) for p in pagos_actuales
+                }
+
+                pagos_nuevos = []
+                for fila in filas_grupo:
+                    clave_pago = (fila["numero_pago"], fila["fecha_pago"], fila["valor_neto_pago"])
+                    if clave_pago in existentes:
+                        continue
+                    pagos_nuevos.append({
+                        "numero_pago": fila["numero_pago"],
+                        "fecha_pago": fila["fecha_pago"],
+                        "valor_bruto_pago": fila["valor_bruto_pago"],
+                        "deducciones_pago": fila["deducciones_pago"],
+                        "valor_neto_pago": fila["valor_neto_pago"],
+                    })
+                    existentes.add(clave_pago)
+
+                if not pagos_nuevos:
+                    continue  # todos ya existían; nada que hacer, no es un fallo
+
+                pagos_final = pagos_actuales + pagos_nuevos
+                if len(pagos_final) > MAX_PAGOS_POR_CONTRATO:
+                    raise ValueError(
+                        f"El contrato superaría el límite de {MAX_PAGOS_POR_CONTRATO} pagos."
+                    )
+
+                valor_total_pagado = sum(p["valor_bruto_pago"] for p in pagos_final)
+                valor_contrato = int(contrato.get("valor") or 0)
+
+                contrato_actualizado = dict(contrato)
+                contrato_actualizado["pagos"] = pagos_final
+                contrato_actualizado["valor_total_pagado"] = valor_total_pagado
+                contrato_actualizado["valor_total_por_pagar_contrato"] = abs(
+                    valor_contrato - valor_total_pagado
+                )
+
+                self.repositorio.editar_contrato_en_usuario(id_usuario, numero_contrato, contrato_actualizado)
+                self.auditoria.registrar_accion(
+                    usuario=usuario_que_carga,
+                    accion="cargue_pagos_excel",
+                    recurso=f"usuario:{id_usuario}:contrato:{numero_contrato}",
+                    detalle={"pagos_agregados": len(pagos_nuevos)},
+                )
+                ok.append({
+                    "id_usuario": id_usuario,
+                    "numero_contrato": numero_contrato,
+                    "agregados": len(pagos_nuevos),
+                })
+            except ValueError as e:
+                fallidos.append({
+                    "id_usuario": id_usuario,
+                    "numero_contrato": numero_contrato,
+                    "motivo": str(e),
+                })
+
+        return {"ok": ok, "fallidos": fallidos}
