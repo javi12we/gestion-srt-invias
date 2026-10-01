@@ -317,7 +317,6 @@ Agrega a `tests/test_cargue_pagos_service.py` (nuevos imports arriba del archivo
 
 ```python
 import io
-from datetime import date
 
 import pandas as pd
 import pytest
@@ -377,8 +376,12 @@ def _usuario_con_contrato_activo(numero_documento="79334686", numero_contrato="3
             {
                 "numero": numero_contrato,
                 "valor": 50_000_000,
-                "fecha_inicio": date(2026, 1, 1),
-                "fecha_fin": date(2026, 12, 31),
+                # tz-aware datetime, no date(): así es como se guardan realmente las
+                # fechas de contrato en Mongo (ver UsuarioService._fecha_a_datetime),
+                # y CertificacionService._contrato_vigente llama fecha_fin.tzinfo,
+                # que un date() plano no tiene.
+                "fecha_inicio": datetime(2026, 1, 1, tzinfo=timezone.utc),
+                "fecha_fin": datetime(2026, 12, 31, tzinfo=timezone.utc),
                 "pagos": [],
             }
         ],
