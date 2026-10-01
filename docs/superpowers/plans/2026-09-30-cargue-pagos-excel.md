@@ -542,15 +542,16 @@ MOTIVOS = {
 
 
 def _ultimo_contrato_activo(contratos: list) -> dict:
-    """Mismo criterio que CertificacionService._ultimo_contrato_usuario (método de
-    instancia), pero sin instanciar el servicio: usa directamente el classmethod
-    puro _contrato_vigente para no forzar una conexión a Mongo en este servicio."""
-    contrato = CertificacionService._contrato_vigente(contratos)
-    if contrato:
-        return contrato
-    if not contratos:
-        return {}
-    return max(contratos, key=lambda c: c.get("fecha_inicio") or datetime.min)
+    """Contrato activo hoy del usuario, sin instanciar CertificacionService (su
+    constructor crea un CertificacionRepositorio que intentaría conectar a Mongo,
+    innecesario aquí): se llama directo el classmethod puro _contrato_vigente.
+
+    A diferencia de CertificacionService._ultimo_contrato_usuario, NO cae en el
+    fallback "último contrato por fecha_inicio aunque esté vencido" — ese fallback
+    tiene sentido para generar documentos históricos, pero aquí anularía por
+    completo la categoría "sin contrato activo": un usuario sin contrato vigente
+    debe clasificarse así, no heredar silenciosamente su contrato más antiguo."""
+    return CertificacionService._contrato_vigente(contratos)
 
 
 class CarguePagosService:
