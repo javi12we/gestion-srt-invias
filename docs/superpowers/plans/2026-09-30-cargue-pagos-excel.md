@@ -708,6 +708,11 @@ git commit -m "feat: clasificacion de filas del excel de pagos (procesar_archivo
 Agrega a `tests/test_cargue_pagos_service.py`:
 
 ```python
+def datetime_import_helper():
+    """Fecha de pago fija reutilizada por los fixtures de confirmar_carga."""
+    return datetime(2026, 3, 31, tzinfo=timezone.utc)
+
+
 class _FakeRepoEscritura(_FakeRepo):
     def __init__(self, usuarios):
         super().__init__(usuarios)
