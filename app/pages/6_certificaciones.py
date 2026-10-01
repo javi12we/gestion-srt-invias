@@ -72,6 +72,60 @@ def _mostrar_avance_actas(tipo_formato: str, cert_actual: dict) -> None:
             )
 
 
+def _render_acta_generada(servicio, tipo_formato: str, titulo: str, cert_actual: dict, nombre_mes_cert: str, año_cert) -> None:
+    """Estado de un Balance General CPS / Acta de recibo y entrega CPS ya generado
+    por el contratista. Se puede ver y descargar en PDF cuando está aprobado o
+    cuando ya tiene los vistos buenos de Financiera y Jurídico (falta solo Jefe)."""
+    aprobado = cert_actual.get("estado") == "aprobado"
+    descargable = servicio.acta_descargable_por_contratista(cert_actual)
+
+    if aprobado:
+        st.success(
+            f"Tu formato de **{titulo}** para **{nombre_mes_cert} {año_cert}** "
+            f"ha sido generado y firmado digitalmente."
+        )
+    elif descargable:
+        st.success(
+            f"Tu formato de **{titulo}** para **{nombre_mes_cert} {año_cert}** ya tiene los vistos "
+            "buenos de **Financiera** y **Jurídico**: puedes verlo y descargarlo en PDF. "
+            "Aún falta la firma del **Jefe inmediato** para su aprobación final."
+        )
+        _mostrar_avance_actas(tipo_formato, cert_actual)
+    else:
+        st.info(
+            f"Tu formato de **{titulo}** para **{nombre_mes_cert} {año_cert}** "
+            "fue generado y está en espera de aprobación. Podrás descargarlo cuando tenga "
+            "los vistos buenos de **Financiera** y **Jurídico**."
+        )
+        _mostrar_avance_actas(tipo_formato, cert_actual)
+        return
+
+    try:
+        pdf_bytes = servicio.generar_pdf(cert_actual)
+    except Exception as e:
+        st.error(f"No se pudo generar el PDF del formato: {e}")
+        return
+
+    c_ver, c_descargar = st.columns(2)
+    with c_ver:
+        if st.button("👁️ Ver formato", type="primary", use_container_width=True, key=f"ver_acta_{tipo_formato}"):
+            st.session_state["_preview_cert_user"] = {
+                "cert": cert_actual,
+                "mes_nombre": nombre_mes_cert,
+                "año": año_cert,
+            }
+            st.rerun()
+    with c_descargar:
+        st.download_button(
+            "⬇️ Descargar PDF",
+            data=pdf_bytes,
+            file_name=_nombre_archivo_pdf(cert_actual, nombre_mes_cert, año_cert),
+            mime="application/pdf",
+            use_container_width=True,
+            key=f"dl_acta_{tipo_formato}",
+        )
+
+
 def _nombre_archivo_pdf(cert: dict, mes_nombre: str, año) -> str:
     """Construye el nombre del PDF según el tipo de formato del certificado."""
     prefijo = _PREFIJO_ARCHIVO.get(cert.get("tipo_formato"), _PREFIJO_ARCHIVO_DEFAULT)
@@ -95,11 +149,10 @@ def _dialog_preview_cert(servicio: CertificacionService) -> None:
     año = data["año"]
 
     tipo_formato = data["cert"].get("tipo_formato")
-    show_dl = tipo_formato not in [
-        "acta_compromiso",
-        "acta_recibo_entrega_cps",
-        "acta_recibo_entrega_cps_real"
-    ]
+    if tipo_formato in ("acta_recibo_entrega_cps", "acta_recibo_entrega_cps_real"):
+        show_dl = servicio.acta_descargable_por_contratista(data["cert"])
+    else:
+        show_dl = tipo_formato != "acta_compromiso"
 
     render_preview_cert(
         pdf_bytes=pdf_bytes,
@@ -983,32 +1036,8 @@ def _render_opcion_9_acta_recibo_entrega_real(servicio, sesion, año_cert, mes_c
 
     cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "acta_recibo_entrega_cps_real", año=año_cert, mes=mes_cert)
 
-    if cert_actual and cert_actual.get("estado") == "aprobado":
-        st.success(
-            f"Tu formato de **Acta de recibo y entrega CPS** para **{nombre_mes_cert} {año_cert}** "
-            f"ha sido generado y firmado digitalmente."
-        )
-
-        try:
-            pdf_bytes = servicio.generar_pdf(cert_actual)
-        except Exception as e:
-            st.error(f"No se pudo generar el PDF del formato: {e}")
-            pdf_bytes = None
-
-        if pdf_bytes:
-            if st.button("👁️ Ver formato", type="primary", use_container_width=True):
-                st.session_state["_preview_cert_user"] = {
-                    "cert": cert_actual,
-                    "mes_nombre": nombre_mes_cert,
-                    "año": año_cert,
-                }
-                st.rerun()
-    elif cert_actual:
-        st.info(
-            f"Tu formato de **Acta de recibo y entrega CPS** para **{nombre_mes_cert} {año_cert}** "
-            "fue generado y está en espera de aprobación."
-        )
-        _mostrar_avance_actas("acta_recibo_entrega_cps_real", cert_actual)
+    if cert_actual:
+        _render_acta_generada(servicio, "acta_recibo_entrega_cps_real", "Acta de recibo y entrega CPS", cert_actual, nombre_mes_cert, año_cert)
     else:
         if _bloqueado_por_firma_secop(usuario_id, año_cert, mes_cert):
             return
@@ -1067,32 +1096,8 @@ def _render_opcion_8_acta_recibo_entrega(servicio, sesion, año_cert, mes_cert, 
 
     cert_actual = servicio.obtener_certificacion_periodo_actual(usuario_id, "acta_recibo_entrega_cps", año=año_cert, mes=mes_cert)
 
-    if cert_actual and cert_actual.get("estado") == "aprobado":
-        st.success(
-            f"Tu formato de **Balance General CPS** para **{nombre_mes_cert} {año_cert}** "
-            f"ha sido generado y firmado digitalmente."
-        )
-
-        try:
-            pdf_bytes = servicio.generar_pdf(cert_actual)
-        except Exception as e:
-            st.error(f"No se pudo generar el PDF del formato: {e}")
-            pdf_bytes = None
-
-        if pdf_bytes:
-            if st.button("👁️ Ver formato", type="primary", use_container_width=True):
-                st.session_state["_preview_cert_user"] = {
-                    "cert": cert_actual,
-                    "mes_nombre": nombre_mes_cert,
-                    "año": año_cert,
-                }
-                st.rerun()
-    elif cert_actual:
-        st.info(
-            f"Tu formato de **Balance General CPS** para **{nombre_mes_cert} {año_cert}** "
-            "fue generado y está en espera de aprobación."
-        )
-        _mostrar_avance_actas("acta_recibo_entrega_cps", cert_actual)
+    if cert_actual:
+        _render_acta_generada(servicio, "acta_recibo_entrega_cps", "Balance General CPS", cert_actual, nombre_mes_cert, año_cert)
     else:
         if _bloqueado_por_firma_secop(usuario_id, año_cert, mes_cert):
             return

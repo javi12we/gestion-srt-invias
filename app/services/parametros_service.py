@@ -120,6 +120,28 @@ PARAMETROS: Dict[str, dict] = {
             "demás firmas completas. No afecta certificaciones ya aprobadas."
         ),
     },
+    "notificaciones_correo_modo": {
+        "etiqueta": "Notificaciones por correo — momento del envío",
+        "tipo": "opcion",
+        "opciones": {
+            "diario": "Una vez al día (resumen de la noche)",
+            "al_momento": "Al momento del cambio (cuando se firma un formato)",
+        },
+        "default": "diario",
+        "unidad": "Momento del envío",
+        "descripcion": (
+            "Define cuándo se le avisa por correo a un contratista que uno de sus "
+            "formatos recibió una firma: en el resumen de la noche, o de inmediato "
+            "cuando el firmante firma."
+        ),
+        "impacto": (
+            "Solo cambia el aviso de avance de firmas. Los avisos de correspondencia "
+            "vencida y de apertura de formatos dependen de la fecha, no de un cambio, "
+            "y siempre salen en el resumen de la noche. En modo 'al momento' cada "
+            "firma envía un correo desde la aplicación; si ese envío falla, el aviso "
+            "sale igual en el resumen de la noche."
+        ),
+    },
 }
 
 CATEGORIA = "parametros_sistema"
@@ -148,6 +170,10 @@ class ParametrosService:
             if not valor or not str(valor).strip():
                 return meta["default"]
             return str(valor).strip()
+        if meta["tipo"] == "opcion":
+            if valor not in meta["opciones"]:
+                raise ValueError(f"{meta['etiqueta']}: opción no válida.")
+            return valor
         if meta["tipo"] == "bool":
             if isinstance(valor, bool):
                 return valor

@@ -98,6 +98,7 @@ PERMISOS_BASE = [
     {"clave": "correspondencia.ver", "descripcion": "Ver correspondencia", "modulo": "correspondencia"},
     {"clave": "correspondencia.crear", "descripcion": "Crear correspondencia", "modulo": "correspondencia"},
     {"clave": "correspondencia.editar", "descripcion": "Editar correspondencia", "modulo": "correspondencia"},
+    {"clave": "pago.cargar", "descripcion": "Cargar pagos masivos desde Excel", "modulo": "pagos"},
     {"clave": "certificacion.ver", "descripcion": "Ver certificaciones propias", "modulo": "certificaciones"},
     {"clave": "certificacion.aprobar", "descripcion": "Aprobar certificaciones de colaboradores", "modulo": "certificaciones"},
     {"clave": "certificacion.firmar_corr", "descripcion": "Firmar aprobación de Correspondencia", "modulo": "certificaciones"},

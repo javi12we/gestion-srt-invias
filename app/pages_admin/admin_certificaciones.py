@@ -10,6 +10,7 @@ from app.core.ui_titulos import mostrar_titulo_decorado
 
 from app.core.cache_datos import limpiar_cache_lecturas
 from app.core.sesion import obtener_sesion
+from app.pages_admin import admin_cargue_pagos
 from app.services.certificacion_service import (
     CertificacionService, MESES_ES, TIPOS_FIRMA_ACTAS, ORDEN_FIRMAS_ACTAS, FIRMA_EXTRA_CONFIG,
 )
@@ -268,6 +269,8 @@ def render(sesion=None):
     tipo_acta_activo = st.session_state.get("tipo_acta_seg_activo")
     if tipo_acta_activo:
         _seccion_config_firmantes_actas(servicio, sesion, tipo_acta_activo)
+    if tipo_acta_activo == "acta_recibo_entrega_cps":
+        admin_cargue_pagos.render_seccion(sesion)
 
     if st.session_state["ver_formato_control_seg"]:
         # Resumen de firmantes designados

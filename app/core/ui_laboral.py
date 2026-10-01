@@ -9,6 +9,7 @@ Streamlit no permite dentro de un form.
 import streamlit as st
 
 from app.core.catalogos import TIPOS_DOC_DEPENDIENTE
+from app.core.ui_pesos import entrada_pesos
 from app.services.firma_service import FirmaService, componer_sobre_fondo, validar_y_procesar
 from app.services.opciones_service import OpcionesService
 
@@ -329,14 +330,11 @@ Fórmula: <code>Ingreso Mensual × 40% = IBC</code><br>
 </div>""",
         unsafe_allow_html=True
     )
-    _preseed(f"{prefijo}_ibc_prestaciones_sociales", int(il.get("ibc_prestaciones_sociales") or 0))
-    ibc_ps = st.number_input(
+    ibc_ps = entrada_pesos(
         "Ingreso Base de Cotización - Prestaciones sociales (opcional)",
-        min_value=0,
-        step=100000,
-        format="%d",
+        value=int(il.get("ibc_prestaciones_sociales") or 0),
         key=f"{prefijo}_ibc_prestaciones_sociales",
-        label_visibility="collapsed"
+        label_visibility="collapsed",
     )
     
     resultado_ss = {}
@@ -358,18 +356,15 @@ Fórmula: <code>Ingreso Mensual × 40% = IBC</code><br>
             valor_primer_mes, valor, valor_ultimo_mes = 0, 0, 0
         elif paga == "contratista":
             with c3:
-                _preseed(f"{prefijo}_{cod}_val_primer", int(af.get("valor_primer_mes") or 0))
-                valor_primer_mes = st.number_input(
-                    "Valor mensual primera cuenta", min_value=0, step=10000, format="%d",
+                valor_primer_mes = entrada_pesos(
+                    "Valor mensual primera cuenta", value=int(af.get("valor_primer_mes") or 0),
                     key=f"{prefijo}_{cod}_val_primer",
                 )
             with c4:
-                _preseed(f"{prefijo}_{cod}_val", int(af.get("valor") or 0))
-                valor = st.number_input("Valor mensual", min_value=0, step=10000, format="%d", key=f"{prefijo}_{cod}_val")
+                valor = entrada_pesos("Valor mensual", value=int(af.get("valor") or 0), key=f"{prefijo}_{cod}_val")
             with c5:
-                _preseed(f"{prefijo}_{cod}_val_ultimo", int(af.get("valor_ultimo_mes") or 0))
-                valor_ultimo_mes = st.number_input(
-                    "Valor mensual última cuenta", min_value=0, step=10000, format="%d",
+                valor_ultimo_mes = entrada_pesos(
+                    "Valor mensual última cuenta", value=int(af.get("valor_ultimo_mes") or 0),
                     key=f"{prefijo}_{cod}_val_ultimo",
                 )
             radicado = ""
@@ -475,14 +470,7 @@ Fórmula: <code>Ingreso Mensual × 40% = IBC</code><br>
         
         valor_iva = None
         if paga_iva:
-            _preseed(f"{prefijo}_valor_iva", int(il.get("valor_iva") or 0))
-            valor_iva = st.number_input(
-                "Valor del IVA",
-                min_value=0,
-                step=10000,
-                format="%d",
-                key=f"{prefijo}_valor_iva"
-            )
+            valor_iva = entrada_pesos("Valor del IVA", value=int(il.get("valor_iva") or 0), key=f"{prefijo}_valor_iva")
             
     with ct2:
         _preseed(f"{prefijo}_declarante", bool(tributaria.get("declarante_renta")))

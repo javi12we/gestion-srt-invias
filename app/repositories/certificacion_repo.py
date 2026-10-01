@@ -40,6 +40,12 @@ class CertificacionRepositorio:
             query["tipo_formato"] = {"$in": [None, "gestion_correspondencia"]}
         return list(self.coleccion.find(query))
 
+    def listar_con_firmas_desde(self, fecha, roles: list):
+        """Certificaciones en las que alguno de `roles` firmó desde `fecha`."""
+        return list(
+            self.coleccion.find({"$or": [{f"firmas.{rol}.fecha": {"$gte": fecha}} for rol in roles]})
+        )
+
     def buscar_por_hash(self, hash_code: str):
         return self.coleccion.find_one({"hash_verificacion": hash_code, "estado": "aprobado"})
 
