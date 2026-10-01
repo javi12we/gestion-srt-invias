@@ -1,0 +1,61 @@
+name: Notificaciones por correo
+
+# Corre y termina: no usa recursos de la app Streamlit. Horas en UTC (Bogotá + 5).
+# - Envío diario: 01:00 UTC = 8:00 p. m. en Bogotá.
+# - Limpieza semanal del registro de avisos: lunes 05:05 UTC = lunes 00:05 en Bogotá.
+# GitHub puede retrasar la ejecución algunos minutos; el script no repite avisos
+# si corre más de una vez.
+on:
+  schedule:
+    - cron: "0 1 * * *"
+    - cron: "5 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      simular:
+        description: "Solo simular (no envía ni registra)"
+        type: boolean
+        default: true
+      limpiar:
+        description: "Hacer la limpieza semanal del registro (no envía)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notificaciones-correo
+  cancel-in-progress: false
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Enviar notificaciones
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          CORREO_REMITENTE: ${{ secrets.CORREO_REMITENTE }}
+          CORREO_PASSWORD_APP: ${{ secrets.CORREO_PASSWORD_APP }}
+          SIMULAR: ${{ github.event_name == 'workflow_dispatch' && inputs.simular }}
+          LIMPIAR: ${{ github.event.schedule == '5 5 * * 1' || (github.event_name == 'workflow_dispatch' && inputs.limpiar) }}
+        run: |
+          if [ "$LIMPIAR" = "true" ]; then
+            python -m app.scripts.enviar_notificaciones --limpiar
+          elif [ "$SIMULAR" = "true" ]; then
+            python -m app.scripts.enviar_notificaciones --simular
+          else
+            python -m app.scripts.enviar_notificaciones
+          fi

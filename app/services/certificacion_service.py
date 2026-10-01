@@ -846,6 +846,9 @@ class CertificacionService:
         self._intentar_auto_certificar(
             empleado_id, empleado_nombre, firmante_id, firmante_nombre, año, mes
         )
+        cert = self.repo.buscar_por_usuario_periodo(empleado_id, año, mes)
+        if cert:
+            self._avisar_firma_por_correo(str(cert["_id"]))
         return True
 
     def _intentar_auto_certificar(
@@ -921,7 +924,19 @@ class CertificacionService:
         )
 
         self._evaluar_aprobacion_actas(cert_id, firmante_id)
+        self._avisar_firma_por_correo(cert_id)
         return True
+
+    @staticmethod
+    def _avisar_firma_por_correo(cert_id: str) -> None:
+        """Si las notificaciones están en modo 'al momento', avisa al contratista
+        que su formato recibió una firma. Corre en segundo plano y nunca
+        interrumpe ni hace fallar el registro de la firma."""
+        try:
+            from app.services.notificacion_service import avisar_firma_en_segundo_plano
+            avisar_firma_en_segundo_plano(cert_id)
+        except Exception:
+            pass
 
     @staticmethod
     def acta_descargable_por_contratista(cert: dict) -> bool:
@@ -994,6 +1009,7 @@ class CertificacionService:
             cert_id, extra_meta["tipo_firmante"], firmante_id, firmante_nombre, comentario
         )
         self._evaluar_aprobacion_actas(cert_id, firmante_id)
+        self._avisar_firma_por_correo(cert_id)
         return True
 
     def revocar_firma_extra_actas(self, cert_id: str) -> bool:

@@ -28,5 +28,13 @@ class Configuracion:
     url_pol_rcmc: str = os.getenv("URL_POL_RCMC", "")
     url_rut: str = os.getenv("URL_RUT", "")
 
+    # Correo de notificaciones (app/scripts/enviar_notificaciones.py). Para Gmail,
+    # CORREO_PASSWORD_APP es una "contraseña de aplicación", no la clave de la cuenta.
+    correo_remitente: str = os.getenv("CORREO_REMITENTE", "")
+    correo_password_app: str = os.getenv("CORREO_PASSWORD_APP", "")
+    correo_nombre_remitente: str = os.getenv("CORREO_NOMBRE_REMITENTE", "Gestión SRTI - INVIAS")
+    correo_smtp_host: str = os.getenv("CORREO_SMTP_HOST", "smtp.gmail.com")
+    correo_smtp_puerto: int = int(os.getenv("CORREO_SMTP_PUERTO", "465"))
+
 
 configuracion = Configuracion()

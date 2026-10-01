@@ -506,6 +506,21 @@ ESQUEMA_FIRMAS = {
     },
 }
 
+ESQUEMA_NOTIFICACIONES_CORREO = {
+    "bsonType": "object",
+    "required": ["usuario_id", "tipo", "clave", "fecha_envio"],
+    "description": "Avisos por correo ya enviados, para no repetirlos (ver NotificacionRepositorio).",
+    "properties": {
+        "usuario_id": {"bsonType": "objectId"},
+        "tipo": {"enum": ["correspondencia", "formatos", "firmas"]},
+        "clave": {
+            "bsonType": "string",
+            "description": "Fecha ISO (correspondencia), AAAA-MM (formatos) o id de certificación (firmas)",
+        },
+        "fecha_envio": {"bsonType": "date"},
+    },
+}
+
 ESQUEMA_CORRESPONDENCIA = {
     "bsonType": "object",
     "required": [
