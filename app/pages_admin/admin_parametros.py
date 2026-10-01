@@ -19,6 +19,13 @@ from app.services.opciones_service import OpcionesService
 from app.services.parametros_service import ParametrosService, PARAMETROS
 
 
+def _texto_valor(meta: dict, valor):
+    """Valor legible de un parámetro (la etiqueta, si es de tipo 'opcion')."""
+    if meta["tipo"] == "opcion":
+        return meta["opciones"].get(valor, valor)
+    return valor
+
+
 # ── Diálogo de confirmación ──────────────────────────────────────────────────
 
 @st.dialog("Confirmar cambio de parámetro", width="small")
@@ -33,9 +40,14 @@ def _dialog_confirmar(servicio: ParametrosService, sesion: dict) -> None:
     actual = servicio.obtener(clave)
 
     st.markdown(f"**Parámetro:** {meta['etiqueta']}")
-    c1, c2 = st.columns(2)
-    c1.metric("Valor actual", actual)
-    c2.metric("Nuevo valor", nuevo)
+    if meta["tipo"] == "opcion":
+        # st.metric recorta los textos largos de las opciones.
+        st.markdown(f"**Valor actual:** {_texto_valor(meta, actual)}")
+        st.markdown(f"**Nuevo valor:** {_texto_valor(meta, nuevo)}")
+    else:
+        c1, c2 = st.columns(2)
+        c1.metric("Valor actual", actual)
+        c2.metric("Nuevo valor", nuevo)
 
     st.warning(f"⚠️ **Impacto:** {meta['impacto']}")
     st.divider()
@@ -48,7 +60,7 @@ def _dialog_confirmar(servicio: ParametrosService, sesion: dict) -> None:
                 servicio.actualizar(clave, nuevo, usuario)
                 st.session_state.pop("_param_pendiente", None)
                 st.session_state["_param_msg"] = (
-                    f"'{meta['etiqueta']}' actualizado a **{nuevo}**."
+                    f"'{meta['etiqueta']}' actualizado a **{_texto_valor(meta, nuevo)}**."
                 )
                 limpiar_cache_lecturas()
                 st.rerun()
@@ -107,6 +119,16 @@ def render(sesion=None):
                         key=f"inp_{clave}",
                         disabled=deshabilitado,
                     )
+                elif meta["tipo"] == "opcion":
+                    claves_opcion = list(meta["opciones"])
+                    nuevo = st.selectbox(
+                        meta.get("unidad", "Valor"),
+                        options=claves_opcion,
+                        index=claves_opcion.index(actual),
+                        format_func=lambda k, _op=meta["opciones"]: _op[k],
+                        key=f"inp_{clave}",
+                        disabled=deshabilitado,
+                    )
                 elif meta["tipo"] == "bool":
                     nuevo = st.checkbox(
                         meta.get("unidad", "Activo"),
@@ -140,7 +162,7 @@ def render(sesion=None):
                 )
             else:
                 st.caption(
-                    f"Valor actual: **{actual}**"
+                    f"Valor actual: **{_texto_valor(meta, actual)}**"
                 )
 
     if st.session_state.get("_param_pendiente"):

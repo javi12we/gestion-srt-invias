@@ -16,6 +16,7 @@ from typing import Dict, List, Optional
 from bson import ObjectId
 
 from app.config import configuracion
+from app.core.balance_contrato import calcular_balance_pagos
 from app.repositories.certificacion_repo import CertificacionRepositorio
 from app.core.zona_horaria import ZONA_BOGOTA, utc_a_bogota
 
@@ -43,6 +44,13 @@ ORDEN_FIRMAS_ACTAS = {
     "acta_compromiso": ("jefe",),
     "acta_recibo_entrega_cps": ("financiera", "abogado", "jefe"),        # Balance General CPS
     "acta_recibo_entrega_cps_real": ("financiera", "abogado", "jefe"),   # Acta recibo y entrega CPS
+}
+
+# Firmas con las que el contratista ya puede descargar su PDF, aunque el formato
+# siga "pendiente" porque falta el resto del orden (la firma del Jefe).
+ROLES_VISTO_BUENO_DESCARGA_ACTAS = {
+    "acta_recibo_entrega_cps": ("financiera", "abogado"),
+    "acta_recibo_entrega_cps_real": ("financiera", "abogado"),
 }
 
 # ── Firma Extra: firma independiente y opcional por formato ───────────────────
@@ -838,6 +846,9 @@ class CertificacionService:
         self._intentar_auto_certificar(
             empleado_id, empleado_nombre, firmante_id, firmante_nombre, año, mes
         )
+        cert = self.repo.buscar_por_usuario_periodo(empleado_id, año, mes)
+        if cert:
+            self._avisar_firma_por_correo(str(cert["_id"]))
         return True
 
     def _intentar_auto_certificar(
@@ -913,7 +924,34 @@ class CertificacionService:
         )
 
         self._evaluar_aprobacion_actas(cert_id, firmante_id)
+        self._avisar_firma_por_correo(cert_id)
         return True
+
+    @staticmethod
+    def _avisar_firma_por_correo(cert_id: str) -> None:
+        """Si las notificaciones están en modo 'al momento', avisa al contratista
+        que su formato recibió una firma. Corre en segundo plano y nunca
+        interrumpe ni hace fallar el registro de la firma."""
+        try:
+            from app.services.notificacion_service import avisar_firma_en_segundo_plano
+            avisar_firma_en_segundo_plano(cert_id)
+        except Exception:
+            pass
+
+    @staticmethod
+    def acta_descargable_por_contratista(cert: dict) -> bool:
+        """El contratista puede descargar su Balance General CPS o su Acta de recibo
+        y entrega CPS cuando ya está aprobado, o antes si ya tiene los vistos buenos
+        de ROLES_VISTO_BUENO_DESCARGA_ACTAS (aunque falte la firma del Jefe)."""
+        if not cert:
+            return False
+        if cert.get("estado") == "aprobado":
+            return True
+        roles = ROLES_VISTO_BUENO_DESCARGA_ACTAS.get(cert.get("tipo_formato"))
+        if not roles:
+            return False
+        firmas = cert.get("firmas") or {}
+        return all(firmas.get(rol) for rol in roles)
 
     def _evaluar_aprobacion_actas(self, cert_id: str, firmante_id: str) -> None:
         """Aprueba el documento de actas si el orden secuencial requerido está
@@ -971,6 +1009,7 @@ class CertificacionService:
             cert_id, extra_meta["tipo_firmante"], firmante_id, firmante_nombre, comentario
         )
         self._evaluar_aprobacion_actas(cert_id, firmante_id)
+        self._avisar_firma_por_correo(cert_id)
         return True
 
     def revocar_firma_extra_actas(self, cert_id: str) -> bool:
@@ -2930,9 +2969,9 @@ class CertificacionService:
         # Tabla 2: Seguridad Social (más angosta, bordes delgados de 0.25pt y centrada)
         t2_data = [
             [Paragraph("<b>Concepto</b>", s_cell_hdr), Paragraph("<b>Valor</b>", s_cell_hdr)],
-            [Paragraph(eps_name, s_cell), Paragraph(f"{_formatear_pesos(eps_val)[:-3]}", s_cell_center)],
-            [Paragraph(afp_name, s_cell), Paragraph(f"{_formatear_pesos(afp_val)[:-3]}", s_cell_center)],
-            [Paragraph(arl_name, s_cell), Paragraph(f"{_formatear_pesos(arl_val)[:-3]}", s_cell_center)],
+            [Paragraph(eps_name, s_cell), Paragraph(f"$ {_formatear_pesos(eps_val)[:-3]}", s_cell_center)],
+            [Paragraph(afp_name, s_cell), Paragraph(f"$ {_formatear_pesos(afp_val)[:-3]}", s_cell_center)],
+            [Paragraph(arl_name, s_cell), Paragraph(f"$ {_formatear_pesos(arl_val)[:-3]}", s_cell_center)],
         ]
         t2 = Table(t2_data, colWidths=[8.0 * cm, 3.0 * cm], hAlign='CENTER')
         t2.setStyle(TableStyle([
@@ -3330,9 +3369,9 @@ class CertificacionService:
         # Tabla 2: Seguridad Social (más angosta, bordes delgados de 0.25pt y centrada)
         t2_data = [
             [Paragraph("<b>Concepto</b>", s_cell_hdr), Paragraph("<b>Valor</b>", s_cell_hdr)],
-            [Paragraph(eps_name, s_cell), Paragraph(f"{_formatear_pesos(eps_val)[:-3]}", s_cell_center)],
-            [Paragraph(afp_name, s_cell), Paragraph(f"{_formatear_pesos(afp_val)[:-3]}", s_cell_center)],
-            [Paragraph(arl_name, s_cell), Paragraph(f"{_formatear_pesos(arl_val)[:-3]}", s_cell_center)],
+            [Paragraph(eps_name, s_cell), Paragraph(f"$ {_formatear_pesos(eps_val)[:-3]}", s_cell_center)],
+            [Paragraph(afp_name, s_cell), Paragraph(f"$ {_formatear_pesos(afp_val)[:-3]}", s_cell_center)],
+            [Paragraph(arl_name, s_cell), Paragraph(f"$ {_formatear_pesos(arl_val)[:-3]}", s_cell_center)],
         ]
         t2 = Table(t2_data, colWidths=[8.0 * cm, 3.0 * cm], hAlign='CENTER')
         t2.setStyle(TableStyle([
@@ -3875,6 +3914,12 @@ class CertificacionService:
         valor_str = f"$   {valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         valor_total_por_pagar = contrato_vig.get("valor_total_por_pagar_contrato", 0) or 0
         valor_total_pagado = contrato_vig.get("valor_total_pagado", 0) or 0
+        # Con pagos registrados el balance se deriva de ellos, para que el formato
+        # no dependa de totales guardados antes de que se calcularan solos.
+        if contrato_vig.get("pagos"):
+            valor_total_pagado, valor_total_por_pagar = calcular_balance_pagos(
+                valor_total, contrato_vig["pagos"]
+            )
         saldo_presp_lib_contrato_1 = abs(valor_total - valor_total_por_pagar)
         saldo_presp_lib_contrato_2 = abs(valor_total - valor_total_pagado)
 
@@ -4678,6 +4723,12 @@ class CertificacionService:
         valor_total = valor_inicial
         valor_total_por_pagar = contrato_vig.get("valor_total_por_pagar_contrato", 0) or 0
         valor_total_pagado = contrato_vig.get("valor_total_pagado", 0) or 0
+        # Con pagos registrados el balance se deriva de ellos, para que el formato
+        # no dependa de totales guardados antes de que se calcularan solos.
+        if contrato_vig.get("pagos"):
+            valor_total_pagado, valor_total_por_pagar = calcular_balance_pagos(
+                valor_total, contrato_vig["pagos"]
+            )
         saldo_presp_lib_contrato_1 = abs(valor_total - valor_total_por_pagar)
         saldo_presp_lib_contrato_2 = abs(valor_total - valor_total_pagado)
 

@@ -4,15 +4,112 @@ Se utilizan tanto en la administración de usuarios (`pages_admin/admin_usuarios
 como en el perfil del contratista (`pages/2_mi_perfil.py`).
 """
 
+import pandas as pd
 import streamlit as st
 from datetime import datetime, date
 
-def render_balance_y_pagos(prefijo: str, c: dict, deshabilitado: bool = False):
+from app.core.balance_contrato import calcular_balance_pagos
+from app.core.ui_pesos import entrada_pesos, interpretar_pesos
+
+_MAX_PAGOS = 20
+
+_COL_NUM = "N° Pago"
+_COL_FECHA = "Fecha"
+_COL_BRUTO = "Valor Bruto"
+_COL_DEDUC = "Deducciones"
+_COL_NETO = "Valor Neto"
+_COLUMNAS_PAGO = [_COL_NUM, _COL_FECHA, _COL_BRUTO, _COL_DEDUC, _COL_NETO]
+_COLUMNAS_VALOR = [_COL_BRUTO, _COL_DEDUC, _COL_NETO]
+
+
+def _filas_desde_pagos(pagos: list) -> list:
+    """Pagos guardados en la BD -> filas de la tabla de pagos."""
+    filas = []
+    for p in pagos:
+        fecha = p.get("fecha_pago")
+        if fecha and hasattr(fecha, "date"):
+            fecha = fecha.date()
+        numero = p.get("numero_pago") or ""
+        if numero.startswith("Pago No."):
+            numero = ""
+        filas.append({
+            _COL_NUM: numero,
+            _COL_FECHA: fecha,
+            _COL_BRUTO: int(p.get("valor_bruto_pago") or 0),
+            _COL_DEDUC: int(p.get("deducciones_pago") or 0),
+            _COL_NETO: int(p.get("valor_neto_pago") or 0),
+        })
+    return filas
+
+
+def _tabla_pagos(filas: list) -> pd.DataFrame:
+    """Los valores van como texto ("$ 3.057.600") y no como columnas numéricas: así
+    lo que se pega en una celda lo interpreta interpretar_pesos y no el navegador."""
+    df = pd.DataFrame(filas, columns=_COLUMNAS_PAGO)
+    df[_COL_NUM] = df[_COL_NUM].astype("object")
+    df[_COL_FECHA] = pd.to_datetime(df[_COL_FECHA])
+    for columna in _COLUMNAS_VALOR:
+        df[columna] = df[columna].map(_formato_cop).astype("object")
+    return df
+
+
+def _filas_desde_tabla(df: pd.DataFrame) -> tuple[list, list]:
+    """Tabla editada -> (filas limpias, avisos de celdas con un valor no numérico).
+    Las celdas vacías quedan como '' / None / 0."""
+    filas = []
+    avisos = []
+    for posicion, registro in enumerate(df.to_dict("records"), start=1):
+        numero = registro[_COL_NUM]
+        fecha = registro[_COL_FECHA]
+        fila = {
+            _COL_NUM: "" if pd.isna(numero) else str(numero).strip(),
+            _COL_FECHA: None if pd.isna(fecha) else pd.Timestamp(fecha).date(),
+        }
+        for columna in _COLUMNAS_VALOR:
+            crudo = registro[columna]
+            valor = 0 if pd.isna(crudo) else interpretar_pesos(crudo)
+            if valor is None:
+                avisos.append(f"Pago #{posicion}, {columna}: «{crudo}» no es un valor válido y se toma como 0.")
+                valor = 0
+            fila[columna] = valor
+        filas.append(fila)
+    return filas, avisos
+
+
+def _miles(valor) -> str:
+    return f"{int(valor):,}".replace(",", ".")
+
+
+def _formato_cop(valor: int) -> str:
+    return "$ " + _miles(valor)
+
+
+def _firma_pagos(pagos: list) -> list:
+    """Huella de los pagos guardados en la BD, para detectar que cambiaron por
+    fuera de este formulario (cargue masivo desde Excel u otra sesión)."""
+    return [
+        (
+            p.get("numero_pago"),
+            str(p.get("fecha_pago")),
+            p.get("valor_bruto_pago"),
+            p.get("deducciones_pago"),
+            p.get("valor_neto_pago"),
+        )
+        for p in pagos
+    ]
+
+
+def render_balance_y_pagos(prefijo: str, c: dict, deshabilitado: bool = False, valor_contrato=None):
     """Renderiza el Balance General, Prórroga y el Plan de Pagos interactivo de un contrato.
     
+    ``valor_contrato`` es el "Valor total de contrato" tal como está digitado en el
+    formulario que contiene este componente (si no se pasa, el guardado en ``c``).
+
     Devuelve un diccionario con los campos listos para enviar al servicio de actualización.
     """
     c = c or {}
+    if valor_contrato is None:
+        valor_contrato = c.get("valor")
     
     # Inyectar CSS para seguridad adicional, botón rojo y tooltips dinámicos idénticos a los de Información Laboral
     bg_color = "#FFFFFF"
@@ -197,8 +294,6 @@ def render_balance_y_pagos(prefijo: str, c: dict, deshabilitado: bool = False):
         return {
             "tiene_inventario": bool(c.get("tiene_inventario")),
             "desc_inventario": c.get("desc_inventario"),
-            "valor_total_por_pagar_contrato": c.get("valor_total_por_pagar_contrato"),
-            "valor_total_pagado": c.get("valor_total_pagado"),
             "prorrogra_contrato": c.get("prorrogra_contrato") or {"tiene_prorroga": False, "fecha_prorrogra": None, "radicado_prorrogra": None},
             "adiciones_contrato": c.get("adiciones_contrato") or {"tiene_adiciones": False, "valor_adicion": None},
             "pagos": c.get("pagos") or []
@@ -303,40 +398,10 @@ def render_balance_y_pagos(prefijo: str, c: dict, deshabilitado: bool = False):
             unsafe_allow_html=True
         )
 
-    col1, col3 = st.columns(2)
-    with col1:
-        render_label_con_tooltip(
-            "Valor Total por Pagar del contrato (COP)",
-            "Valor total por pagar",
-            "Corresponde al valor total ejecutado (planeación) a la fecha de retiro o terminación."
-        )
-        val_total_por_pagar = st.number_input(
-            "label_oculto_total_por_pagar",
-            min_value=0,
-            value=int(c.get("valor_total_por_pagar_contrato") or 0),
-            step=100000,
-            format="%d",
-            key=f"{prefijo}_val_total_por_pagar",
-            disabled=deshabilitado,
-            label_visibility="collapsed"
-        )
-    with col3:
-        render_label_con_tooltip(
-            "Valor total pagado del contrato (COP)",
-            "Valor total pagado del contrato",
-            "Es la sumatoria de todos los pagos realizados en el contrato.",
-            align_right=True
-        )
-        val_tot_pagado = st.number_input(
-            "label_oculto_total_pagado",
-            min_value=0,
-            value=int(c.get("valor_total_pagado") or 0),
-            step=100000,
-            format="%d",
-            key=f"{prefijo}_val_tot_pagado",
-            disabled=deshabilitado,
-            label_visibility="collapsed"
-        )
+    # Los dos valores del balance no se digitan: se calculan con los pagos del
+    # consolidado. Se ubican aquí pero se llenan al final de la función, cuando
+    # ya se conocen las filas de pago de este render.
+    contenedor_balance = st.container()
 
     # 3. Sección: Prórroga del contrato con Tooltip (sobresale a la derecha)
     st.markdown(
@@ -419,11 +484,10 @@ def render_balance_y_pagos(prefijo: str, c: dict, deshabilitado: bool = False):
     val_adicion = None
     if tiene_adi:
         val_adicion_val = adiciones_c.get("valor_adicion")
-        val_adicion = st.number_input(
+        val_adicion = entrada_pesos(
             "Valor de la adición (COP)",
-            min_value=1,
-            value=int(val_adicion_val) if (val_adicion_val is not None and val_adicion_val > 0) else 1,
-            step=1000,
+            minimo=1,
+            value=val_adicion_val,
             key=f"{prefijo}_val_adicion",
             disabled=deshabilitado
         )
@@ -451,123 +515,123 @@ def render_balance_y_pagos(prefijo: str, c: dict, deshabilitado: bool = False):
         unsafe_allow_html=True
     )
     pagos_lista = c.get("pagos") or []
-    
-    pagos_ids_key = f"{prefijo}_pagos_ids"
-    pagos_seq_key = f"{prefijo}_pagos_seq"
-    pagos_datos_key = f"{prefijo}_pagos_datos"
 
-    # Inicialización del estado de los pagos si no existe. Los valores viven en
-    # un espejo programático (pagos_datos_key) además de las claves de widget:
-    # Streamlit borra las claves de widget cuando la sección no se renderiza
-    # (navegar a otra página, o un st.rerun() que interrumpe el run antes de
-    # dibujar la fila); el espejo sobrevive y permite re-sembrarlas. Sin él,
-    # las filas quedaban en cero y el siguiente guardado sobreescribía los
-    # pagos en la BD.
-    if pagos_ids_key not in st.session_state:
-        st.session_state[pagos_seq_key] = 0
-        pagos_ids = []
-        pagos_datos = {}
-        for p in pagos_lista:
-            pid = st.session_state[pagos_seq_key]
-            st.session_state[pagos_seq_key] += 1
-            pagos_ids.append(pid)
+    base_key = f"{prefijo}_pagos_base"
+    borrador_key = f"{prefijo}_pagos_borrador"
+    firma_key = f"{prefijo}_pagos_firma"
+    version_key = f"{prefijo}_pagos_version"
 
-            f_p = p.get("fecha_pago")
-            if f_p and hasattr(f_p, "date"):
-                f_p = f_p.date()
+    # La tabla se siembra con los pagos de la BD. Si esos pagos cambian por fuera
+    # de este formulario (cargue masivo desde Excel, otra sesión, o un guardado),
+    # el borrador se descarta y la tabla se vuelve a sembrar: de lo contrario la
+    # pantalla mostraría pagos viejos y el siguiente guardado pisaría los nuevos.
+    firma_bd = _firma_pagos(pagos_lista)
+    # (base_key puede faltar con la firma ya puesta: sesiones abiertas desde antes
+    # de que los pagos fueran una tabla guardaban la firma pero no la base.)
+    if st.session_state.get(firma_key) != firma_bd or base_key not in st.session_state:
+        st.session_state[firma_key] = firma_bd
+        st.session_state[base_key] = _filas_desde_pagos(pagos_lista)
+        st.session_state.pop(borrador_key, None)
+        st.session_state[version_key] = st.session_state.get(version_key, 0) + 1
 
-            num_val = p.get("numero_pago") or ""
-            if num_val.startswith("Pago No."):
-                num_val = ""
+    # Streamlit borra el estado de la tabla cuando no se dibuja (sección oculta,
+    # otra página). El borrador sobrevive y se usa como nueva base para no perder
+    # lo tecleado sin guardar.
+    editor_key = f"{prefijo}_pagos_editor_{st.session_state[version_key]}"
+    if editor_key not in st.session_state and borrador_key in st.session_state:
+        st.session_state[base_key] = st.session_state[borrador_key]
 
-            pagos_datos[pid] = {
-                "num": num_val,
-                "fec": f_p,
-                "bruto": int(p.get("valor_bruto_pago") or 0),
-                "deduc": int(p.get("deducciones_pago") or 0),
-                "neto": int(p.get("valor_neto_pago") or 0),
-            }
-        st.session_state[pagos_ids_key] = pagos_ids
-        st.session_state[pagos_datos_key] = pagos_datos
+    df_pagos = st.data_editor(
+        _tabla_pagos(st.session_state[base_key]),
+        key=editor_key,
+        num_rows="fixed" if deshabilitado else "dynamic",
+        disabled=deshabilitado,
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            _COL_NUM: st.column_config.TextColumn(
+                _COL_NUM, required=True, max_chars=40, width="small", alignment="center"
+            ),
+            _COL_FECHA: st.column_config.DateColumn(
+                _COL_FECHA, format="DD/MM/YYYY", required=True, default=date.today(), width="small",
+                alignment="center",
+            ),
+            **{
+                columna: st.column_config.TextColumn(
+                    columna, required=True, default=_formato_cop(0), max_chars=25, alignment="center"
+                )
+                for columna in _COLUMNAS_VALOR
+            },
+        },
+    )
 
-    pids = st.session_state[pagos_ids_key]
-    pagos_datos = st.session_state[pagos_datos_key]
+    filas_pagos, avisos_pagos = _filas_desde_tabla(df_pagos)
+    st.session_state[borrador_key] = filas_pagos
+    for aviso in avisos_pagos:
+        st.error(aviso)
 
-    # Re-sembrar desde el espejo toda clave de widget que Streamlit haya limpiado.
-    for pid in pids:
-        fila = pagos_datos.get(pid) or {"num": "", "fec": date.today(), "bruto": 0, "deduc": 0, "neto": 0}
-        for campo, sufijo in (("num", "num"), ("fec", "fec"), ("bruto", "bruto"), ("deduc", "deduc"), ("neto", "neto")):
-            clave = f"{prefijo}_pago_{sufijo}_{pid}"
-            if clave not in st.session_state:
-                st.session_state[clave] = fila[campo]
-    
-    # Botón para añadir pago (límite 20)
-    col_btn_add, _ = st.columns([1, 3])
-    with col_btn_add:
-        if len(pids) < 20:
-            if st.button("➕ Agregar pago", key=f"{prefijo}_btn_add_pago", use_container_width=True, disabled=deshabilitado):
-                new_id = st.session_state[pagos_seq_key]
-                st.session_state[pagos_seq_key] += 1
-                
-                # Valores por defecto para el nuevo pago (vía espejo; las
-                # claves de widget se siembran arriba en el próximo render)
-                pagos_datos[new_id] = {
-                    "num": "",
-                    "fec": date.today(),
-                    "bruto": 0,
-                    "deduc": 0,
-                    "neto": 0,
-                }
-                st.session_state[pagos_ids_key].append(new_id)
-                st.rerun()
-        else:
-            if not deshabilitado:
-                st.warning("Se ha alcanzado el límite máximo de 20 pagos para este contrato.")
-            
-    # Renderizado de los pagos en filas individuales
-    pagos_retorno = []
-    for index, pid in enumerate(pids):
-        st.markdown(f"**Pago #{index + 1}**")
-        
-        # Fila de Inputs en una sola línea compacta
-        r1, r2, r3, r4, r5, r_del = st.columns([2, 1.5, 2, 2, 2, 0.8])
-        with r1:
-            num_pago = st.text_input("N° Pago", key=f"{prefijo}_pago_num_{pid}", disabled=deshabilitado)
-        with r2:
-            fecha_pago = st.date_input("Fecha", key=f"{prefijo}_pago_fec_{pid}", format="DD/MM/YYYY", disabled=deshabilitado)
-        with r3:
-            val_bruto = st.number_input("Valor Bruto", min_value=0, step=10000, key=f"{prefijo}_pago_bruto_{pid}", disabled=deshabilitado)
-        with r4:
-            deduc = st.number_input("Deducciones", min_value=0, step=10000, key=f"{prefijo}_pago_deduc_{pid}", disabled=deshabilitado)
-        with r5:
-            val_neto = st.number_input("Valor Neto", min_value=0, step=10000, key=f"{prefijo}_pago_neto_{pid}", disabled=deshabilitado)
-        with r_del:
-            st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)  # Espaciado para alinear con los inputs
-            if st.button("🗑️", key=f"{prefijo}_pago_del_{pid}", type="secondary", use_container_width=True, disabled=deshabilitado, help="Eliminar pago"):
-                st.session_state[pagos_ids_key].remove(pid)
-                pagos_datos.pop(pid, None)
-                st.rerun()
-                
-        st.markdown("---")
+    if not deshabilitado:
+        st.caption(
+            f"{len(filas_pagos)} de {_MAX_PAGOS} pagos. Edita directamente en la tabla: la última fila "
+            "agrega un pago y, al seleccionar una fila, la papelera la elimina. Los valores se toman en "
+            "pesos sin decimales (1000,00 se toma como 1.000)."
+        )
+    if len(filas_pagos) > _MAX_PAGOS:
+        st.warning(
+            f"Un contrato admite máximo {_MAX_PAGOS} pagos: solo se guardarán los primeros {_MAX_PAGOS} de la tabla."
+        )
 
-        # Actualizar el espejo con lo tecleado en este render.
-        pagos_datos[pid] = {"num": num_pago, "fec": fecha_pago, "bruto": val_bruto, "deduc": deduc, "neto": val_neto}
+    pagos_retorno = [
+        {
+            "numero_pago": fila[_COL_NUM],
+            "fecha_pago": fila[_COL_FECHA],
+            "valor_bruto_pago": fila[_COL_BRUTO],
+            "deducciones_pago": fila[_COL_DEDUC],
+            "valor_neto_pago": fila[_COL_NETO],
+        }
+        for fila in filas_pagos[:_MAX_PAGOS]
+        if fila[_COL_NUM] and fila[_COL_FECHA]
+    ]
+    if len(pagos_retorno) < len(filas_pagos[:_MAX_PAGOS]):
+        st.warning("Los pagos sin número o sin fecha no se guardan.")
 
-        pagos_retorno.append({
-            "numero_pago": num_pago,
-            "fecha_pago": fecha_pago,
-            "valor_bruto_pago": val_bruto,
-            "deducciones_pago": deduc,
-            "valor_neto_pago": val_neto,
-        })
-        
     st.markdown("<hr style='margin:15px 0; border: 1.5px solid #FF8C00;'>", unsafe_allow_html=True)
+
+    # Mismo criterio que el servicio al guardar: un pago sin número no se guarda.
+    pagos_contables = [p for p in pagos_retorno if (p["numero_pago"] or "").strip()]
+    val_tot_pagado, val_total_por_pagar = calcular_balance_pagos(valor_contrato, pagos_contables)
+    clave_por_pagar = f"{prefijo}_val_total_por_pagar_calc"
+    clave_pagado = f"{prefijo}_val_tot_pagado_calc"
+    st.session_state[clave_por_pagar] = _formato_cop(val_total_por_pagar)
+    st.session_state[clave_pagado] = _formato_cop(val_tot_pagado)
+    with contenedor_balance:
+        col1, col3 = st.columns(2)
+        with col1:
+            render_label_con_tooltip(
+                "Valor Total por Pagar del contrato (COP)",
+                "Valor total por pagar",
+                "Se calcula automáticamente: Valor total de contrato menos Valor total pagado del contrato."
+            )
+            st.text_input("label_oculto_total_por_pagar", key=clave_por_pagar, disabled=True, label_visibility="collapsed")
+        with col3:
+            render_label_con_tooltip(
+                "Valor total pagado del contrato (COP)",
+                "Valor total pagado del contrato",
+                "Se calcula automáticamente: suma de los valores brutos de todos los pagos del consolidado.",
+                align_right=True
+            )
+            st.text_input("label_oculto_total_pagado", key=clave_pagado, disabled=True, label_visibility="collapsed")
+        st.caption(
+            "Estos dos valores se calculan solos con el consolidado de pagos y alimentan el formato Balance General CPS."
+        )
+        if val_tot_pagado > int(valor_contrato or 0):
+            st.warning(
+                "La suma de los pagos supera el Valor total de contrato. Revisa el valor del contrato o los pagos registrados."
+            )
 
     return {
         "tiene_inventario": tiene_inv,
         "desc_inventario": desc_inv if tiene_inv else None,
-        "valor_total_por_pagar_contrato": val_total_por_pagar,
-        "valor_total_pagado": val_tot_pagado,
         "prorrogra_contrato": {
             "tiene_prorroga": tiene_pror,
             "fecha_prorrogra": fecha_pror if tiene_pror else None,

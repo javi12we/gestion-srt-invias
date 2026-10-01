@@ -62,3 +62,5 @@ Desktop.ini
 *.db
 
 .claude
+# Scratch workspace for superpowers subagent-driven-development (ledgers, briefs, reports)
+.superpowers/

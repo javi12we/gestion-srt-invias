@@ -23,6 +23,20 @@ class CorrespondenciaRepositorio:
             .limit(limit)
         )
         
+    def listar_abiertas_con_vencimiento_hasta(self, fecha_limite, estados_cerrados: list):
+        """Radicados sin cerrar, con responsable asignado, que vencen hasta
+        `fecha_limite` (incluye los ya vencidos). Solo los campos del aviso."""
+        return list(
+            self.coleccion.find(
+                {
+                    "estado_actual": {"$nin": estados_cerrados},
+                    "responsable_actual.usuario_id": {"$exists": True},
+                    "fecha_vencimiento": {"$lte": fecha_limite},
+                },
+                {"numero_radicado": 1, "asunto": 1, "fecha_vencimiento": 1, "responsable_actual.usuario_id": 1},
+            )
+        )
+
     def contar(self, query: dict = None):
         q = query or {}
         return self.coleccion.count_documents(q)

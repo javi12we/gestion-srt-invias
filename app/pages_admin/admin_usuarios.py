@@ -8,6 +8,7 @@ from app.core.autorizacion import validar_permiso, ValidacionAutorizacion
 from app.core.catalogos import TIPOS_CONTRATO
 from app.core.sesion import obtener_sesion
 from app.core.cache_datos import limpiar_cache_lecturas
+from app.core.ui_pesos import entrada_pesos
 from app.core.ui_laboral import (
     boton_guardar_laboral,
     construir_mapas_catalogos,
@@ -236,9 +237,9 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
                 st.write(f"**Fin:** {_c_ff.strftime('%d/%m/%Y') if _c_ff else '—'}")
             if _c.get("objeto"):
                 st.write(f"**Objeto:** {_c.get('objeto')}")
-            _c_foi = _c.get("fecha_orden_inicio_contrato")
+            _c_foi = UsuarioService.texto_orden_inicio(_c.get("fecha_orden_inicio_contrato"))
             if _c_foi:
-                st.write(f"**Radicado/ Fecha de orden de inicio Contrato:** {_c_foi.strftime('%d/%m/%Y')}")
+                st.write(f"**Radicado/ Fecha de orden de inicio Contrato:** {_c_foi}")
 
             _fi_ed = _c_fi.date() if _c_fi and hasattr(_c_fi, "date") else _c_fi
             _ff_ed = _c_ff.date() if _c_ff and hasattr(_c_ff, "date") else _c_ff
@@ -251,8 +252,8 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
                     _e_tipo_idx = list(TIPOS_CONTRATO.keys()).index(_c.get("tipo") or "") if (_c.get("tipo") or "") in TIPOS_CONTRATO else 0
                     _e_tipo = st.selectbox("Tipo", options=list(TIPOS_CONTRATO.keys()), format_func=lambda k: TIPOS_CONTRATO[k], index=_e_tipo_idx, key=f"e_tipo_{_c_num}")
                 with _ec2:
-                    _e_valor = st.number_input("Valor (COP)", min_value=0, value=int(_c.get("valor") or 0), step=100000, format="%d", key=f"e_val_{_c_num}")
-                    _e_vm = st.number_input("Valor mensual (COP)", min_value=0, value=int(_c.get("valor_mensual") or 0), step=100000, format="%d", key=f"e_vm_{_c_num}")
+                    _e_valor = entrada_pesos("Valor (COP)", value=int(_c.get('valor') or 0), key=f'e_val_{_c_num}')
+                    _e_vm = entrada_pesos("Valor mensual (COP)", value=int(_c.get('valor_mensual') or 0), key=f'e_vm_{_c_num}')
                     st.markdown(
                         """
                         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -269,7 +270,7 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
                         """,
                         unsafe_allow_html=True
                     )
-                    _e_vpp = st.number_input("Valor primer pago", min_value=0, value=int(_c.get("valor_primer_pago") or 0), step=100000, format="%d", key=f"e_vpp_{_c_num}", label_visibility="collapsed")
+                    _e_vpp = entrada_pesos("Valor primer pago", value=int(_c.get('valor_primer_pago') or 0), key=f'e_vpp_{_c_num}', label_visibility='collapsed')
                 st.markdown(
                     """
                     <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -375,7 +376,7 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
                             <span class="srti-tooltip-icon" tabindex="0" style="margin: 0; width: 16px; height: 16px; font-size: 12px;">ⓘ
                                 <div class="srti-tooltip-content" style="font-weight: normal;">
                                     <h4>Radicado/ Fecha de orden de inicio Contrato</h4>
-                                    <p>Fecha de la orden de inicio del contrato, encontrable en las cláusulas, estudios previos o repositorios del contrato, y necesaria para el Acta de entrega.</p>
+                                    <p>Radicado y/o fecha de la orden de inicio del contrato (campo de texto abierto), encontrable en las cláusulas, estudios previos o repositorios del contrato, y necesario para el Acta de entrega.</p>
                                 </div>
                             </span>
                         </div>
@@ -383,13 +384,11 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
                     """,
                     unsafe_allow_html=True
                 )
-                _foi_c = _c.get("fecha_orden_inicio_contrato")
-                _foi_ed = _foi_c.date() if _foi_c and hasattr(_foi_c, "date") else _foi_c
-                _e_rad = st.date_input("Radicado/ Fecha de orden de inicio Contrato", value=_foi_ed, format="DD/MM/YYYY", key=f"e_rad_{_c_num}", label_visibility="collapsed")
+                _e_rad = st.text_input("Radicado/ Fecha de orden de inicio Contrato", value=UsuarioService.texto_orden_inicio(_c.get("fecha_orden_inicio_contrato")), max_chars=150, key=f"e_rad_txt_{_c_num}", label_visibility="collapsed")
                 
                 # RENDERIZAMOS EL BALANCE GENERAL Y PLAN DE PAGOS
                 from app.core.ui_contratos import render_balance_y_pagos
-                _balance_pagos_datos = render_balance_y_pagos(f"admin_c_{_c_num}", _c, deshabilitado=_c_fin)
+                _balance_pagos_datos = render_balance_y_pagos(f"admin_c_{_c_num}", _c, deshabilitado=_c_fin, valor_contrato=_e_valor)
                 
                 _e_env = st.button("💾 Guardar", key=f"btn_save_adm_c_{_c_num}", use_container_width=True, type="primary", disabled=_c_fin)
                 
@@ -407,7 +406,7 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
                         "valor_mensual": _e_vm if _e_vm > 0 else None,
                         "valor_primer_pago": _e_vpp if _e_vpp > 0 else None,
                         "objeto": _e_obj.strip(),
-                        "fecha_orden_inicio_contrato": _e_rad,
+                        "fecha_orden_inicio_contrato": _e_rad.strip(),
                     }
                     datos_totales.update(_balance_pagos_datos)
                     
@@ -425,8 +424,8 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
                 _n_num = st.text_input("Número de contrato *")
                 _n_tipo = st.selectbox("Tipo", options=list(TIPOS_CONTRATO.keys()), format_func=lambda k: TIPOS_CONTRATO[k])
             with _nc2:
-                _n_valor = st.number_input("Valor (COP)", min_value=0, step=100000, format="%d")
-                _n_vm = st.number_input("Valor mensual (COP)", min_value=0, step=100000, format="%d")
+                _n_valor = entrada_pesos("Valor (COP)", key="adm_n_valor")
+                _n_vm = entrada_pesos("Valor mensual (COP)", key="adm_n_vm")
                 st.markdown(
                     """
                     <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -443,7 +442,7 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
                     """,
                     unsafe_allow_html=True
                 )
-                _n_vpp = st.number_input("Valor primer pago", min_value=0, step=100000, format="%d", label_visibility="collapsed")
+                _n_vpp = entrada_pesos("Valor primer pago", key="adm_n_vpp", label_visibility='collapsed')
             st.markdown(
                 """
                 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -543,7 +542,7 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
                         <span class="srti-tooltip-icon" tabindex="0" style="margin: 0; width: 16px; height: 16px; font-size: 12px;">ⓘ
                             <div class="srti-tooltip-content" style="font-weight: normal;">
                                 <h4>Radicado/ Fecha de orden de inicio Contrato</h4>
-                                <p>Fecha de la orden de inicio del contrato, encontrable en las cláusulas, estudios previos o repositorios del contrato, y necesaria para el Acta de entrega.</p>
+                                <p>Radicado y/o fecha de la orden de inicio del contrato (campo de texto abierto), encontrable en las cláusulas, estudios previos o repositorios del contrato, y necesario para el Acta de entrega.</p>
                             </div>
                         </span>
                     </div>
@@ -551,7 +550,7 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
                 """,
                 unsafe_allow_html=True
             )
-            _n_rad = st.date_input("Radicado/ Fecha de orden de inicio Contrato", value=None, format="DD/MM/YYYY", label_visibility="collapsed")
+            _n_rad = st.text_input("Radicado/ Fecha de orden de inicio Contrato", max_chars=150, label_visibility="collapsed")
             _n_env = st.form_submit_button("Agregar contrato", use_container_width=True)
         if _n_env:
             try:
@@ -567,7 +566,7 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
                     "valor_mensual": _n_vm if _n_vm > 0 else None,
                     "valor_primer_pago": _n_vpp if _n_vpp > 0 else None,
                     "objeto": _n_obj.strip(),
-                    "fecha_orden_inicio_contrato": _n_rad,
+                    "fecha_orden_inicio_contrato": _n_rad.strip(),
                 })
                 st.session_state["mensaje_exito_usuarios"] = "Contrato agregado correctamente."
                 st.session_state["last_opened_usuario_id"] = None
