@@ -56,7 +56,10 @@ ESQUEMA_USUARIOS = {
                         "enum": ["termino_indefinido", "termino_fijo", "obra_labor", "prestacion_servicios", "aprendizaje", None],
                     },
                     "objeto": {"bsonType": ["string", "null"]},
-                    "fecha_orden_inicio_contrato": {"bsonType": ["date", "null"]},
+                    "fecha_orden_inicio_contrato": {
+                        "bsonType": ["string", "date", "null"],
+                        "description": "Radicado / fecha de la orden de inicio (texto libre). 'date' solo por contratos guardados antes de que el campo fuera abierto.",
+                    },
                     "valor": {"bsonType": ["int", "long", "double", "null"]},
                     "valor_mensual": {"bsonType": ["int", "long", "double", "null"]},
                     "valor_primer_pago": {"bsonType": ["int", "long", "double", "null"]},

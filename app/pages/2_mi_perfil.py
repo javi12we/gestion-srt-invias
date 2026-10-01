@@ -10,6 +10,7 @@ from app.core.ui_titulos import mostrar_titulo_decorado
 from app.core.cache_datos import limpiar_cache_lecturas
 from app.core.catalogos import TIPOS_CONTRATO
 from app.core.sesion import obtener_sesion
+from app.core.ui_pesos import entrada_pesos
 from app.core.ui_laboral import (
     boton_guardar_laboral,
     construir_mapas_catalogos,
@@ -251,8 +252,8 @@ with tab_contrato:
                     """,
                     unsafe_allow_html=True
                 )
-                _n_valor = st.number_input("Valor del contrato (COP)", min_value=0, step=100000, format="%d", label_visibility="collapsed")
-                _n_vm = st.number_input("Valor mensual (COP)", min_value=0, step=100000, format="%d")
+                _n_valor = entrada_pesos("Valor del contrato (COP)", key="n_valor", label_visibility='collapsed')
+                _n_vm = entrada_pesos("Valor mensual (COP)", key="n_vm")
                 st.markdown(
                     """
                     <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -269,7 +270,7 @@ with tab_contrato:
                     """,
                     unsafe_allow_html=True
                 )
-                _n_vpp = st.number_input("Valor primer pago", min_value=0, step=100000, format="%d", label_visibility="collapsed")
+                _n_vpp = entrada_pesos("Valor primer pago", key="n_vpp", label_visibility='collapsed')
                 st.markdown(
                     """
                     <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -287,16 +288,7 @@ with tab_contrato:
                     unsafe_allow_html=True
                 )
                 _n_personalizar = st.checkbox("Personalizar valor última cuenta", value=False, key="n_personalizar_check")
-                _n_val_personalizar = st.number_input(
-                    "Valor personalizar última cuenta",
-                    min_value=0,
-                    value=0,
-                    step=100000,
-                    format="%d",
-                    disabled=not _n_personalizar,
-                    label_visibility="collapsed",
-                    key="n_personalizar_val"
-                )
+                _n_val_personalizar = entrada_pesos("Valor personalizar última cuenta", value=0, key='n_personalizar_val', disabled=not _n_personalizar, label_visibility='collapsed')
             st.markdown(
                 """
                 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -412,7 +404,7 @@ with tab_contrato:
                         <span class="srti-tooltip-icon" tabindex="0" style="margin: 0; width: 16px; height: 16px; font-size: 12px;">ⓘ
                             <div class="srti-tooltip-content" style="font-weight: normal;">
                                 <h4>Radicado/ Fecha de orden de inicio Contrato</h4>
-                                <p>Fecha de la orden de inicio del contrato, encontrable en las cláusulas, estudios previos o repositorios del contrato, y necesaria para el Acta de entrega.</p>
+                                <p>Radicado y/o fecha de la orden de inicio del contrato (campo de texto abierto), encontrable en las cláusulas, estudios previos o repositorios del contrato, y necesario para el Acta de entrega.</p>
                             </div>
                         </span>
                     </div>
@@ -420,7 +412,7 @@ with tab_contrato:
                 """,
                 unsafe_allow_html=True
             )
-            _n_rad = st.date_input("Radicado/ Fecha de orden de inicio Contrato", value=None, format="DD/MM/YYYY", label_visibility="collapsed")
+            _n_rad = st.text_input("Radicado/ Fecha de orden de inicio Contrato", max_chars=150, label_visibility="collapsed")
             st.caption("El contrato se registra solo al pulsar el botón.")
             _n_env = st.form_submit_button("➕ Agregar contrato", use_container_width=True, type="primary")
 
@@ -442,7 +434,7 @@ with tab_contrato:
                     "personalizar_ultimacuenta": _n_personalizar,
                     "valor_personalizar_ultimacuenta": _n_val_personalizar if _n_personalizar else None,
                     "objeto": _n_obj.strip(),
-                    "fecha_orden_inicio_contrato": _n_rad,
+                    "fecha_orden_inicio_contrato": _n_rad.strip(),
                 })
                 _feedback("success", "✅ Contrato agregado correctamente.", "contrato_nuevo")
                 limpiar_cache_lecturas()
@@ -495,9 +487,9 @@ with tab_contrato:
                     st.write(f"**Fin:** {_c_ff.strftime('%d/%m/%Y') if _c_ff else '—'}")
                 if _c.get("objeto"):
                     st.write(f"**Objeto:** {_c.get('objeto')}")
-                _c_foi = _c.get("fecha_orden_inicio_contrato")
+                _c_foi = UsuarioService.texto_orden_inicio(_c.get("fecha_orden_inicio_contrato"))
                 if _c_foi:
-                    st.write(f"**Radicado/ Fecha de orden de inicio Contrato:** {_c_foi.strftime('%d/%m/%Y')}")
+                    st.write(f"**Radicado/ Fecha de orden de inicio Contrato:** {_c_foi}")
 
                 st.write("---")
                 _fi_ed = _c_fi.date() if _c_fi and hasattr(_c_fi, "date") else _c_fi
@@ -552,15 +544,8 @@ with tab_contrato:
                             """,
                             unsafe_allow_html=True
                         )
-                        _e_valor = st.number_input(
-                            "Valor total de contrato (COP)", min_value=0, value=int(_c.get("valor") or 0),
-                            step=100000, format="%d", key=f"e_val_{_c_num}",
-                            label_visibility="collapsed"
-                        )
-                        _e_vm = st.number_input(
-                            "Valor mensual (COP)", min_value=0, value=int(_c.get("valor_mensual") or 0),
-                            step=100000, format="%d", key=f"e_vm_{_c_num}",
-                        )
+                        _e_valor = entrada_pesos("Valor total de contrato (COP)", value=int(_c.get('valor') or 0), key=f'e_val_{_c_num}', label_visibility='collapsed')
+                        _e_vm = entrada_pesos("Valor mensual (COP)", value=int(_c.get('valor_mensual') or 0), key=f'e_vm_{_c_num}')
                         st.markdown(
                             """
                             <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -577,11 +562,7 @@ with tab_contrato:
                             """,
                             unsafe_allow_html=True
                         )
-                        _e_vpp = st.number_input(
-                            "Valor primer pago", min_value=0, value=int(_c.get("valor_primer_pago") or 0),
-                            step=100000, format="%d", key=f"e_vpp_{_c_num}",
-                            label_visibility="collapsed"
-                        )
+                        _e_vpp = entrada_pesos("Valor primer pago", value=int(_c.get('valor_primer_pago') or 0), key=f'e_vpp_{_c_num}', label_visibility='collapsed')
                         st.markdown(
                             """
                             <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -603,16 +584,7 @@ with tab_contrato:
                             value=bool(_c.get("personalizar_ultimacuenta")),
                             key=f"e_personalizar_check_{_c_num}"
                         )
-                        _e_val_personalizar = st.number_input(
-                            "Valor personalizar última cuenta",
-                            min_value=0,
-                            value=int(_c.get("valor_personalizar_ultimacuenta") or 0),
-                            step=100000,
-                            format="%d",
-                            disabled=not _e_personalizar,
-                            label_visibility="collapsed",
-                            key=f"e_personalizar_val_{_c_num}"
-                        )
+                        _e_val_personalizar = entrada_pesos("Valor personalizar última cuenta", value=int(_c.get('valor_personalizar_ultimacuenta') or 0), key=f'e_personalizar_val_{_c_num}', disabled=not _e_personalizar, label_visibility='collapsed')
                     st.markdown(
                         """
                         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -737,7 +709,7 @@ with tab_contrato:
                                 <span class="srti-tooltip-icon" tabindex="0" style="margin: 0; width: 16px; height: 16px; font-size: 12px;">ⓘ
                                     <div class="srti-tooltip-content" style="font-weight: normal;">
                                         <h4>Radicado/ Fecha de orden de inicio Contrato</h4>
-                                        <p>Fecha de la orden de inicio del contrato, encontrable en las cláusulas, estudios previos o repositorios del contrato, y necesaria para el Acta de entrega.</p>
+                                        <p>Radicado y/o fecha de la orden de inicio del contrato (campo de texto abierto), encontrable en las cláusulas, estudios previos o repositorios del contrato, y necesario para el Acta de entrega.</p>
                                     </div>
                                 </span>
                             </div>
@@ -745,13 +717,11 @@ with tab_contrato:
                         """,
                         unsafe_allow_html=True
                     )
-                    _foi_c = _c.get("fecha_orden_inicio_contrato")
-                    _foi_ed = _foi_c.date() if _foi_c and hasattr(_foi_c, "date") else _foi_c
-                    _e_rad = st.date_input("Radicado/ Fecha de orden de inicio Contrato", value=_foi_ed, format="DD/MM/YYYY", key=f"e_rad_{_c_num}", label_visibility="collapsed")
+                    _e_rad = st.text_input("Radicado/ Fecha de orden de inicio Contrato", value=UsuarioService.texto_orden_inicio(_c.get("fecha_orden_inicio_contrato")), max_chars=150, key=f"e_rad_txt_{_c_num}", label_visibility="collapsed")
                     
                     # RENDERIZAMOS EL BALANCE GENERAL Y PLAN DE PAGOS
                     from app.core.ui_contratos import render_balance_y_pagos
-                    _balance_pagos_datos = render_balance_y_pagos(f"perfil_c_{_c_num}", _c, deshabilitado=_c_fin)
+                    _balance_pagos_datos = render_balance_y_pagos(f"perfil_c_{_c_num}", _c, deshabilitado=_c_fin, valor_contrato=_e_valor)
                     
                     _e_env = st.button("💾 Guardar cambios", key=f"btn_save_c_{_c_num}", use_container_width=True, type="primary", disabled=_c_fin)
                     mostrar_feedback(f"contrato_edicion_{_c_num}")
@@ -773,7 +743,7 @@ with tab_contrato:
                             "personalizar_ultimacuenta": _e_personalizar,
                             "valor_personalizar_ultimacuenta": _e_val_personalizar if _e_personalizar else None,
                             "objeto": _e_obj.strip(),
-                            "fecha_orden_inicio_contrato": _e_rad,
+                            "fecha_orden_inicio_contrato": _e_rad.strip(),
                         }
                         datos_totales.update(_balance_pagos_datos)
                         

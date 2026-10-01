@@ -1,21 +1,30 @@
 """Cargue masivo de pagos de contratos desde el Excel de tesorería (balances de pago).
 
-Ver docs/superpowers/specs/2026-09-30-cargue-pagos-excel-design.md para el diseño completo.
+Ver docs/cargue_pagos_excel.md para el comportamiento vigente. El diseño original
+(docs/superpowers/specs/2026-09-30-cargue-pagos-excel-design.md) era solo aditivo y
+cargaba al contrato activo; hoy el contrato se toma del propio Excel y los pagos
+existentes se sobrescriben.
 """
 
 import math
+import re
 from datetime import datetime, timezone
 
 import pandas as pd
 
+from app.core.balance_contrato import calcular_balance_pagos
 from app.repositories.usuario_repo import UsuarioRepositorio
 from app.services.auditoria_service import AuditoriaService
-from app.services.certificacion_service import CertificacionService
 from app.services.usuario_service import UsuarioService
 
 MAX_PAGOS_POR_CONTRATO = 20
 
 TIPO_IDENTIFICACION_CEDULA = "Cédula de Ciudadanía"
+
+# Columna AW del Excel de tesorería: "<número de contrato>/<año del contrato>"
+# (ej. "2570/2026"; también llega con guion, con prefijo "SA 0699/2026" o con el
+# año mal digitado "2289/20255").
+COLUMNA_CONTRATO = "Num Doc Soporte Compromiso"
 
 COLUMNAS_REQUERIDAS = [
     "Tipo Identificacion",
@@ -25,7 +34,14 @@ COLUMNAS_REQUERIDAS = [
     "Valor Bruto",
     "Valor Deducciones",
     "Valor Neto",
+    COLUMNA_CONTRATO,
 ]
+
+_PATRON_CONTRATO = re.compile(r"(\d+)\s*[/-]+\s*(\d{4})")
+
+# Fechas del contrato cuyo año puede aparecer como "año del contrato" en tesorería
+# (un contrato firmado en diciembre e iniciado en enero figura con el año de firma).
+_CAMPOS_ANIO_CONTRATO = ("firma_cps_secop", "fecha_inicio")
 
 
 def limpiar_cedula(crudo) -> str | None:
@@ -88,22 +104,36 @@ def limpiar_fecha_pago(crudo) -> datetime | None:
     return UsuarioService._fecha_a_datetime(fecha)
 
 
+def extraer_contrato_y_anio(crudo) -> tuple[str, int] | None:
+    """Lee 'Num Doc Soporte Compromiso' ('<número>/<año>', ej. '2570/2026') y
+    devuelve (número sin ceros a la izquierda, año), o None si no trae ese formato."""
+    coincidencia = _PATRON_CONTRATO.search(_texto_o_vacio(crudo))
+    if not coincidencia:
+        return None
+    return _numero_sin_ceros(coincidencia.group(1)), int(coincidencia.group(2))
+
+
 CAT_VALIDO = "valido"
+CAT_ACTUALIZA = "actualiza_existente"
 CAT_DUPLICADO_INTERNO = "duplicado_interno"
 CAT_USUARIO_NO_ENCONTRADO = "usuario_no_encontrado"
-CAT_SIN_CONTRATO_ACTIVO = "sin_contrato_activo"
+CAT_CONTRATO_NO_ENCONTRADO = "contrato_no_encontrado"
 CAT_DATO_INVALIDO = "dato_invalido"
 CAT_YA_EXISTE = "ya_existe_en_bd"
 CAT_EXCEDE_LIMITE = "excede_limite_pagos"
 
+# Únicas categorías que confirmar_carga escribe en la base de datos.
+CATEGORIAS_CARGABLES = (CAT_VALIDO, CAT_ACTUALIZA)
+
 MOTIVOS = {
     CAT_USUARIO_NO_ENCONTRADO: "No existe ningún usuario con esta cédula",
-    CAT_SIN_CONTRATO_ACTIVO: "El usuario no tiene ningún contrato activo",
+    CAT_CONTRATO_NO_ENCONTRADO: "El usuario no tiene registrado el contrato indicado en el Excel",
     CAT_DATO_INVALIDO: "Fecha o valores monetarios inválidos o incompletos",
-    CAT_DUPLICADO_INTERNO: "Fila duplicada dentro del mismo archivo (misma cédula, fecha y valor neto)",
-    CAT_YA_EXISTE: "Ya existe un pago igual registrado en este contrato",
-    CAT_EXCEDE_LIMITE: "El contrato superaría el límite de 20 pagos; no se carga ninguno de este lote",
-    CAT_VALIDO: "Listo para cargar",
+    CAT_DUPLICADO_INTERNO: "Comprobante de pago repetido dentro del mismo archivo para el mismo contrato",
+    CAT_YA_EXISTE: "El pago ya está registrado en el contrato con los mismos datos",
+    CAT_EXCEDE_LIMITE: "El contrato superaría el límite de 20 pagos; no se agregan pagos nuevos de este lote",
+    CAT_VALIDO: "Pago nuevo, listo para cargar",
+    CAT_ACTUALIZA: "Sobrescribe un pago ya registrado en el contrato",
 }
 
 
@@ -134,16 +164,71 @@ def _texto_o_vacio(crudo) -> str:
     return texto
 
 
-def _ultimo_contrato_activo(contratos: list) -> dict:
-    """Contrato activo hoy del usuario (incluye período de gracia), usando el
-    classmethod puro CertificacionService._contrato_vigente para no instanciar el
-    servicio ni forzar una conexión a Mongo.
+def _numero_sin_ceros(numero) -> str:
+    return str(numero or "").strip().lstrip("0") or "0"
 
-    A diferencia de CertificacionService._ultimo_contrato_usuario (que hace fallback
-    al contrato más reciente para generar formatos históricos), aquí NO se hace ese
-    fallback: un contrato vencido no es apto para recibir pagos nuevos, así que debe
-    clasificarse como sin_contrato_activo."""
-    return CertificacionService._contrato_vigente(contratos)
+
+def _anios_contrato(contrato: dict) -> set:
+    """Años en los que tesorería puede referenciar el contrato. Las fechas de
+    contrato se guardan a medianoche UTC, así que el año se lee sin convertir de
+    zona horaria (igual que los formatos de certificacion_service.py)."""
+    return {contrato[campo].year for campo in _CAMPOS_ANIO_CONTRATO if contrato.get(campo)}
+
+
+def _buscar_contrato(contratos: list, numero: str, anio: int) -> dict | None:
+    """Contrato del usuario que corresponde al '<número>-<año>' del Excel, sin
+    importar si está vigente, finalizado o en período de gracia. Un contrato sin
+    ninguna fecha registrada se acepta solo por número."""
+    for contrato in contratos:
+        if _numero_sin_ceros(contrato.get("numero")) != numero:
+            continue
+        anios = _anios_contrato(contrato)
+        if not anios or anio in anios:
+            return contrato
+    return None
+
+
+def _pago_desde_fila(fila: dict) -> dict:
+    return {
+        "numero_pago": fila["numero_pago"],
+        "fecha_pago": fila["fecha_pago"],
+        "valor_bruto_pago": fila["valor_bruto_pago"],
+        "deducciones_pago": fila["deducciones_pago"],
+        "valor_neto_pago": fila["valor_neto_pago"],
+    }
+
+
+def _pagos_iguales(a: dict, b: dict) -> bool:
+    return (
+        a.get("numero_pago") == b.get("numero_pago")
+        and _fecha_utc(a.get("fecha_pago")) == _fecha_utc(b.get("fecha_pago"))
+        and a.get("valor_bruto_pago") == b.get("valor_bruto_pago")
+        and a.get("deducciones_pago") == b.get("deducciones_pago")
+        and a.get("valor_neto_pago") == b.get("valor_neto_pago")
+    )
+
+
+def _planear_merge(pagos_actuales: list, filas: list) -> list:
+    """Para cada fila devuelve el índice del pago existente que sobrescribe, o
+    None si es un pago nuevo. Un pago existente se reconoce solo por su
+    numero_pago (el comprobante de tesorería): fecha + valor neto no sirve como
+    identidad porque un contrato recibe varios comprobantes distintos el mismo
+    día por el mismo valor. Cada pago existente se asigna a una sola fila."""
+    destinos = [None] * len(filas)
+    usados = set()
+
+    for pos, fila in enumerate(filas):
+        for i, pago in enumerate(pagos_actuales):
+            if i not in usados and pago.get("numero_pago") == fila["numero_pago"]:
+                destinos[pos] = i
+                usados.add(i)
+                break
+
+    return destinos
+
+
+def _clave_orden_pago(pago: dict):
+    return _fecha_utc(pago.get("fecha_pago")) or datetime.min.replace(tzinfo=timezone.utc)
 
 
 class CarguePagosService:
@@ -177,6 +262,8 @@ class CarguePagosService:
             valor_bruto = limpiar_valor_monetario(registro.get("Valor Bruto"))
             deducciones = limpiar_valor_monetario(registro.get("Valor Deducciones"))
             valor_neto = limpiar_valor_monetario(registro.get("Valor Neto"))
+            contrato_excel = _texto_o_vacio(registro.get(COLUMNA_CONTRATO))
+            fecha_hora_pago = _texto_o_vacio(registro.get("Fecha de pago"))
             concepto = (
                 _texto_o_vacio(registro.get("Concepto Pago"))
                 or _texto_o_vacio(registro.get("Objeto del Compromiso"))
@@ -188,16 +275,21 @@ class CarguePagosService:
                 "nombre": None,
                 "id_usuario": None,
                 "numero_contrato": None,
+                "contrato_excel": contrato_excel,
                 "categoria": None,
                 "motivo": None,
                 "numero_pago": numero_pago,
                 "fecha_pago": fecha_pago,
+                # 'YYYY-MM-DD HH:MM:SS' tal como llega: ordena los pagos de un mismo día.
+                "orden_pago": fecha_hora_pago,
+                "estado": _texto_o_vacio(registro.get("Estado")),
                 "valor_bruto_pago": valor_bruto,
                 "deducciones_pago": deducciones,
                 "valor_neto_pago": valor_neto,
                 "concepto": concepto,
                 "seleccionable": False,
             }
+            filas.append(fila)
 
             if (
                 cedula is None
@@ -212,61 +304,62 @@ class CarguePagosService:
             ):
                 fila["categoria"] = CAT_DATO_INVALIDO
                 fila["motivo"] = MOTIVOS[CAT_DATO_INVALIDO]
-                filas.append(fila)
                 continue
-
-            clave_interna = (cedula, fecha_pago, valor_neto)
-            if clave_interna in vistos_internos:
-                fila["categoria"] = CAT_DUPLICADO_INTERNO
-                fila["motivo"] = MOTIVOS[CAT_DUPLICADO_INTERNO]
-                filas.append(fila)
-                continue
-            vistos_internos.add(clave_interna)
 
             usuario = por_cedula.get(cedula)
             if not usuario:
                 fila["categoria"] = CAT_USUARIO_NO_ENCONTRADO
                 fila["motivo"] = MOTIVOS[CAT_USUARIO_NO_ENCONTRADO]
-                filas.append(fila)
                 continue
             fila["nombre"] = usuario.get("nombre_completo")
             fila["id_usuario"] = str(usuario["_id"])
 
-            contrato = _ultimo_contrato_activo(usuario.get("contratos") or [])
-            if not contrato or not contrato.get("numero"):
-                fila["categoria"] = CAT_SIN_CONTRATO_ACTIVO
-                fila["motivo"] = MOTIVOS[CAT_SIN_CONTRATO_ACTIVO]
-                filas.append(fila)
+            referencia = extraer_contrato_y_anio(contrato_excel)
+            if not referencia:
+                fila["categoria"] = CAT_CONTRATO_NO_ENCONTRADO
+                fila["motivo"] = (
+                    f"'{COLUMNA_CONTRATO}' no trae un contrato con formato número/año"
+                )
+                continue
+            numero_excel, anio_excel = referencia
+            contrato = _buscar_contrato(usuario.get("contratos") or [], numero_excel, anio_excel)
+            if not contrato:
+                fila["categoria"] = CAT_CONTRATO_NO_ENCONTRADO
+                fila["motivo"] = (
+                    f"El usuario no tiene registrado el contrato {numero_excel} de {anio_excel}"
+                )
                 continue
             fila["numero_contrato"] = contrato["numero"]
 
-            pagos_actuales = contrato.get("pagos") or []
-            existentes = {
-                (p["numero_pago"], _fecha_utc(p["fecha_pago"]), p["valor_neto_pago"])
-                for p in pagos_actuales
-            }
-            if (numero_pago, _fecha_utc(fecha_pago), valor_neto) in existentes:
-                fila["categoria"] = CAT_YA_EXISTE
-                fila["motivo"] = MOTIVOS[CAT_YA_EXISTE]
-                filas.append(fila)
-                continue
-
             grupo = (fila["id_usuario"], fila["numero_contrato"])
-            candidatos_por_grupo.setdefault(grupo, {"cupo_actual": len(pagos_actuales), "filas": []})
-            candidatos_por_grupo[grupo]["filas"].append(fila)
-            filas.append(fila)
+            clave_interna = (grupo, numero_pago)
+            if clave_interna in vistos_internos:
+                fila["categoria"] = CAT_DUPLICADO_INTERNO
+                fila["motivo"] = MOTIVOS[CAT_DUPLICADO_INTERNO]
+                continue
+            vistos_internos.add(clave_interna)
 
-        for grupo, info in candidatos_por_grupo.items():
-            total_tras_merge = info["cupo_actual"] + len(info["filas"])
-            if total_tras_merge > MAX_PAGOS_POR_CONTRATO:
-                for fila in info["filas"]:
-                    fila["categoria"] = CAT_EXCEDE_LIMITE
-                    fila["motivo"] = MOTIVOS[CAT_EXCEDE_LIMITE]
-            else:
-                for fila in info["filas"]:
-                    fila["categoria"] = CAT_VALIDO
-                    fila["motivo"] = MOTIVOS[CAT_VALIDO]
-                    fila["seleccionable"] = True
+            candidatos_por_grupo.setdefault(
+                grupo, {"pagos_actuales": contrato.get("pagos") or [], "filas": []}
+            )
+            candidatos_por_grupo[grupo]["filas"].append(fila)
+
+        for info in candidatos_por_grupo.values():
+            pagos_actuales = info["pagos_actuales"]
+            destinos = _planear_merge(pagos_actuales, info["filas"])
+            total_tras_merge = len(pagos_actuales) + destinos.count(None)
+            excede = total_tras_merge > MAX_PAGOS_POR_CONTRATO
+
+            for fila, destino in zip(info["filas"], destinos):
+                if destino is None:
+                    categoria = CAT_EXCEDE_LIMITE if excede else CAT_VALIDO
+                elif _pagos_iguales(pagos_actuales[destino], _pago_desde_fila(fila)):
+                    categoria = CAT_YA_EXISTE
+                else:
+                    categoria = CAT_ACTUALIZA
+                fila["categoria"] = categoria
+                fila["motivo"] = MOTIVOS[categoria]
+                fila["seleccionable"] = categoria in CATEGORIAS_CARGABLES
 
         resumen = {}
         for fila in filas:
@@ -277,7 +370,7 @@ class CarguePagosService:
     def confirmar_carga(
         self, filas_seleccionadas: list[dict], usuario_que_carga: str, nombre_archivo: str = ""
     ) -> dict:
-        candidatas = [f for f in filas_seleccionadas if f["categoria"] == CAT_VALIDO]
+        candidatas = [f for f in filas_seleccionadas if f["categoria"] in CATEGORIAS_CARGABLES]
 
         grupos = {}
         for fila in candidatas:
@@ -298,63 +391,60 @@ class CarguePagosService:
                 )
                 if not contrato:
                     raise ValueError("El contrato ya no existe para este usuario.")
-                if not CertificacionService._contrato_vigente([contrato]):
-                    raise ValueError("El contrato ya no está activo.")
 
+                # Se replanea contra el estado actual de la BD (no el de la vista
+                # previa), por si los pagos del contrato cambiaron en el ínterin.
                 pagos_actuales = contrato.get("pagos") or []
-                existentes = {
-                    (p["numero_pago"], _fecha_utc(p["fecha_pago"]), p["valor_neto_pago"])
-                    for p in pagos_actuales
-                }
+                filas_grupo = sorted(filas_grupo, key=lambda f: f.get("orden_pago") or "")
+                destinos = _planear_merge(pagos_actuales, filas_grupo)
 
-                pagos_nuevos = []
-                for fila in filas_grupo:
-                    clave_pago = (
-                        fila["numero_pago"],
-                        _fecha_utc(fila["fecha_pago"]),
-                        fila["valor_neto_pago"],
-                    )
-                    if clave_pago in existentes:
-                        continue
-                    pagos_nuevos.append({
-                        "numero_pago": fila["numero_pago"],
-                        "fecha_pago": fila["fecha_pago"],
-                        "valor_bruto_pago": fila["valor_bruto_pago"],
-                        "deducciones_pago": fila["deducciones_pago"],
-                        "valor_neto_pago": fila["valor_neto_pago"],
-                    })
-                    existentes.add(clave_pago)
+                pagos_final = list(pagos_actuales)
+                agregados = 0
+                actualizados = 0
+                for fila, destino in zip(filas_grupo, destinos):
+                    pago = _pago_desde_fila(fila)
+                    if destino is None:
+                        pagos_final.append(pago)
+                        agregados += 1
+                    elif not _pagos_iguales(pagos_actuales[destino], pago):
+                        pagos_final[destino] = {**pagos_actuales[destino], **pago}
+                        actualizados += 1
 
-                if not pagos_nuevos:
-                    continue  # todos ya existían; nada que hacer, no es un fallo
+                if not agregados and not actualizados:
+                    continue  # todos ya estaban idénticos; nada que hacer, no es un fallo
 
-                pagos_final = pagos_actuales + pagos_nuevos
                 if len(pagos_final) > MAX_PAGOS_POR_CONTRATO:
                     raise ValueError(
                         f"El contrato superaría el límite de {MAX_PAGOS_POR_CONTRATO} pagos."
                     )
 
-                valor_total_pagado = sum(p["valor_bruto_pago"] for p in pagos_final)
-                valor_contrato = int(contrato.get("valor") or 0)
+                # La fecha de pago define el orden de los pagos del contrato (el
+                # orden es estable: los de un mismo día conservan su hora de pago).
+                pagos_final.sort(key=_clave_orden_pago)
 
                 contrato_actualizado = dict(contrato)
                 contrato_actualizado["pagos"] = pagos_final
-                contrato_actualizado["valor_total_pagado"] = valor_total_pagado
-                contrato_actualizado["valor_total_por_pagar_contrato"] = abs(
-                    valor_contrato - valor_total_pagado
-                )
+                (
+                    contrato_actualizado["valor_total_pagado"],
+                    contrato_actualizado["valor_total_por_pagar_contrato"],
+                ) = calcular_balance_pagos(contrato.get("valor"), pagos_final)
 
                 self.repositorio.editar_contrato_en_usuario(id_usuario, numero_contrato, contrato_actualizado)
                 self.auditoria.registrar_accion(
                     usuario=usuario_que_carga,
                     accion="cargue_pagos_excel",
                     recurso=f"usuario:{id_usuario}:contrato:{numero_contrato}",
-                    detalle={"pagos_agregados": len(pagos_nuevos), "archivo": nombre_archivo},
+                    detalle={
+                        "pagos_agregados": agregados,
+                        "pagos_actualizados": actualizados,
+                        "archivo": nombre_archivo,
+                    },
                 )
                 ok.append({
                     "id_usuario": id_usuario,
                     "numero_contrato": numero_contrato,
-                    "agregados": len(pagos_nuevos),
+                    "agregados": agregados,
+                    "actualizados": actualizados,
                 })
             except Exception as e:
                 fallidos.append({

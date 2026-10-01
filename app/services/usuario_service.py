@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import pytz
 
 from app.core.autorizacion import ValidacionAutorizacion, validar_permiso
+from app.core.balance_contrato import calcular_balance_pagos
 from app.core.catalogos import PERMISOS_SUIT_CARGUE
 from app.core.seguridad import generar_hash_password
 from app.config import configuracion
@@ -340,6 +341,16 @@ class UsuarioService:
         return resultado
 
     @staticmethod
+    def texto_orden_inicio(valor) -> str:
+        """'Radicado/ Fecha de orden de inicio Contrato' como texto libre. Los
+        contratos guardados cuando el campo era solo fecha se muestran dd/mm/aaaa."""
+        if not valor:
+            return ""
+        if hasattr(valor, "strftime"):
+            return valor.strftime("%d/%m/%Y")
+        return str(valor).strip()
+
+    @staticmethod
     def _construir_contrato(numero: str, datos: dict) -> dict:
         contrato: dict = {"numero": numero}
         if datos.get("tipo"):
@@ -347,9 +358,9 @@ class UsuarioService:
         objeto = (datos.get("objeto") or "").strip()
         if objeto:
             contrato["objeto"] = objeto
-        fecha_orden_inicio = datos.get("fecha_orden_inicio_contrato")
-        if fecha_orden_inicio:
-            contrato["fecha_orden_inicio_contrato"] = UsuarioService._fecha_a_datetime(fecha_orden_inicio)
+        orden_inicio = UsuarioService.texto_orden_inicio(datos.get("fecha_orden_inicio_contrato"))
+        if orden_inicio:
+            contrato["fecha_orden_inicio_contrato"] = orden_inicio
         valor = datos.get("valor")
         if valor is not None and valor > 0:
             contrato["valor"] = int(valor)
@@ -382,11 +393,6 @@ class UsuarioService:
         contrato["tiene_inventario"] = bool(datos.get("tiene_inventario"))
         contrato["desc_inventario"] = (datos.get("desc_inventario") or "").strip() or None
         
-        # Valores numéricos
-        for key in ["valor_total_por_pagar_contrato", "valor_total_pagado"]:
-            val = datos.get(key)
-            contrato[key] = int(val) if val is not None else None
-
         # Prórroga
         prorroga = datos.get("prorrogra_contrato") or {}
         tiene_pror = bool(prorroga.get("tiene_prorroga"))
@@ -430,6 +436,13 @@ class UsuarioService:
                 "valor_neto_pago": int(p.get("valor_neto_pago") or 0),
             })
         contrato["pagos"] = pagos_procesados
+
+        # El balance no se digita: siempre se deriva de los pagos y del valor del
+        # contrato, porque alimenta los formatos de Balance General CPS.
+        (
+            contrato["valor_total_pagado"],
+            contrato["valor_total_por_pagar_contrato"],
+        ) = calcular_balance_pagos(datos.get("valor"), pagos_procesados)
 
         # Personalizar última cuenta
         contrato["personalizar_ultimacuenta"] = bool(datos.get("personalizar_ultimacuenta"))

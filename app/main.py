@@ -1793,8 +1793,6 @@ else:
 
     if es_admin_main:
         admin_pages.append(st.Page("pages/10_admin_parametros.py", title="Parámetros", icon="⚙️"))
-    if "pago.cargar" in permisos_sesion:
-        admin_pages.append(st.Page("pages/16_admin_cargue_pagos.py", title="Cargue de Pagos", icon="💰"))
 
     supervision_pages = [
         st.Page("pages/6_certificaciones.py", title="Formatos de contrato", icon="📄"),
