@@ -49,8 +49,17 @@ pages / pages_admin   →   services   →   repositories   →   MongoDB
 | `sesiones` | Registro de sesiones con inicio, cierre y duración |
 | `opciones_configuracion` | Catálogos de dropdowns (tipo, grupo, clase, estados) |
 | `correspondencia` | Radicados con trazabilidad (audit trail) completa |
+| `certificaciones` | Certificaciones mensuales y actas con firmas secuenciales |
+| `firmas` | Firma PNG procesada por usuario |
+| `instructivos` | Instructivos de ayuda |
+| `politicas_datos` / `aceptaciones_politica` | Política de tratamiento de datos y su aceptación |
+| `notificaciones_correo` | Avisos por correo ya enviados (anti-repetición) |
+| `grupos_trabajo` | Catálogo de grupos de trabajo |
+| `asignaciones_grupo` | Pertenencia de usuarios a grupos (estado, razón, trazabilidad) |
 
 Los esquemas y validadores están en `app/core/esquemas.py`.
+
+**Grupos de trabajo:** `grupos_trabajo` es el catálogo (despacho, permisos, normativa_tecnica, innovacion_tecnica; sembrado por `init_db`). `asignaciones_grupo` es la fuente de la pertenencia: un documento por periodo con `estado` activo/retirado, `es_lider`, razón de retiro y trazabilidad; un usuario puede estar activo en varios grupos. Solo el administrador (`grupo.gestionar_miembros`) o el líder del grupo asigna y retira miembros (únicamente el admin designa líderes o retira a uno); el usuario ya no elige su grupo. Lógica en `app/services/asignacion_grupo_service.py`; página en Administración › Grupos de trabajo (`pages_admin/admin_grupos.py`). La sesión trae `grupos` y `grupos_lider`, y el menú los lee de ahí. `usuarios.informacion_laboral.grupo_trabajo` es solo un dato histórico (se muestra de solo lectura); `python -m app.scripts.migrar_grupos_usuarios` (simula por defecto, `--aplicar` escribe) lo copia a `asignaciones_grupo` y debe ejecutarse en cada entorno antes de desplegar.
 
 ## Sistema de permisos
 
@@ -60,6 +69,7 @@ Claves de permiso definidas en `app/core/permisos.py`:
 - `rol.*` — ver, crear, editar, desactivar
 - `correspondencia.*` — ver, crear, editar
 - `dashboard.ver`, `reporte.ver`
+- Otros: `certificacion.*` (ver, aprobar, firmar_*, gestionar_firmantes), `pago.cargar`, `grupo.<grupo>.ver`, `grupo.gestionar_miembros`, `suit.*`
 
 Los roles base están en `app/core/catalogos.py`. La autorización se valida en backend con `app/core/autorizacion.py`; nunca confiar solo en la UI.
 

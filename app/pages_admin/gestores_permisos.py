@@ -4,6 +4,7 @@ import streamlit as st
 from app.core.catalogos import PERMISOS_SUIT_CARGUE
 from app.core.sesion import obtener_sesion
 from app.core.ui_titulos import mostrar_titulo_decorado
+from app.services.asignacion_grupo_service import AsignacionGrupoService
 from app.services.usuario_service import UsuarioService
 
 _CLAVES_SUIT = [p["clave"] for p in PERMISOS_SUIT_CARGUE]
@@ -11,10 +12,8 @@ _LABELS_SUIT = {p["clave"]: p["label_corto"] for p in PERMISOS_SUIT_CARGUE}
 
 
 def _puede_gestionar(sesion: dict) -> bool:
-    roles = sesion.get("roles", [])
-    es_admin = any(r in {"admin", "administrador"} for r in roles)
-    es_lider_o_coordinador = any(r in {"coordinador", "lider"} for r in roles)
-    return es_admin or (es_lider_o_coordinador and sesion.get("grupo_trabajo") == "permisos")
+    es_admin = any(r in {"admin", "administrador"} for r in sesion.get("roles", []))
+    return es_admin or "permisos" in (sesion.get("grupos_lider") or [])
 
 
 @st.dialog("Roles Permisos", width="large")
@@ -60,7 +59,7 @@ def render(sesion=None) -> None:
         st.success(msg)
 
     servicio = UsuarioService()
-    usuarios = servicio.listar_usuarios_grupo_trabajo("permisos")
+    usuarios = AsignacionGrupoService().usuarios_de_grupo("permisos")
 
     if not usuarios:
         st.info("Todavía no hay usuarios registrados en el grupo de trabajo de Permisos.")

@@ -35,8 +35,14 @@ class AuthService:
             "permisos": permisos,
             "tipo_documento": registro.get("tipo_documento", ""),
             "numero_documento": registro.get("numero_documento", ""),
-            "grupo_trabajo": informacion_laboral.get("grupo_trabajo") or "",
         }
+        try:
+            from app.services.asignacion_grupo_service import AsignacionGrupoService
+            grupos = AsignacionGrupoService().claves_de_usuario(sesion["id"])
+        except Exception:
+            grupos = {"grupos": [], "lider": []}
+        sesion["grupos"] = grupos["grupos"]
+        sesion["grupos_lider"] = grupos["lider"]
         sesion["id_sesion"] = self.sesion_service.abrir_sesion(sesion)
         return sesion, None
 

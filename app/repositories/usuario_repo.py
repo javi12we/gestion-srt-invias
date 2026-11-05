@@ -17,6 +17,14 @@ class UsuarioRepositorio:
     def buscar_por_id(self, id_usuario: str):
         return self.coleccion.find_one({"_id": ObjectId(id_usuario)})
 
+    def listar_por_ids(self, ids: list) -> list:
+        return list(self.coleccion.find({"_id": {"$in": list(ids)}}, {"password_hash": 0}))
+
+    def contar_por_banco(self, clave_banco: str) -> int:
+        return self.coleccion.count_documents(
+            {"informacion_laboral.bancaria.banco": clave_banco}
+        )
+
     def buscar_por_numero_documento(self, numero_documento: str):
         return self.coleccion.find_one({"numero_documento": numero_documento})
 

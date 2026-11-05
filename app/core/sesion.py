@@ -26,9 +26,11 @@ def obtener_sesion():
                     for r in roles_docs:
                         permisos.update(r.get("permisos", []))
                 usuario_sesion["permisos"] = sorted(permisos)
-                # Recargar grupo de trabajo
-                informacion_laboral = registro.get("informacion_laboral") or {}
-                usuario_sesion["grupo_trabajo"] = informacion_laboral.get("grupo_trabajo") or ""
+                # Recargar grupos de trabajo (pertenencia y liderazgo) desde asignaciones_grupo
+                from app.services.asignacion_grupo_service import AsignacionGrupoService
+                grupos = AsignacionGrupoService().claves_de_usuario(usuario_sesion["id"])
+                usuario_sesion["grupos"] = grupos["grupos"]
+                usuario_sesion["grupos_lider"] = grupos["lider"]
                 st.session_state[CLAVE_SESION] = usuario_sesion
         except Exception:
             pass

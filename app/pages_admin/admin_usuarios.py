@@ -9,6 +9,7 @@ from app.core.catalogos import TIPOS_CONTRATO
 from app.core.sesion import obtener_sesion
 from app.core.cache_datos import limpiar_cache_lecturas
 from app.core.ui_pesos import entrada_pesos
+from app.services.asignacion_grupo_service import AsignacionGrupoService
 from app.core.ui_laboral import (
     boton_guardar_laboral,
     construir_mapas_catalogos,
@@ -163,7 +164,10 @@ def modal_editar_usuario(usuario_doc, permisos, sesion, roles_disponibles, permi
     _pref = f"edit_{uo['_id']}"
     _uid = str(uo["_id"])
     _il_actual = uo.get("informacion_laboral") or {}
-    _il_raw = inputs_informacion_laboral(_pref, _il_actual, mapas)
+    _il_raw = inputs_informacion_laboral(
+        _pref, _il_actual, mapas,
+        grupos_texto=AsignacionGrupoService().nombres_grupos_texto(_uid),
+    )
     st.divider()
     if boton_guardar_laboral(_pref, _il_raw, key=f"save_lab_{_uid}"):
         try:

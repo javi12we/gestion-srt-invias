@@ -521,6 +521,66 @@ ESQUEMA_NOTIFICACIONES_CORREO = {
     },
 }
 
+ESQUEMA_GRUPOS_TRABAJO = {
+    "bsonType": "object",
+    "required": ["clave", "nombre", "activo", "creado_en"],
+    "description": "Catálogo de grupos de trabajo (despacho, permisos, normativa técnica, innovación técnica).",
+    "properties": {
+        "clave": {"bsonType": "string", "description": "Identificador estable, igual a usuarios.informacion_laboral.grupo_trabajo"},
+        "nombre": {"bsonType": "string"},
+        "descripcion": {"bsonType": ["string", "null"]},
+        "orden": {"bsonType": ["int", "long"]},
+        "activo": {"bsonType": "bool"},
+        "creado_en": {"bsonType": "date"},
+        "actualizado_en": {"bsonType": ["date", "null"]},
+        "actualizado_por": {"bsonType": ["string", "null"]},
+    },
+}
+
+ESQUEMA_ASIGNACIONES_GRUPO = {
+    "bsonType": "object",
+    "required": ["usuario_id", "grupo_clave", "estado", "fecha_ingreso", "asignado_por", "trazabilidad"],
+    "description": "Pertenencia de un usuario a un grupo de trabajo. Un documento por periodo de pertenencia; un usuario puede tener varias activas (grupos distintos) y se conserva el historial de retiros.",
+    "properties": {
+        "usuario_id": {"bsonType": "objectId"},
+        "grupo_clave": {"bsonType": "string"},
+        "estado": {"enum": ["activo", "retirado"]},
+        "fecha_ingreso": {"bsonType": "date"},
+        "razon_ingreso": {"bsonType": ["string", "null"]},
+        "asignado_por": {"bsonType": "string"},
+        "fecha_retiro": {"bsonType": ["date", "null"]},
+        "razon_retiro": {"bsonType": ["string", "null"]},
+        "retirado_por": {"bsonType": ["string", "null"]},
+        "es_lider": {"bsonType": "bool", "description": "True si es líder del grupo (puede asignar y retirar miembros)"},
+        "trazabilidad": {
+            "bsonType": "array",
+            "items": {
+                "bsonType": "object",
+                "required": ["fecha", "accion", "usuario"],
+                "properties": {
+                    "fecha": {"bsonType": "date"},
+                    "accion": {"enum": ["asignado", "retirado", "lider_definido"]},
+                    "usuario": {"bsonType": "string"},
+                    "detalle": {"bsonType": ["string", "null"]},
+                },
+            },
+        },
+    },
+    # Si está retirado, la fecha, la razón y quién retiró son obligatorios.
+    "oneOf": [
+        {"properties": {"estado": {"enum": ["activo"]}}},
+        {
+            "required": ["fecha_retiro", "razon_retiro", "retirado_por"],
+            "properties": {
+                "estado": {"enum": ["retirado"]},
+                "fecha_retiro": {"bsonType": "date"},
+                "razon_retiro": {"bsonType": "string", "minLength": 5},
+                "retirado_por": {"bsonType": "string"},
+            },
+        },
+    ],
+}
+
 ESQUEMA_CORRESPONDENCIA = {
     "bsonType": "object",
     "required": [

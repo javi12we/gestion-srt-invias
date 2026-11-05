@@ -84,7 +84,7 @@ def limpiar_estado_laboral(prefijo):
 _CAMPOS_NO_APLICAN_PENSIONADO = {"afp", "ccf"}
 
 
-def inputs_informacion_laboral(prefijo, il, mapas):
+def inputs_informacion_laboral(prefijo, il, mapas, grupos_texto=None):
     """Renderiza los campos de información laboral y devuelve el dict crudo."""
     il = il or {}
     ss = il.get("seguridad_social") or {}
@@ -274,21 +274,22 @@ def inputs_informacion_laboral(prefijo, il, mapas):
           <span class="srti-tooltip-icon" tabindex="0">ⓘ
             <div class="srti-tooltip-content">
               <h4 style="color: #FF8C00 !important; margin-bottom: 12px; font-weight: 700;">GRUPOS DE TRABAJO</h4>
-              <p>En la SRTI existen varios sub grupos de trabajo, debe elegir uno segun su funcion en la subdirección. Si pertenece a 2 de ellos elija en el que desempeña su labor principal.</p>
+              <p>Los grupos de trabajo los asigna el administrador o el líder del grupo desde Administración › Grupos de trabajo. Aquí solo se muestran.</p>
             </div>
           </span>
         </div>
         """,
         unsafe_allow_html=True
     )
-    from app.core.catalogos import GRUPOS_TRABAJO
-    grupo_trabajo = _select_keyed(
+    st.text_input(
         "Grupo de trabajo",
-        GRUPOS_TRABAJO,
-        il.get("grupo_trabajo") or "",
-        f"{prefijo}_grupo_trabajo",
-        label_visibility="collapsed"
+        value=grupos_texto if grupos_texto is not None else "Se asigna desde Grupos de trabajo",
+        disabled=True,
+        key=f"{prefijo}_grupo_trabajo_ro",
+        label_visibility="collapsed",
     )
+    # Dato histórico (antes editable): se conserva sin cambios al guardar.
+    grupo_trabajo = il.get("grupo_trabajo")
 
 
 

@@ -1803,21 +1803,22 @@ else:
         supervision_pages.append(st.Page("pages/7_admin_certif.py", title="Config Formatos", icon="⚙️"))
 
     # Cada grupo de trabajo es su propia categoría de primer nivel. Es visible si el
-    # usuario es admin, si su grupo_trabajo coincide, o si tiene el permiso grupo.X.ver
-    # asignado (por rol o permiso_extra) independientemente de su grupo_trabajo.
+    # usuario es admin, si pertenece al grupo (asignaciones_grupo), o si tiene el permiso
+    # grupo.X.ver asignado (por rol o permiso_extra) independientemente de su pertenencia.
     categorias_por_grupo = {
         "despacho": ("Despacho", page_grupo_despacho, "grupo.despacho.ver"),
         "permisos": ("Permisos", page_grupo_permisos, "grupo.permisos.ver"),
         "normativa_tecnica": ("Normativa Técnica", page_grupo_normativa, "grupo.normativa_tecnica.ver"),
         "innovacion_tecnica": ("Innovación Técnica", page_grupo_innovacion, "grupo.innovacion_tecnica.ver"),
     }
-    grupo_usuario = sesion.get("grupo_trabajo") or ""
+    grupos_sesion = set(sesion.get("grupos") or [])
+    grupos_lider = set(sesion.get("grupos_lider") or [])
     if es_admin_main:
         grupos_visibles = list(categorias_por_grupo.keys())
     else:
         grupos_visibles = [
             clave for clave, (_, _, permiso_ver) in categorias_por_grupo.items()
-            if clave == grupo_usuario or permiso_ver in permisos_sesion
+            if clave in grupos_sesion or permiso_ver in permisos_sesion
         ]
 
     menu_dict = {
@@ -1830,10 +1831,13 @@ else:
             menu_dict[nombre_categoria] = [pagina]
 
     # "Gestores Perm." es una segunda página dentro de la categoría Permisos, visible
-    # solo para admin o para coordinador/líder del propio grupo de trabajo Permisos.
-    es_lider_o_coordinador = any(r in {"coordinador", "lider"} for r in sesion.get("roles", []))
-    if "Permisos" in menu_dict and (es_admin_main or (es_lider_o_coordinador and grupo_usuario == "permisos")):
+    # solo para admin o para el líder del grupo de trabajo Permisos.
+    if "Permisos" in menu_dict and (es_admin_main or "permisos" in grupos_lider):
         menu_dict["Permisos"].append(page_gestores_permisos)
+
+    # Gestión de miembros de grupos: administrador o líder de algún grupo.
+    if es_admin_main or "grupo.gestionar_miembros" in permisos_sesion or grupos_lider:
+        admin_pages.append(st.Page("pages/16_admin_grupos.py", title="Grupos de trabajo", icon="🧩"))
 
     if admin_pages:
         menu_dict["Administración"] = admin_pages
