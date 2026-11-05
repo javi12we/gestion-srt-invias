@@ -47,8 +47,10 @@ pages / pages_admin  →  services  →  repositories  →  MongoDB
 
 ## Colecciones MongoDB
 
-`usuarios`, `roles`, `permisos`, `sesiones`, `opciones_configuracion`, `correspondencia`.
+`usuarios`, `roles`, `permisos`, `sesiones`, `opciones_configuracion`, `correspondencia`, `certificaciones`, `firmas`, `instructivos`, `politicas_datos`, `aceptaciones_politica`, `notificaciones_correo`, `grupos_trabajo`, `asignaciones_grupo`.
 Esquemas en `app/core/esquemas.py`. El `init_db` es idempotente.
+
+**Grupos de trabajo:** `grupos_trabajo` es el catálogo (despacho, permisos, normativa_tecnica, innovacion_tecnica; sembrado por `init_db`). `asignaciones_grupo` es la fuente de la pertenencia: un documento por periodo con `estado` activo/retirado, `es_lider`, razón de retiro y trazabilidad; un usuario puede estar activo en varios grupos. Solo el administrador (`grupo.gestionar_miembros`) o el líder del grupo asigna y retira miembros (únicamente el admin designa líderes o retira a uno); el usuario ya no elige su grupo. Lógica en `app/services/asignacion_grupo_service.py`; página en Administración › Grupos de trabajo (`pages_admin/admin_grupos.py`). La sesión trae `grupos` y `grupos_lider`, y el menú los lee de ahí. `usuarios.informacion_laboral.grupo_trabajo` es solo un dato histórico (se muestra de solo lectura); `python -m app.scripts.migrar_grupos_usuarios` (simula por defecto, `--aplicar` escribe) lo copia a `asignaciones_grupo` y debe ejecutarse en cada entorno antes de desplegar.
 
 ## Sistema de permisos
 
@@ -57,8 +59,9 @@ Claves en `app/core/permisos.py`:
 - `rol.ver/crear/editar/desactivar`
 - `correspondencia.ver/crear/editar`
 - `dashboard.ver`, `reporte.ver`
+- Otros: `certificacion.*` (ver, aprobar, firmar_*, gestionar_firmantes), `pago.cargar`, `grupo.<grupo>.ver`, `grupo.gestionar_miembros`, `suit.*`
 
-Roles base (en `app/core/catalogos.py`): admin, direccion, asignacion, coordinador, lider, gestor.
+Roles base (en `app/core/catalogos.py`): admin, direccion, asignacion, coordinador, lider, gestor, supervisor, firmante_certificacion.
 
 ## Branding
 

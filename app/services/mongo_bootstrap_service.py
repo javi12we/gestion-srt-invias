@@ -13,6 +13,8 @@ from app.core.esquemas import (
     ESQUEMA_FIRMAS,
     ESQUEMA_INSTRUCTIVOS,
     ESQUEMA_NOTIFICACIONES_CORREO,
+    ESQUEMA_GRUPOS_TRABAJO,
+    ESQUEMA_ASIGNACIONES_GRUPO,
 )
 from app.db.mongo import obtener_base_datos
 
@@ -36,6 +38,8 @@ class MongoBootstrapService:
         self._asegurar_coleccion("firmas", ESQUEMA_FIRMAS)
         self._asegurar_coleccion("instructivos", ESQUEMA_INSTRUCTIVOS)
         self._asegurar_coleccion("notificaciones_correo", ESQUEMA_NOTIFICACIONES_CORREO)
+        self._asegurar_coleccion("grupos_trabajo", ESQUEMA_GRUPOS_TRABAJO)
+        self._asegurar_coleccion("asignaciones_grupo", ESQUEMA_ASIGNACIONES_GRUPO)
 
         self.db["usuarios"].create_index(
             "usuario", unique=True, name="idx_usuarios_usuario_unico"
@@ -140,6 +144,23 @@ class MongoBootstrapService:
             [("usuario_id", 1), ("tipo", 1), ("clave", 1)],
             unique=True,
             name="idx_notificaciones_usuario_tipo_clave_unico",
+        )
+        self.db["grupos_trabajo"].create_index(
+            "clave", unique=True, name="idx_grupos_trabajo_clave_unico"
+        )
+        # Un usuario no puede estar activo dos veces en el mismo grupo; si en grupos
+        # distintos, y puede tener varios periodos retirados (historial).
+        self.db["asignaciones_grupo"].create_index(
+            [("usuario_id", 1), ("grupo_clave", 1)],
+            unique=True,
+            partialFilterExpression={"estado": "activo"},
+            name="idx_asignaciones_usuario_grupo_activo_unico",
+        )
+        self.db["asignaciones_grupo"].create_index(
+            [("grupo_clave", 1), ("estado", 1)], name="idx_asignaciones_grupo_estado"
+        )
+        self.db["asignaciones_grupo"].create_index(
+            "usuario_id", name="idx_asignaciones_usuario"
         )
 
     def _asegurar_coleccion(self, nombre: str, esquema: dict) -> None:

@@ -30,6 +30,7 @@
 | `certificacion.firmar_financiera` | Firmar aprobación Financiera de actas (firmante designado) | Certificaciones |
 | `certificacion.firmar_abogado` | Firmar aprobación Jurídica de actas (firmante designado) | Certificaciones |
 | `certificacion.firmar_jefe` | Firmar aprobación del Jefe de actas (firmante designado) | Certificaciones |
+| `grupo.gestionar_miembros` | Administrar todos los grupos de trabajo: asignar y retirar miembros (razón obligatoria al retirar) y designar líderes. El **líder** de un grupo (marca `es_lider` en su asignación, sin necesitar este permiso) gestiona solo los miembros de su grupo | Grupos |
 
 > **Nota importante sobre los permisos de firma:** `firmar_corr`, `firmar_gd`, `firmar_secop`, `firmar_financiera`, `firmar_abogado` y `firmar_jefe` **no se asignan por rol**, se otorgan individualmente como `permisos_extra` al usuario cuando el administrador lo designa como firmante (Correspondencia/GD/SECOP desde "Aprobar Certificaciones"; Financiera/Abogado/Jefe desde "Seguimiento - Formatos" o "Sup. Formatos"). Esto permite que un administrador también pueda ser firmante sin que todos los admins tengan ese permiso.
 
@@ -41,12 +42,12 @@
 |---|---|---|
 | `admin` | Administrador del sistema | Todos excepto `firmar_corr`, `firmar_gd`, `firmar_secop`, `firmar_financiera`, `firmar_abogado`, `firmar_jefe` |
 | `supervisor` | Supervisor de certificaciones mensuales | `certificacion.ver`, `certificacion.aprobar`, `correspondencia.ver`, `dashboard.ver` |
-| `firmante_certificacion` | Firmante designado — solo como base; el permiso específico de firma va en `permisos_extra` | `certificacion.ver` |
+| `firmante_certificacion` | Firmante designado — solo como base; el permiso específico de firma va en `permisos_extra` | `certificacion.ver`, `dashboard.ver` |
 | `coordinador` | Coordinador de área | `correspondencia.ver`, `dashboard.ver`, `reporte.ver` |
-| `asignacion` | Asignador de correspondencia | `correspondencia.ver`, `correspondencia.crear`, `correspondencia.editar` |
+| `asignacion` | Asignador de correspondencia | `correspondencia.ver`, `correspondencia.crear`, `correspondencia.editar`, `dashboard.ver` |
 | `direccion` | Dirección / gerencia con acceso a reportes | `reporte.ver`, `dashboard.ver` |
-| `lider` | Líder de equipo | `correspondencia.ver` |
-| `gestor` | Gestor de correspondencia | `correspondencia.ver` |
+| `lider` | Líder de equipo | `correspondencia.ver`, `dashboard.ver` |
+| `gestor` | Gestor de correspondencia | `correspondencia.ver`, `dashboard.ver` |
 
 ---
 
@@ -88,6 +89,7 @@ Aparece en el menú solo si el usuario tiene **al menos uno** de los permisos de
 | Roles | `pages/3_admin_roles.py` | `rol.ver` | Ver roles; crear (`rol.crear`), editar (`rol.editar`), desactivar (`rol.desactivar`) |
 | Dashboard | `pages/5_dashboard.py` | `dashboard.ver` | Métricas globales del sistema |
 | Reportes y Evidencias | `pages/4_reportes.py` | `reporte.ver` | Exportar reportes de correspondencia en Excel y PDF |
+| Grupos de trabajo | `pages/16_admin_grupos.py` | `grupo.gestionar_miembros` **o** ser líder de un grupo | Ver miembros activos; agregar y retirar miembros (con razón); designar líder (solo admin); historial de retiros |
 
 ---
 

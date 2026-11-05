@@ -56,14 +56,16 @@ En páginas Streamlit: capturar excepciones de negocio y mostrar `st.error()` o 
 
 ## Colecciones MongoDB
 
-`usuarios`, `roles`, `permisos`, `sesiones`, `opciones_configuracion`, `correspondencia`.
+`usuarios`, `roles`, `permisos`, `sesiones`, `opciones_configuracion`, `correspondencia`, `certificaciones`, `firmas`, `instructivos`, `politicas_datos`, `aceptaciones_politica`, `notificaciones_correo`, `grupos_trabajo`, `asignaciones_grupo`.
+
+**Grupos de trabajo:** `grupos_trabajo` es el catálogo (despacho, permisos, normativa_tecnica, innovacion_tecnica; sembrado por `init_db`). `asignaciones_grupo` es la fuente de la pertenencia: un documento por periodo con `estado` activo/retirado, `es_lider`, razón de retiro y trazabilidad; un usuario puede estar activo en varios grupos. Solo el administrador (`grupo.gestionar_miembros`) o el líder del grupo asigna y retira miembros (únicamente el admin designa líderes o retira a uno); el usuario ya no elige su grupo. Lógica en `app/services/asignacion_grupo_service.py`; página en Administración › Grupos de trabajo (`pages_admin/admin_grupos.py`). La sesión trae `grupos` y `grupos_lider`, y el menú los lee de ahí. `usuarios.informacion_laboral.grupo_trabajo` es solo un dato histórico (se muestra de solo lectura); `python -m app.scripts.migrar_grupos_usuarios` (simula por defecto, `--aplicar` escribe) lo copia a `asignaciones_grupo` y debe ejecutarse en cada entorno antes de desplegar.
 
 ## Permisos disponibles
 
 `usuario.ver`, `usuario.crear`, `usuario.editar`, `usuario.desactivar`,
 `rol.ver`, `rol.crear`, `rol.editar`, `rol.desactivar`,
 `correspondencia.ver`, `correspondencia.crear`, `correspondencia.editar`,
-`dashboard.ver`, `reporte.ver`.
+`dashboard.ver`, `reporte.ver`, `certificacion.*` (ver, aprobar, firmar_*, gestionar_firmantes), `pago.cargar`, `grupo.<grupo>.ver`, `grupo.gestionar_miembros`, `suit.*`.
 
 ## Estilos
 

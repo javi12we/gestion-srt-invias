@@ -11,6 +11,7 @@ from app.core.cache_datos import limpiar_cache_lecturas
 from app.core.catalogos import TIPOS_CONTRATO
 from app.core.sesion import obtener_sesion
 from app.core.ui_pesos import entrada_pesos
+from app.services.asignacion_grupo_service import AsignacionGrupoService
 from app.core.ui_laboral import (
     boton_guardar_laboral,
     construir_mapas_catalogos,
@@ -133,7 +134,10 @@ with tab_laboral:
 
     _mapas = construir_mapas_catalogos()
     _il_actual = _usuario_doc.get("informacion_laboral") or {}
-    _il_raw = inputs_informacion_laboral("perfil_lab", _il_actual, _mapas)
+    _il_raw = inputs_informacion_laboral(
+        "perfil_lab", _il_actual, _mapas,
+        grupos_texto=AsignacionGrupoService().nombres_grupos_texto(sesion["id"]),
+    )
 
     st.divider()
     if boton_guardar_laboral("perfil_lab", _il_raw, key="guardar_lab_perfil"):

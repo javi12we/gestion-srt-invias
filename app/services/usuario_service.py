@@ -729,8 +729,6 @@ class UsuarioService:
             faltan_laboral.append("Régimen tributario")
         elif regimen_actual not in regimenes_validos:
             faltan_laboral.append("Régimen tributario (Valor actual no válido o desactualizado. Selecciona uno nuevo en Mi Perfil)")
-        if self._vacio(il.get("grupo_trabajo")):
-            faltan_laboral.append("Grupo de trabajo")
         if faltan_laboral:
             secciones.append({
                 "titulo": "Información laboral",

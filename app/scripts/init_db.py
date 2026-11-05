@@ -18,6 +18,8 @@ from app.services.usuario_service import UsuarioService
 from app.services.politica_service import PoliticaService
 from app.services.instructivo_service import InstructivoService
 from app.db.mongo import obtener_base_datos
+from app.core.catalogos import GRUPOS_TRABAJO_BASE
+from app.repositories.grupo_repo import GrupoRepositorio
 from app.config import configuracion
 
 CONTENIDO_POLITICA_V1 = """
@@ -119,6 +121,13 @@ def _asegurar_instructivos_iniciales() -> None:
         print("  No hay URLs de instructivos en .env; colección queda vacía.")
 
 
+def _asegurar_grupos_trabajo() -> None:
+    repo = GrupoRepositorio()
+    creados = sum(1 for g in GRUPOS_TRABAJO_BASE if repo.asegurar(dict(g)))
+    if creados:
+        print(f"  {creados} grupo(s) de trabajo sembrado(s).")
+
+
 def main():
     print("Arrancando bootstrap de MongoDB...")
     mb = MongoBootstrapService()
@@ -139,6 +148,9 @@ def main():
     print("Sembrando catálogos de política de datos...")
     _asegurar_politica_v1()
 
+    print("Sembrando grupos de trabajo...")
+    _asegurar_grupos_trabajo()
+
     print("Sembrando instructivos iniciales...")
     _asegurar_instructivos_iniciales()
 
@@ -149,6 +161,7 @@ def main():
         "usuarios", "roles", "permisos", "sesiones",
         "opciones_configuracion", "certificaciones",
         "politicas_datos", "aceptaciones_politica", "firmas", "instructivos",
+        "grupos_trabajo", "asignaciones_grupo",
     ]
     for nombre in colecciones:
         try:

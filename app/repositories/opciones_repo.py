@@ -23,6 +23,22 @@ class OpcionesRepositorio:
             return [opt for opt in resultado.get("opciones", []) if opt.get("activo", False)]
         return []
 
+    def agregar_opcion(self, categoria: str, opcion: dict) -> bool:
+        """Agrega una opción solo si su clave no existe ya (atómico). True si la agregó."""
+        resultado = self.coleccion.update_one(
+            {"categoria": categoria, "opciones.clave": {"$ne": opcion["clave"]}},
+            {"$push": {"opciones": opcion}},
+        )
+        return resultado.modified_count == 1
+
+    def cambiar_estado_opcion(self, categoria: str, clave: str, activo: bool) -> bool:
+        """Activa/desactiva una opción existente. True si la encontró."""
+        resultado = self.coleccion.update_one(
+            {"categoria": categoria, "opciones.clave": clave},
+            {"$set": {"opciones.$.activo": activo}},
+        )
+        return resultado.matched_count == 1
+
 
 # Función con caché para consultas frecuentes
 @lru_cache(maxsize=128)

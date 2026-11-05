@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import pandas as pd
 from app.repositories.correspondencia_repo import CorrespondenciaRepositorio
 from app.repositories.usuario_repo import UsuarioRepositorio
+from app.services.asignacion_grupo_service import AsignacionGrupoService
 
 class ExcelReportService:
     def __init__(self):
@@ -369,6 +370,7 @@ class ExcelReportService:
         
         repo_usr = UsuarioRepositorio()
         usuarios = repo_usr.listar()
+        mapa_grupos = AsignacionGrupoService().mapa_grupos_activos()
         
         import pytz
         ZONA_BOGOTA = pytz.timezone("America/Bogota")
@@ -391,7 +393,6 @@ class ExcelReportService:
             roles = ", ".join(roles_list).upper() if roles_list else "—"
             
             info_laboral = u.get("informacion_laboral") or {}
-            grupo_trabajo_raw = info_laboral.get("grupo_trabajo") or ""
             grupo_trabajo_map = {
                 "despacho": "DESPACHO",
                 "normativa": "NORMATIVA",
@@ -400,7 +401,9 @@ class ExcelReportService:
                 "innovacion_tecnica": "INNOVACIÓN",
                 "permisos": "PERMISOS"
             }
-            grupo_trabajo = grupo_trabajo_map.get(str(grupo_trabajo_raw).lower(), str(grupo_trabajo_raw).upper()) if grupo_trabajo_raw else "SIN ESPECIFICAR"
+            grupo_trabajo = ", ".join(
+                grupo_trabajo_map.get(g, g.upper()) for g in mapa_grupos.get(str(u["_id"]), [])
+            ) or "SIN ESPECIFICAR"
             
             estado_usr = "ACTIVO" if u.get("activo") else "INACTIVO"
             

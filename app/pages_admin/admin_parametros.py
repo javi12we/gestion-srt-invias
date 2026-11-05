@@ -15,6 +15,7 @@ import streamlit as st
 from app.core.sesion import obtener_sesion
 from app.core.ui_titulos import mostrar_titulo_decorado
 from app.core.cache_datos import limpiar_cache_lecturas
+from app.services.bancos_service import BancosService
 from app.services.opciones_service import OpcionesService
 from app.services.parametros_service import ParametrosService, PARAMETROS
 
@@ -70,6 +71,101 @@ def _dialog_confirmar(servicio: ParametrosService, sesion: dict) -> None:
         if st.button("Cancelar", use_container_width=True):
             st.session_state.pop("_param_pendiente", None)
             st.rerun()
+
+
+# ── Bancos (catálogo de información bancaria) ────────────────────────────────
+
+@st.dialog("Desactivar banco", width="small")
+def _dialog_desactivar_banco(servicio: BancosService, sesion: dict) -> None:
+    pend = st.session_state.get("_banco_desactivar")
+    if not pend:
+        return
+    st.markdown(f"**Banco:** {pend['etiqueta']}")
+    try:
+        usuarios = servicio.contar_usuarios(pend["clave"])
+    except Exception:
+        st.error("No se pudo consultar cuántos usuarios usan este banco.")
+        usuarios = None
+    if usuarios:
+        st.warning(
+            f"⚠️ **{usuarios} usuario(s)** tienen este banco guardado. Al desactivarlo, su selector de "
+            "información bancaria aparecerá vacío (si guardan el perfil sin elegir otro, pierden el banco) "
+            "y en certificados y PDFs el banco se mostrará con su código en vez del nombre."
+        )
+    elif usuarios == 0:
+        st.info("Ningún usuario tiene este banco guardado.")
+
+    b1, b2 = st.columns(2)
+    with b1:
+        if st.button("Desactivar", type="primary", use_container_width=True, disabled=usuarios is None):
+            try:
+                servicio.cambiar_estado(pend["clave"], False, sesion.get("usuario") or "sistema")
+                st.session_state.pop("_banco_desactivar", None)
+                st.session_state["_banco_msg"] = f"Banco '{pend['etiqueta']}' desactivado."
+                limpiar_cache_lecturas()
+                st.rerun()
+            except ValueError as e:
+                st.error(str(e))
+    with b2:
+        if st.button("Cancelar", use_container_width=True):
+            st.session_state.pop("_banco_desactivar", None)
+            st.rerun()
+
+
+def _render_bancos(sesion: dict) -> None:
+    servicio = BancosService()
+    usuario = sesion.get("usuario") or "sistema"
+
+    with st.container(border=True):
+        st.markdown("**Bancos (información bancaria del usuario)**")
+        st.caption(
+            "Agrega bancos nuevos al selector de información bancaria. El nombre se guarda en "
+            "MAYÚSCULAS. Un banco desactivado deja de ofrecerse en el selector."
+        )
+
+        if msg := st.session_state.pop("_banco_msg", None):
+            st.success(msg)
+
+        with st.form("form_nuevo_banco", clear_on_submit=True):
+            nombre = st.text_input("Nombre del banco nuevo", max_chars=80, placeholder="Ej: BANCO EJEMPLO")
+            enviar = st.form_submit_button("Agregar banco", type="primary")
+
+        if enviar:
+            try:
+                nuevo = servicio.agregar(nombre, usuario)
+                limpiar_cache_lecturas()
+                st.session_state["_banco_msg"] = f"Banco '{nuevo['etiqueta']}' agregado."
+                st.rerun()
+            except ValueError as e:
+                st.warning(str(e))
+
+        try:
+            bancos = servicio.listar()
+        except Exception:
+            st.error("No se pudo cargar el catálogo de bancos.")
+            return
+
+        activos = sum(1 for b in bancos if b.get("activo"))
+        with st.expander(f"Bancos registrados ({activos} activos de {len(bancos)})"):
+            for b in bancos:
+                c1, c2, c3 = st.columns([5, 2, 2])
+                c1.write(b["etiqueta"])
+                c2.caption("Activo" if b.get("activo") else "Desactivado")
+                if b.get("activo"):
+                    if c3.button("Desactivar", key=f"btn_banco_off_{b['clave']}"):
+                        st.session_state["_banco_desactivar"] = {"clave": b["clave"], "etiqueta": b["etiqueta"]}
+                        st.rerun()
+                elif c3.button("Activar", key=f"btn_banco_on_{b['clave']}"):
+                    try:
+                        servicio.cambiar_estado(b["clave"], True, usuario)
+                        limpiar_cache_lecturas()
+                        st.session_state["_banco_msg"] = f"Banco '{b['etiqueta']}' activado."
+                        st.rerun()
+                    except ValueError as e:
+                        st.warning(str(e))
+
+    if st.session_state.get("_banco_desactivar"):
+        _dialog_desactivar_banco(servicio, sesion)
 
 
 # ── Render principal ─────────────────────────────────────────────────────────
@@ -167,6 +263,9 @@ def render(sesion=None):
 
     if st.session_state.get("_param_pendiente"):
         _dialog_confirmar(servicio, sesion)
+
+    st.divider()
+    _render_bancos(sesion)
 
     st.divider()
     with st.container(border=True):
