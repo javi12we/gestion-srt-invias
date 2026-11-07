@@ -15,6 +15,8 @@ from app.core.esquemas import (
     ESQUEMA_NOTIFICACIONES_CORREO,
     ESQUEMA_GRUPOS_TRABAJO,
     ESQUEMA_ASIGNACIONES_GRUPO,
+    ESQUEMA_SUIT_ASIGNACIONES,
+    ESQUEMA_SUIT_CARGUES,
 )
 from app.db.mongo import obtener_base_datos
 
@@ -40,6 +42,8 @@ class MongoBootstrapService:
         self._asegurar_coleccion("notificaciones_correo", ESQUEMA_NOTIFICACIONES_CORREO)
         self._asegurar_coleccion("grupos_trabajo", ESQUEMA_GRUPOS_TRABAJO)
         self._asegurar_coleccion("asignaciones_grupo", ESQUEMA_ASIGNACIONES_GRUPO)
+        self._asegurar_coleccion("suit_asignaciones", ESQUEMA_SUIT_ASIGNACIONES)
+        self._asegurar_coleccion("suit_cargues", ESQUEMA_SUIT_CARGUES)
 
         self.db["usuarios"].create_index(
             "usuario", unique=True, name="idx_usuarios_usuario_unico"
@@ -161,6 +165,22 @@ class MongoBootstrapService:
         )
         self.db["asignaciones_grupo"].create_index(
             "usuario_id", name="idx_asignaciones_usuario"
+        )
+        # SUIT: una persona no puede estar activa dos veces en el mismo trámite.
+        self.db["suit_asignaciones"].create_index(
+            [("usuario_id", 1), ("tramite", 1)],
+            unique=True,
+            partialFilterExpression={"estado": "activo"},
+            name="idx_suit_asignaciones_usuario_tramite_activo_unico",
+        )
+        self.db["suit_asignaciones"].create_index(
+            [("tramite", 1), ("estado", 1)], name="idx_suit_asignaciones_tramite_estado"
+        )
+        # SUIT: un solo documento por trámite, año y mes.
+        self.db["suit_cargues"].create_index(
+            [("tramite", 1), ("anio", 1), ("mes", 1)],
+            unique=True,
+            name="idx_suit_cargues_periodo_unico",
         )
 
     def _asegurar_coleccion(self, nombre: str, esquema: dict) -> None:

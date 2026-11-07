@@ -20,6 +20,10 @@ class UsuarioRepositorio:
     def listar_por_ids(self, ids: list) -> list:
         return list(self.coleccion.find({"_id": {"$in": list(ids)}}, {"password_hash": 0}))
 
+    def listar_con_permisos_extra(self, claves: list) -> list:
+        """Usuarios que tienen alguna de las claves dadas en ``permisos_extra``."""
+        return list(self.coleccion.find({"permisos_extra": {"$in": list(claves)}}, {"password_hash": 0}))
+
     def contar_por_banco(self, clave_banco: str) -> int:
         return self.coleccion.count_documents(
             {"informacion_laboral.bancaria.banco": clave_banco}

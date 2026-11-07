@@ -203,9 +203,15 @@ with tab_contrato:
         unsafe_allow_html=True
     )
     
+    def _clave_fecha_contrato(c):
+        f = c.get("fecha_inicio")
+        if not isinstance(f, datetime):
+            return datetime(1970, 1, 1)
+        return f.replace(tzinfo=None) if f.tzinfo else f
+
     _contratos = sorted(
         (_usuario_doc.get("contratos") or []),
-        key=lambda c: c.get("fecha_inicio") or datetime(1970, 1, 1, tzinfo=timezone.utc),
+        key=_clave_fecha_contrato,
         reverse=True,
     )
 

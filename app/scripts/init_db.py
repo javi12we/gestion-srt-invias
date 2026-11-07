@@ -162,6 +162,7 @@ def main():
         "opciones_configuracion", "certificaciones",
         "politicas_datos", "aceptaciones_politica", "firmas", "instructivos",
         "grupos_trabajo", "asignaciones_grupo",
+        "suit_asignaciones", "suit_cargues",
     ]
     for nombre in colecciones:
         try:
