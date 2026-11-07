@@ -11,7 +11,9 @@ from decimal import Decimal, ROUND_HALF_UP
 import streamlit as st
 
 _SOLO_NUMERO = re.compile(r"[\d.,]*\d[\d.,]*")
-_ADORNOS = re.compile(r"cop|\$|\s", re.IGNORECASE)
+# Se ignoran también los apóstrofes/acentos usados como separador de millones
+# ("20´442.240,00", "20'442.240").
+_ADORNOS = re.compile(r"cop|\$|\s|[´`'’‘ʼ′]", re.IGNORECASE)
 
 
 def interpretar_pesos(texto) -> int | None:

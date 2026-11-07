@@ -31,6 +31,11 @@ def obtener_sesion():
                 grupos = AsignacionGrupoService().claves_de_usuario(usuario_sesion["id"])
                 usuario_sesion["grupos"] = grupos["grupos"]
                 usuario_sesion["grupos_lider"] = grupos["lider"]
+                # Trámites SUIT que puede diligenciar (todos si es administrador)
+                from app.services.suit_service import SuitService, permisos_efectivos
+                usuario_sesion["suit_tramites"] = SuitService().tramites_visibles(
+                    usuario_sesion["id"], permisos_efectivos(usuario_sesion)
+                )
                 st.session_state[CLAVE_SESION] = usuario_sesion
         except Exception:
             pass

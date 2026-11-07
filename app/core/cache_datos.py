@@ -91,6 +91,14 @@ def datos_dashboard_admin(
 
 
 @st.cache_data(ttl=60, show_spinner=False)
+def seguimiento_suit(anio: int, actor_id: Optional[str], permisos: tuple) -> dict:
+    """Seguimiento SUIT del año (cumplimiento, indicadores, responsables). Valida acceso en el servicio."""
+    from app.services.suit_service import SuitService
+
+    return SuitService().seguimiento(anio, actor_id, list(permisos))
+
+
+@st.cache_data(ttl=60, show_spinner=False)
 def empleados_para_certificar(tipo_formato: Optional[str], año: int, mes: int) -> list:
     """Colaboradores con estado de firmas/contrato para 'Sup. Formatos' (panel de
     control y panel de actas). Internamente ya combina el estado de correspondencia,
@@ -125,6 +133,7 @@ def limpiar_cache_lecturas() -> None:
     opciones_activas.clear()
     metricas_inicio.clear()
     datos_dashboard_admin.clear()
+    seguimiento_suit.clear()
     empleados_para_certificar.clear()
     periodos_disponibles_global.clear()
     periodos_disponibles_usuario.clear()

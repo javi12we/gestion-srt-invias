@@ -581,6 +581,81 @@ ESQUEMA_ASIGNACIONES_GRUPO = {
     ],
 }
 
+ESQUEMA_SUIT_ASIGNACIONES = {
+    "bsonType": "object",
+    "required": ["usuario_id", "tramite", "estado", "fecha_asignacion", "asignado_por", "trazabilidad"],
+    "description": "Quién puede diligenciar cada trámite SUIT. Un documento por periodo de encargo; se conserva el historial de retiros.",
+    "properties": {
+        "usuario_id": {"bsonType": "objectId"},
+        "tramite": {"bsonType": "string", "description": "Identificador del trámite (catalogos.TRAMITES_SUIT)"},
+        "estado": {"enum": ["activo", "retirado"]},
+        "fecha_asignacion": {"bsonType": "date"},
+        "asignado_por": {"bsonType": "string"},
+        "fecha_retiro": {"bsonType": ["date", "null"]},
+        "razon_retiro": {"bsonType": ["string", "null"]},
+        "retirado_por": {"bsonType": ["string", "null"]},
+        "trazabilidad": {
+            "bsonType": "array",
+            "items": {
+                "bsonType": "object",
+                "required": ["fecha", "accion", "usuario"],
+                "properties": {
+                    "fecha": {"bsonType": "date"},
+                    "accion": {"enum": ["asignado", "retirado"]},
+                    "usuario": {"bsonType": "string"},
+                    "detalle": {"bsonType": ["string", "null"]},
+                },
+            },
+        },
+    },
+    "oneOf": [
+        {"properties": {"estado": {"enum": ["activo"]}}},
+        {
+            "required": ["fecha_retiro", "razon_retiro", "retirado_por"],
+            "properties": {
+                "estado": {"enum": ["retirado"]},
+                "fecha_retiro": {"bsonType": "date"},
+                "razon_retiro": {"bsonType": "string"},
+                "retirado_por": {"bsonType": "string"},
+            },
+        },
+    ],
+}
+
+ESQUEMA_SUIT_CARGUES = {
+    "bsonType": "object",
+    "required": ["tramite", "anio", "trimestre", "mes", "valores", "creado_por", "creado_en", "trazabilidad"],
+    "description": "Cargue mensual de un trámite SUIT. Un documento por (tramite, anio, mes); siempre editable.",
+    "properties": {
+        "tramite": {"bsonType": "string"},
+        "anio": {"bsonType": ["int", "long"]},
+        "trimestre": {"bsonType": ["int", "long"], "minimum": 1, "maximum": 4},
+        "mes": {"bsonType": ["int", "long"], "minimum": 1, "maximum": 12},
+        "valores": {
+            "bsonType": "object",
+            "description": "Contadores del formulario (catalogos.CAMPOS_SUIT), enteros >= 0",
+            "additionalProperties": {"bsonType": ["int", "long"], "minimum": 0},
+        },
+        "creado_por": {"bsonType": "string"},
+        "creado_en": {"bsonType": "date"},
+        "actualizado_por": {"bsonType": ["string", "null"]},
+        "actualizado_en": {"bsonType": ["date", "null"]},
+        "trazabilidad": {
+            "bsonType": "array",
+            "items": {
+                "bsonType": "object",
+                "required": ["fecha", "accion", "usuario"],
+                "properties": {
+                    "fecha": {"bsonType": "date"},
+                    "accion": {"enum": ["creado", "actualizado"]},
+                    "usuario": {"bsonType": "string"},
+                    "valores": {"bsonType": "object"},
+                },
+            },
+        },
+    },
+}
+
 ESQUEMA_CORRESPONDENCIA = {
     "bsonType": "object",
     "required": [

@@ -17,6 +17,12 @@ from app.core.cache_datos import (
     limpiar_cache_lecturas,
 )
 from app.services.correspondencia_service import CorrespondenciaService
+from app.services.cargue_masivo_correspondencia_service import (
+    CargueMasivoCorrespondenciaService,
+    ErrorFormatoCargue,
+    PERMISO_CARGUE_MASIVO,
+)
+from app.core.autorizacion import ValidacionAutorizacion
 from app.core.festivos import FESTIVOS_CO
 
 # --- LÓGICA DE REINICIO DE FORMULARIO ---
@@ -108,6 +114,44 @@ if not clases_dict: clases_dict = {"informes": "Informes", "peticiones": "Petici
 
 # Definir quiénes pueden ver toda la correspondencia por defecto
 puede_ver_todo = is_admin or is_asignacion or is_coordinador or is_lider
+
+
+@st.dialog("⚠️ Confirmar cargue masivo")
+def dialogo_confirmar_cargue(svc_cargue, filas_cargue):
+    n_accion = sum(1 for f in filas_cargue if f["accion"] in ("respuesta", "archivar", "traslado"))
+    st.warning(
+        "**Antes de continuar:** al aceptar este cargue, usted **se responsabiliza de la calidad "
+        "de los datos** que quedarán registrados en la base de datos. Cada radicado actualizado "
+        "quedará con trazabilidad a su nombre, con la fecha y hora del cargue."
+    )
+    st.write(
+        f"El archivo tiene **{len(filas_cargue)}** filas, de las cuales **{n_accion}** intentarán "
+        "actualizar radicados (respuesta, archivo o traslado). Los demás renglones se omiten."
+    )
+    acepta = st.checkbox(
+        f"Entiendo y acepto: respondo por estos datos como **{nombre_usuario_actual}**.",
+        key="acepta_cargue_masivo",
+    )
+    col_ok, col_cancel = st.columns(2)
+    with col_ok:
+        confirmar = st.button("Aceptar y cargar", type="primary", disabled=not acepta, width="stretch", key="btn_confirmar_cargue")
+    with col_cancel:
+        if st.button("Cancelar", width="stretch", key="btn_cancelar_cargue"):
+            st.rerun()
+    if confirmar:
+        try:
+            permisos = list(sesion.get("permisos", []))
+            if is_admin and PERMISO_CARGUE_MASIVO not in permisos:
+                permisos.append(PERMISO_CARGUE_MASIVO)
+            st.session_state["resumen_cargue"] = svc_cargue.procesar(
+                filas_cargue, permisos, nombre_usuario_actual, id_usuario_actual
+            )
+            limpiar_cache_lecturas()
+            st.rerun()
+        except ValidacionAutorizacion as e:
+            st.error(f"No tienes permiso para el cargue masivo. {e}")
+        except Exception as e:
+            st.error(f"No se pudo procesar el cargue: {e}")
 
 
 def cargar_datos(skip=0, limit=10, filtros=None):
@@ -708,7 +752,69 @@ with tab_gestion:
             on_change=on_filter_change,
             help="Si se marca, solo verás la correspondencia donde tú eres el responsable."
         )
-    
+
+    # --- Cargue masivo de respuestas (solo con permiso) ---
+    if PERMISO_CARGUE_MASIVO in sesion.get("permisos", []) or is_admin:
+        with st.expander("📤 Cargue masivo de respuestas"):
+            st.caption(
+                "Actualiza radicados abiertos a Respondido, Archivado o Traslado por competencia "
+                "desde un Excel, CSV o TXT. Cada cambio queda en la trazabilidad con tu nombre y la fecha del cargue."
+            )
+            svc_cargue = CargueMasivoCorrespondenciaService()
+            st.download_button(
+                "⬇️ Descargar formato de muestra (Excel)",
+                data=svc_cargue.plantilla_excel(),
+                file_name="formato_cargue_masivo_correspondencia.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="descarga_plantilla_cargue",
+            )
+            archivo_cargue = st.file_uploader(
+                "Archivo del cargue", type=["xlsx", "csv", "txt"], key="archivo_cargue_masivo",
+                help=(
+                    "**Cómo hacerlo**\n\n"
+                    "1. Descargue el formato de muestra y llénelo (borre las filas de ejemplo).\n"
+                    "2. Conserve las 4 columnas: **Radicado, Fecha respuesta, Estado, Comentario**.\n"
+                    "3. Suba el archivo (.xlsx, .csv o .txt; máx. 1.000 filas) y pulse *Procesar cargue*.\n\n"
+                    "**Columna Estado**\n\n"
+                    "- Un número de radicado de salida (ej. 2026_VUVRAZ_200000) → **Respondido**.\n"
+                    "- *Archivado* → **Archivado**.\n"
+                    "- *Traslado* / *Traslado por competencia* → **Traslado por competencia**.\n"
+                    "- *Borrador* o vacío → se omite.\n\n"
+                    "**Tenga en cuenta**\n\n"
+                    "- El radicado debe existir y estar abierto; los ya cerrados no se modifican.\n"
+                    "- Un solo código por celda: si hay dos, se rechaza todo el archivo.\n"
+                    "- La fecha (dd/mm/aaaa) es opcional, y no puede ser futura.\n"
+                    "- Si faltan columnas o los encabezados no coinciden, se rechaza todo el archivo.\n"
+                    "- Usted responde por la calidad de los datos: cada cambio queda en la "
+                    "trazabilidad con su nombre y la fecha del cargue."
+                ),
+            )
+            if archivo_cargue is not None and st.button("Procesar cargue", type="primary", key="btn_procesar_cargue"):
+                try:
+                    # Primero se valida el formato; solo si es correcto se pide la aceptación
+                    filas_cargue = svc_cargue.leer_archivo(archivo_cargue.name, archivo_cargue.getvalue())
+                    st.session_state.pop("resumen_cargue", None)
+                    dialogo_confirmar_cargue(svc_cargue, filas_cargue)
+                except ErrorFormatoCargue as e:
+                    st.session_state.pop("resumen_cargue", None)
+                    st.error(str(e))
+                except Exception as e:
+                    st.error(f"No se pudo leer el cargue: {e}")
+
+            resumen_cargue = st.session_state.get("resumen_cargue")
+            if resumen_cargue:
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Filas leídas", resumen_cargue["leidas"])
+                c2.metric("Actualizados", resumen_cargue["actualizados"])
+                c3.metric("Errores", len(resumen_cargue["errores"]))
+                c4.metric("Omitidos / ya cerrados", len(resumen_cargue["omitidos"]))
+                if resumen_cargue["errores"]:
+                    st.error("Filas con error (no se actualizaron):")
+                    st.dataframe(pd.DataFrame(resumen_cargue["errores"]), hide_index=True, width="stretch")
+                if resumen_cargue["omitidos"]:
+                    with st.expander("Ver omitidos / ya cerrados"):
+                        st.dataframe(pd.DataFrame(resumen_cargue["omitidos"]), hide_index=True, width="stretch")
+
     st.divider()
 
     # --- Estilo CSS para forzar el centrado de cabeceras ---

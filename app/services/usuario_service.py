@@ -5,13 +5,10 @@ import pytz
 
 from app.core.autorizacion import ValidacionAutorizacion, validar_permiso
 from app.core.balance_contrato import calcular_balance_pagos
-from app.core.catalogos import PERMISOS_SUIT_CARGUE
 from app.core.seguridad import generar_hash_password
 from app.config import configuracion
 from app.repositories.usuario_repo import UsuarioRepositorio
 from app.services.auditoria_service import AuditoriaService
-
-_CLAVES_SUIT_CARGUE = {p["clave"] for p in PERMISOS_SUIT_CARGUE}
 
 _ZONA_BOGOTA = pytz.timezone("America/Bogota")
 
@@ -216,23 +213,6 @@ class UsuarioService:
 
     def listar_usuarios_grupo_trabajo(self, grupo: str):
         return self.repositorio.listar_por_grupo_trabajo(grupo)
-
-    def actualizar_permisos_suit_usuario(self, id_usuario: str, claves_seleccionadas: list, actor: str) -> None:
-        """Asigna/quita los permisos de cargue SUIT de un usuario, sin tocar el resto de sus permisos_extra."""
-        usuario = self.repositorio.buscar_por_id(id_usuario)
-        if not usuario:
-            raise ValueError("El usuario no existe")
-
-        permisos_extra = set(usuario.get("permisos_extra", [])) - _CLAVES_SUIT_CARGUE
-        permisos_extra |= (set(claves_seleccionadas) & _CLAVES_SUIT_CARGUE)
-        self.repositorio.actualizar(id_usuario, {"permisos_extra": sorted(permisos_extra)})
-
-        self.auditoria.registrar_accion(
-            actor,
-            "editar_permisos_suit",
-            "usuario",
-            {"usuario_id": id_usuario, "permisos_suit": sorted(set(claves_seleccionadas) & _CLAVES_SUIT_CARGUE)},
-        )
 
     def crear_usuario(self, datos: dict, validar_permisos: bool = True, permisos_usuario: list = None):
         usuario_existente = self.repositorio.buscar_por_usuario(datos["usuario"])
