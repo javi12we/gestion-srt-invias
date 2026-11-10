@@ -8,6 +8,7 @@ existentes se sobrescriben.
 
 import math
 import re
+import unicodedata
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -34,8 +35,13 @@ COLUMNAS_REQUERIDAS = [
     "Valor Bruto",
     "Valor Deducciones",
     "Valor Neto",
+    "Estado",
     COLUMNA_CONTRATO,
 ]
+
+# Único estado del comprobante que cuenta como pago real. Cualquier otro
+# (Anulada, Desistido, Autorizada, etc.) se excluye del cargue.
+ESTADO_PAGO_VALIDO = "pagada"
 
 _PATRON_CONTRATO = re.compile(r"(\d+)\s*[/-]+\s*(\d{4})")
 
@@ -104,6 +110,12 @@ def limpiar_fecha_pago(crudo) -> datetime | None:
     return UsuarioService._fecha_a_datetime(fecha)
 
 
+def _normalizar_estado(crudo) -> str:
+    """Estado en minúsculas y sin tildes, para comparar sin depender de cómo lo escriba tesorería."""
+    texto = unicodedata.normalize("NFKD", _texto_o_vacio(crudo))
+    return "".join(c for c in texto if not unicodedata.combining(c)).strip().lower()
+
+
 def extraer_contrato_y_anio(crudo) -> tuple[str, int] | None:
     """Lee 'Num Doc Soporte Compromiso' ('<número>/<año>', ej. '2570/2026') y
     devuelve (número sin ceros a la izquierda, año), o None si no trae ese formato."""
@@ -121,6 +133,7 @@ CAT_CONTRATO_NO_ENCONTRADO = "contrato_no_encontrado"
 CAT_DATO_INVALIDO = "dato_invalido"
 CAT_YA_EXISTE = "ya_existe_en_bd"
 CAT_EXCEDE_LIMITE = "excede_limite_pagos"
+CAT_ESTADO_NO_VALIDO = "estado_no_valido"
 
 # Únicas categorías que confirmar_carga escribe en la base de datos.
 CATEGORIAS_CARGABLES = (CAT_VALIDO, CAT_ACTUALIZA)
@@ -132,6 +145,7 @@ MOTIVOS = {
     CAT_DUPLICADO_INTERNO: "Comprobante de pago repetido dentro del mismo archivo para el mismo contrato",
     CAT_YA_EXISTE: "El pago ya está registrado en el contrato con los mismos datos",
     CAT_EXCEDE_LIMITE: "El contrato superaría el límite de 20 pagos; no se agregan pagos nuevos de este lote",
+    CAT_ESTADO_NO_VALIDO: "El comprobante no está en estado Pagada (anulado, desistido, etc.)",
     CAT_VALIDO: "Pago nuevo, listo para cargar",
     CAT_ACTUALIZA: "Sobrescribe un pago ya registrado en el contrato",
 }
@@ -290,6 +304,13 @@ class CarguePagosService:
                 "seleccionable": False,
             }
             filas.append(fila)
+
+            if _normalizar_estado(registro.get("Estado")) != ESTADO_PAGO_VALIDO:
+                fila["categoria"] = CAT_ESTADO_NO_VALIDO
+                fila["motivo"] = (
+                    f"{MOTIVOS[CAT_ESTADO_NO_VALIDO]}: «{fila['estado'] or 'vacío'}»"
+                )
+                continue
 
             if (
                 cedula is None
@@ -454,3 +475,43 @@ class CarguePagosService:
                 })
 
         return {"ok": ok, "fallidos": fallidos}
+
+    def limpiar_todos_los_pagos(self, usuario_que_limpia: str) -> dict:
+        """Elimina los pagos de TODOS los contratos de TODOS los usuarios y deja los
+        balances recalculados (pagado = 0, por pagar = valor del contrato)."""
+        contratos_limpiados = 0
+        pagos_eliminados = 0
+        fallidos = []
+
+        for usuario in self.repositorio.listar():
+            for contrato in usuario.get("contratos") or []:
+                pagos = contrato.get("pagos") or []
+                if not pagos:
+                    continue
+                id_usuario = str(usuario["_id"])
+                try:
+                    actualizado = dict(contrato)
+                    actualizado["pagos"] = []
+                    (
+                        actualizado["valor_total_pagado"],
+                        actualizado["valor_total_por_pagar_contrato"],
+                    ) = calcular_balance_pagos(contrato.get("valor"), [])
+                    self.repositorio.editar_contrato_en_usuario(
+                        id_usuario, contrato["numero"], actualizado
+                    )
+                    self.auditoria.registrar_accion(
+                        usuario=usuario_que_limpia,
+                        accion="limpiar_pagos",
+                        recurso=f"usuario:{id_usuario}:contrato:{contrato['numero']}",
+                        detalle={"pagos_eliminados": len(pagos)},
+                    )
+                    contratos_limpiados += 1
+                    pagos_eliminados += len(pagos)
+                except Exception as e:
+                    fallidos.append({"id_usuario": id_usuario, "numero_contrato": contrato.get("numero"), "motivo": str(e)})
+
+        return {
+            "contratos": contratos_limpiados,
+            "pagos": pagos_eliminados,
+            "fallidos": fallidos,
+        }
