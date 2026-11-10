@@ -134,9 +134,10 @@ CAT_DATO_INVALIDO = "dato_invalido"
 CAT_YA_EXISTE = "ya_existe_en_bd"
 CAT_EXCEDE_LIMITE = "excede_limite_pagos"
 CAT_ESTADO_NO_VALIDO = "estado_no_valido"
+CAT_ELIMINA = "elimina_existente"
 
 # Únicas categorías que confirmar_carga escribe en la base de datos.
-CATEGORIAS_CARGABLES = (CAT_VALIDO, CAT_ACTUALIZA)
+CATEGORIAS_CARGABLES = (CAT_VALIDO, CAT_ACTUALIZA, CAT_ELIMINA)
 
 MOTIVOS = {
     CAT_USUARIO_NO_ENCONTRADO: "No existe ningún usuario con esta cédula",
@@ -146,6 +147,7 @@ MOTIVOS = {
     CAT_YA_EXISTE: "El pago ya está registrado en el contrato con los mismos datos",
     CAT_EXCEDE_LIMITE: "El contrato superaría el límite de 20 pagos; no se agregan pagos nuevos de este lote",
     CAT_ESTADO_NO_VALIDO: "El comprobante no está en estado Pagada (anulado, desistido, etc.)",
+    CAT_ELIMINA: "Pago ya registrado cuyo comprobante ya no está Pagada (anulado, etc.): se elimina del contrato",
     CAT_VALIDO: "Pago nuevo, listo para cargar",
     CAT_ACTUALIZA: "Sobrescribe un pago ya registrado en el contrato",
 }
@@ -310,6 +312,22 @@ class CarguePagosService:
                 fila["motivo"] = (
                     f"{MOTIVOS[CAT_ESTADO_NO_VALIDO]}: «{fila['estado'] or 'vacío'}»"
                 )
+                # Si ese comprobante ya está guardado en el contrato, se ofrece eliminarlo.
+                usuario = por_cedula.get(cedula) if cedula else None
+                referencia = extraer_contrato_y_anio(contrato_excel)
+                if usuario and referencia and numero_pago:
+                    contrato = _buscar_contrato(usuario.get("contratos") or [], *referencia)
+                    if contrato and any(
+                        p.get("numero_pago") == numero_pago for p in contrato.get("pagos") or []
+                    ):
+                        fila.update(
+                            categoria=CAT_ELIMINA,
+                            motivo=f"{MOTIVOS[CAT_ELIMINA]}: «{fila['estado'] or 'vacío'}»",
+                            nombre=usuario.get("nombre_completo"),
+                            id_usuario=str(usuario["_id"]),
+                            numero_contrato=contrato["numero"],
+                            seleccionable=True,
+                        )
                 continue
 
             if (
@@ -417,11 +435,21 @@ class CarguePagosService:
                 # previa), por si los pagos del contrato cambiaron en el ínterin.
                 pagos_actuales = contrato.get("pagos") or []
                 filas_grupo = sorted(filas_grupo, key=lambda f: f.get("orden_pago") or "")
-                destinos = _planear_merge(pagos_actuales, filas_grupo)
 
                 pagos_final = list(pagos_actuales)
                 agregados = 0
                 actualizados = 0
+                eliminados = 0
+                numeros_a_eliminar = {
+                    f["numero_pago"] for f in filas_grupo if f["categoria"] == CAT_ELIMINA
+                }
+                if numeros_a_eliminar:
+                    antes = len(pagos_final)
+                    pagos_final = [p for p in pagos_final if p.get("numero_pago") not in numeros_a_eliminar]
+                    eliminados = antes - len(pagos_final)
+                filas_grupo = [f for f in filas_grupo if f["categoria"] != CAT_ELIMINA]
+                destinos = _planear_merge(pagos_final, filas_grupo)
+                pagos_actuales = list(pagos_final)
                 for fila, destino in zip(filas_grupo, destinos):
                     pago = _pago_desde_fila(fila)
                     if destino is None:
@@ -431,7 +459,7 @@ class CarguePagosService:
                         pagos_final[destino] = {**pagos_actuales[destino], **pago}
                         actualizados += 1
 
-                if not agregados and not actualizados:
+                if not agregados and not actualizados and not eliminados:
                     continue  # todos ya estaban idénticos; nada que hacer, no es un fallo
 
                 if len(pagos_final) > MAX_PAGOS_POR_CONTRATO:
@@ -458,6 +486,7 @@ class CarguePagosService:
                     detalle={
                         "pagos_agregados": agregados,
                         "pagos_actualizados": actualizados,
+                        "pagos_eliminados": eliminados,
                         "archivo": nombre_archivo,
                     },
                 )
@@ -466,6 +495,7 @@ class CarguePagosService:
                     "numero_contrato": numero_contrato,
                     "agregados": agregados,
                     "actualizados": actualizados,
+                    "eliminados": eliminados,
                 })
             except Exception as e:
                 fallidos.append({
@@ -476,9 +506,10 @@ class CarguePagosService:
 
         return {"ok": ok, "fallidos": fallidos}
 
-    def limpiar_todos_los_pagos(self, usuario_que_limpia: str) -> dict:
-        """Elimina los pagos de TODOS los contratos de TODOS los usuarios y deja los
-        balances recalculados (pagado = 0, por pagar = valor del contrato)."""
+    def limpiar_todos_los_pagos(self, usuario_que_limpia: str, anio: int | None = None) -> dict:
+        """Elimina los pagos de los contratos de todos los usuarios y deja los balances
+        recalculados (pagado = 0, por pagar = valor del contrato). Con `anio`, solo los
+        contratos de ese año (el de su firma SECOP o su fecha de inicio)."""
         contratos_limpiados = 0
         pagos_eliminados = 0
         fallidos = []
@@ -487,6 +518,8 @@ class CarguePagosService:
             for contrato in usuario.get("contratos") or []:
                 pagos = contrato.get("pagos") or []
                 if not pagos:
+                    continue
+                if anio is not None and anio not in _anios_contrato(contrato):
                     continue
                 id_usuario = str(usuario["_id"])
                 try:
@@ -501,9 +534,9 @@ class CarguePagosService:
                     )
                     self.auditoria.registrar_accion(
                         usuario=usuario_que_limpia,
-                        accion="limpiar_pagos",
+                        accion="limpiar_pagos_anio" if anio is not None else "limpiar_pagos",
                         recurso=f"usuario:{id_usuario}:contrato:{contrato['numero']}",
-                        detalle={"pagos_eliminados": len(pagos)},
+                        detalle={"pagos_eliminados": len(pagos), "anio": anio},
                     )
                     contratos_limpiados += 1
                     pagos_eliminados += len(pagos)

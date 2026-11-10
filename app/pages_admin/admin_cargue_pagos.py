@@ -6,6 +6,8 @@ revisa/ajusta la selección de pagos nuevos y a sobrescribir -> confirma -> se
 escribe solo lo seleccionado. Ver docs/cargue_pagos_excel.md.
 """
 
+from datetime import datetime
+
 import pandas as pd
 import streamlit as st
 
@@ -22,11 +24,13 @@ from app.services.cargue_pagos_service import (
     CAT_YA_EXISTE,
     CAT_EXCEDE_LIMITE,
     CAT_ESTADO_NO_VALIDO,
+    CAT_ELIMINA,
 )
 
 _ETIQUETAS_CATEGORIA = {
     CAT_VALIDO: "✅ Nuevo",
     CAT_ACTUALIZA: "🔄 Sobrescribe existente",
+    CAT_ELIMINA: "🗑️ Elimina pago anulado",
     CAT_YA_EXISTE: "ℹ️ Sin cambios",
     CAT_DUPLICADO_INTERNO: "⚠️ Duplicado en el archivo",
     CAT_USUARIO_NO_ENCONTRADO: "❌ Usuario no encontrado",
@@ -56,14 +60,17 @@ def _dialog_confirmar(
 ) -> None:
     contratos_afectados = {(f["id_usuario"], f["numero_contrato"]) for f in filas_marcadas}
     nuevos = sum(1 for f in filas_marcadas if f["categoria"] == CAT_VALIDO)
-    sobrescritos = len(filas_marcadas) - nuevos
+    eliminados = sum(1 for f in filas_marcadas if f["categoria"] == CAT_ELIMINA)
+    sobrescritos = len(filas_marcadas) - nuevos - eliminados
     st.markdown(
-        f"Se van a cargar **{nuevos} pagos nuevos** y a sobrescribir **{sobrescritos} pagos "
-        f"existentes** en **{len(contratos_afectados)} contratos**."
+        f"Se van a cargar **{nuevos} pagos nuevos**, sobrescribir **{sobrescritos} pagos "
+        f"existentes** y eliminar **{eliminados} pagos anulados** en "
+        f"**{len(contratos_afectados)} contratos**."
     )
     st.warning(
         "Esta acción escribe en la base de datos. Los pagos existentes con el mismo número "
-        "de pago se reemplazan con los datos del Excel; no se elimina ningún pago."
+        "de pago se reemplazan con los datos del Excel; solo se eliminan los marcados "
+        "como «Elimina pago anulado»."
     )
 
     c1, c2 = st.columns(2)
@@ -88,23 +95,32 @@ def _dialog_confirmar(
             st.rerun()
 
 
-@st.dialog("Limpiar todos los pagos")
-def _dialog_limpiar(servicio: CarguePagosService, sesion: dict) -> None:
-    st.error(
-        "Se eliminarán los pagos de **todos los contratos de todos los usuarios** y los "
-        "balances quedarán en cero pagado. Esta acción no se puede deshacer."
-    )
+@st.dialog("Limpiar pagos")
+def _dialog_limpiar(servicio: CarguePagosService, sesion: dict, anio: int | None = None) -> None:
+    if anio is None:
+        st.error(
+            "Se eliminarán los pagos de **todos los contratos de todos los usuarios** y los "
+            "balances quedarán en cero pagado. Esta acción no se puede deshacer."
+        )
+    else:
+        st.error(
+            f"Se eliminarán los pagos de **todos los contratos del año {anio}** (por fecha de "
+            "firma SECOP o de inicio) y sus balances quedarán en cero pagado. Esta acción no "
+            "se puede deshacer."
+        )
     confirmacion = st.text_input("Escribe LIMPIAR para confirmar")
     c1, c2 = st.columns(2)
     with c1:
         if st.button(
-            "Eliminar todos los pagos",
+            "Eliminar pagos",
             type="primary",
             use_container_width=True,
             disabled=confirmacion.strip() != "LIMPIAR",
         ):
             try:
-                resultado = servicio.limpiar_todos_los_pagos(sesion.get("usuario") or "admin")
+                resultado = servicio.limpiar_todos_los_pagos(
+                    sesion.get("usuario") or "admin", anio=anio
+                )
             except Exception as e:
                 st.error(f"No se pudo limpiar: {e}")
             else:
@@ -143,7 +159,9 @@ def _render_contenido(sesion: dict) -> None:
             total_actualizados = sum(r["actualizados"] for r in resultado_previo["ok"])
             st.success(
                 f"✅ Se cargaron {total_agregados} pagos nuevos y se sobrescribieron "
-                f"{total_actualizados} en {len(resultado_previo['ok'])} contratos."
+                f"{total_actualizados} y se eliminaron "
+                f"{sum(r.get('eliminados', 0) for r in resultado_previo['ok'])} "
+                f"en {len(resultado_previo['ok'])} contratos."
             )
         for fallo in resultado_previo["fallidos"]:
             st.error(f"❌ Contrato {fallo['numero_contrato']}: {fallo['motivo']}")
@@ -160,8 +178,22 @@ def _render_contenido(sesion: dict) -> None:
         for fallo in limpieza["fallidos"]:
             st.error(f"❌ Contrato {fallo['numero_contrato']}: {fallo['motivo']}")
 
-    if st.button("🧹 Limpiar todos los pagos", key="_cargue_pagos_btn_limpiar"):
-        _dialog_limpiar(CarguePagosService(), sesion)
+    col_anio, col_btn_anio, col_btn_todo = st.columns([1, 2, 2], vertical_alignment="bottom")
+    with col_anio:
+        anio_limpiar = st.number_input(
+            "Año del contrato",
+            min_value=2000,
+            max_value=2100,
+            value=datetime.now().year,
+            step=1,
+            key="_cargue_pagos_anio_limpiar",
+        )
+    with col_btn_anio:
+        if st.button(f"🧹 Limpiar pagos de contratos {int(anio_limpiar)}", key="_cargue_pagos_btn_limpiar_anio"):
+            _dialog_limpiar(CarguePagosService(), sesion, anio=int(anio_limpiar))
+    with col_btn_todo:
+        if st.button("🧹 Limpiar todos los pagos", key="_cargue_pagos_btn_limpiar"):
+            _dialog_limpiar(CarguePagosService(), sesion)
 
     archivo = st.file_uploader("Archivo de pagos", type=["xlsx", "xlsm"], key="_cargue_pagos_uploader")
 
@@ -197,8 +229,8 @@ def _render_contenido(sesion: dict) -> None:
 
     st.divider()
     st.markdown(
-        "**Detalle de registros** — solo puedes marcar los pagos nuevos y los que sobrescriben "
-        "uno existente. Están ordenados por contrato y fecha de pago."
+        "**Detalle de registros** — solo puedes marcar los pagos nuevos, los que sobrescriben "
+        "uno existente y los anulados que se eliminarán. Están ordenados por contrato y fecha de pago."
     )
 
     filas_cargables = sorted(
@@ -219,7 +251,7 @@ def _render_contenido(sesion: dict) -> None:
                     "Nombre": fila["nombre"],
                     "Cédula": fila["cedula"],
                     "Contrato": fila["contrato_excel"],
-                    "Fecha de pago": fila["fecha_pago"].date(),
+                    "Fecha de pago": fila["fecha_pago"].date() if fila["fecha_pago"] else None,
                     "N° pago": fila["numero_pago"],
                     "Estado": fila["estado"],
                     "Valor bruto": fila["valor_bruto_pago"],
