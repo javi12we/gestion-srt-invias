@@ -21,6 +21,7 @@ from app.services.cargue_pagos_service import (
     CAT_DATO_INVALIDO,
     CAT_YA_EXISTE,
     CAT_EXCEDE_LIMITE,
+    CAT_ESTADO_NO_VALIDO,
 )
 
 _ETIQUETAS_CATEGORIA = {
@@ -32,6 +33,7 @@ _ETIQUETAS_CATEGORIA = {
     CAT_CONTRATO_NO_ENCONTRADO: "❌ Contrato no encontrado",
     CAT_DATO_INVALIDO: "❌ Dato inválido",
     CAT_EXCEDE_LIMITE: "❌ Excede límite de 20 pagos",
+    CAT_ESTADO_NO_VALIDO: "🚫 Estado no válido (no Pagada)",
 }
 
 _CLAVES_ESTADO = (
@@ -86,6 +88,36 @@ def _dialog_confirmar(
             st.rerun()
 
 
+@st.dialog("Limpiar todos los pagos")
+def _dialog_limpiar(servicio: CarguePagosService, sesion: dict) -> None:
+    st.error(
+        "Se eliminarán los pagos de **todos los contratos de todos los usuarios** y los "
+        "balances quedarán en cero pagado. Esta acción no se puede deshacer."
+    )
+    confirmacion = st.text_input("Escribe LIMPIAR para confirmar")
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button(
+            "Eliminar todos los pagos",
+            type="primary",
+            use_container_width=True,
+            disabled=confirmacion.strip() != "LIMPIAR",
+        ):
+            try:
+                resultado = servicio.limpiar_todos_los_pagos(sesion.get("usuario") or "admin")
+            except Exception as e:
+                st.error(f"No se pudo limpiar: {e}")
+            else:
+                st.session_state["_cargue_pagos_limpieza"] = resultado
+                for clave in _CLAVES_ESTADO:
+                    st.session_state.pop(clave, None)
+                limpiar_cache_lecturas()
+                st.rerun()
+    with c2:
+        if st.button("Cancelar", use_container_width=True):
+            st.rerun()
+
+
 def render_seccion(sesion: dict) -> None:
     if "pago.cargar" not in sesion.get("permisos", []):
         return
@@ -119,6 +151,17 @@ def _render_contenido(sesion: dict) -> None:
             st.info(
                 "No se cargó ningún pago: todos los seleccionados ya estaban iguales en la base de datos."
             )
+
+    limpieza = st.session_state.pop("_cargue_pagos_limpieza", None)
+    if limpieza:
+        st.success(
+            f"🧹 Se eliminaron {limpieza['pagos']} pagos de {limpieza['contratos']} contratos."
+        )
+        for fallo in limpieza["fallidos"]:
+            st.error(f"❌ Contrato {fallo['numero_contrato']}: {fallo['motivo']}")
+
+    if st.button("🧹 Limpiar todos los pagos", key="_cargue_pagos_btn_limpiar"):
+        _dialog_limpiar(CarguePagosService(), sesion)
 
     archivo = st.file_uploader("Archivo de pagos", type=["xlsx", "xlsm"], key="_cargue_pagos_uploader")
 
