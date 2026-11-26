@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from app.core.balance_contrato import calcular_balance_pagos
+from app.core.balance_contrato import anios_contrato, calcular_balance_pagos
 from app.repositories.usuario_repo import UsuarioRepositorio
 from app.services.auditoria_service import AuditoriaService
 from app.services.usuario_service import UsuarioService
@@ -44,10 +44,6 @@ COLUMNAS_REQUERIDAS = [
 ESTADO_PAGO_VALIDO = "pagada"
 
 _PATRON_CONTRATO = re.compile(r"(\d+)\s*[/-]+\s*(\d{4})")
-
-# Fechas del contrato cuyo año puede aparecer como "año del contrato" en tesorería
-# (un contrato firmado en diciembre e iniciado en enero figura con el año de firma).
-_CAMPOS_ANIO_CONTRATO = ("firma_cps_secop", "fecha_inicio")
 
 
 def limpiar_cedula(crudo) -> str | None:
@@ -184,13 +180,6 @@ def _numero_sin_ceros(numero) -> str:
     return str(numero or "").strip().lstrip("0") or "0"
 
 
-def _anios_contrato(contrato: dict) -> set:
-    """Años en los que tesorería puede referenciar el contrato. Las fechas de
-    contrato se guardan a medianoche UTC, así que el año se lee sin convertir de
-    zona horaria (igual que los formatos de certificacion_service.py)."""
-    return {contrato[campo].year for campo in _CAMPOS_ANIO_CONTRATO if contrato.get(campo)}
-
-
 def _buscar_contrato(contratos: list, numero: str, anio: int) -> dict | None:
     """Contrato del usuario que corresponde al '<número>-<año>' del Excel, sin
     importar si está vigente, finalizado o en período de gracia. Un contrato sin
@@ -198,7 +187,7 @@ def _buscar_contrato(contratos: list, numero: str, anio: int) -> dict | None:
     for contrato in contratos:
         if _numero_sin_ceros(contrato.get("numero")) != numero:
             continue
-        anios = _anios_contrato(contrato)
+        anios = anios_contrato(contrato)
         if not anios or anio in anios:
             return contrato
     return None
@@ -519,7 +508,7 @@ class CarguePagosService:
                 pagos = contrato.get("pagos") or []
                 if not pagos:
                     continue
-                if anio is not None and anio not in _anios_contrato(contrato):
+                if anio is not None and anio not in anios_contrato(contrato):
                     continue
                 id_usuario = str(usuario["_id"])
                 try:
