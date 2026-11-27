@@ -15,3 +15,21 @@ def calcular_balance_pagos(valor_contrato, pagos) -> tuple[int, int]:
     pagado = sum(int(p.get("valor_bruto_pago") or 0) for p in pagos or [])
     por_pagar = max(int(valor_contrato or 0) - pagado, 0)
     return pagado, por_pagar
+
+
+def valor_total_contrato(contrato: dict) -> int:
+    """Valor inicial del contrato más su adición, si la tiene."""
+    adiciones = contrato.get("adiciones_contrato") or {}
+    adicion = adiciones.get("valor_adicion") if adiciones.get("tiene_adiciones") else 0
+    return int(contrato.get("valor") or 0) + int(adicion or 0)
+
+
+def anios_contrato(contrato: dict) -> set:
+    """Años a los que pertenece un contrato: el de su firma SECOP y el de su
+    fecha de inicio. Las fechas de contrato se guardan a medianoche UTC, así que
+    el año se lee sin convertir de zona horaria."""
+    return {
+        contrato[campo].year
+        for campo in ("firma_cps_secop", "fecha_inicio")
+        if contrato.get(campo)
+    }
