@@ -36,5 +36,11 @@ class Configuracion:
     correo_smtp_host: str = os.getenv("CORREO_SMTP_HOST", "smtp.gmail.com")
     correo_smtp_puerto: int = int(os.getenv("CORREO_SMTP_PUERTO", "465"))
 
+    # Ventana de mantenimiento (app/core/mantenimiento.py). Vacío = sin mantenimiento.
+    # MANTENIMIENTO_INICIO: fecha-hora ISO (ej. 2026-11-20T23:00); sin zona se asume Bogotá.
+    # Antes de esa hora se muestra un aviso fijo; desde esa hora la app queda cerrada.
+    mantenimiento_inicio: str = os.getenv("MANTENIMIENTO_INICIO", "")
+    mantenimiento_contacto: str = os.getenv("MANTENIMIENTO_CONTACTO", "")
+
 
 configuracion = Configuracion()
