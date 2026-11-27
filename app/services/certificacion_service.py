@@ -1734,6 +1734,23 @@ class CertificacionService:
         buffer.seek(0)
         return buffer.getvalue()
 
+    def huella_contratos_usuario(self, certificacion: Dict) -> str:
+        """Huella de los contratos (valor, fechas, balance y pagos) del usuario del
+        certificado. Los formatos se generan con esos datos en vivo, así que se usa
+        en la clave de la caché del PDF/Excel para que un cambio en los pagos
+        invalide el documento ya generado."""
+        import hashlib
+        from app.repositories.usuario_repo import UsuarioRepositorio
+
+        usuario_id = str(certificacion.get("usuario_id", ""))
+        if not usuario_id:
+            return ""
+        try:
+            usuario = UsuarioRepositorio().buscar_por_id(usuario_id) or {}
+        except Exception:
+            return ""
+        return hashlib.sha1(repr(usuario.get("contratos") or []).encode("utf-8")).hexdigest()
+
     def generar_excel(self, certificacion: Dict) -> bytes:
         """Dispatcher análogo a generar_pdf, para los formatos que tienen versión .xlsx editable."""
         tipo = certificacion.get("tipo_formato")

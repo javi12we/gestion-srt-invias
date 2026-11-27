@@ -61,6 +61,15 @@ class UsuarioRepositorio:
     def listar(self):
         return list(self.coleccion.find({}, {"password_hash": 0}).sort("usuario", 1))
 
+    def listar_con_contratos(self) -> list:
+        """Usuarios (activos o no) con al menos un contrato; solo identificación y contratos."""
+        return list(
+            self.coleccion.find(
+                {"contratos.0": {"$exists": True}},
+                {"nombre_completo": 1, "tipo_documento": 1, "numero_documento": 1, "contratos": 1},
+            )
+        )
+
     def listar_por_grupo_trabajo(self, grupo: str):
         return list(
             self.coleccion.find(

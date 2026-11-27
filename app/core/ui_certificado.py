@@ -22,6 +22,12 @@ def obtener_excel_certificado_cacheado(_servicio, cert_id: str, hash_verificacio
     return _servicio.generar_excel(_certificacion)
 
 
+def _version_key(servicio, cert: dict) -> str:
+    """Clave de invalidación de la caché: firmas + huella de los contratos del
+    usuario, para que cambiar los pagos regenere el documento."""
+    return f"{cert.get('firmas', {})}|{servicio.huella_contratos_usuario(cert)}"
+
+
 def _cerrar_dialogo_documento() -> None:
     st.session_state.pop("_ver_doc", None)
 
@@ -49,7 +55,7 @@ def _dialog_ver_documento(servicio) -> None:
             try:
                 xlsx_bytes = obtener_excel_certificado_cacheado(
                     servicio, str(cert.get("_id", "")), cert.get("hash_verificacion", ""), cert,
-                    version_key=str(cert.get("firmas", {})),
+                    version_key=_version_key(servicio, cert),
                 )
             except Exception as e:
                 st.error(f"No fue posible generar el Excel: {e}")
@@ -71,7 +77,7 @@ def _dialog_ver_documento(servicio) -> None:
         try:
             pdf_bytes = obtener_pdf_certificado_cacheado(
                 servicio, str(cert.get("_id", "")), cert.get("hash_verificacion", ""), cert,
-                version_key=str(cert.get("firmas", {})),
+                version_key=_version_key(servicio, cert),
             )
         except Exception as e:
             st.error(f"No fue posible generar el PDF: {e}")

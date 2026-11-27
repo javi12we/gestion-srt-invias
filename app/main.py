@@ -14,6 +14,7 @@ from app.services.sesion_service import SesionService
 from app.services.usuario_service import UsuarioService
 from app.services.politica_service import PoliticaService
 from app.core.ui_titulos import mostrar_titulo_decorado
+from app.core import mantenimiento
 
 st.set_page_config(
     page_title="Gestión de Correspondencia", 
@@ -1743,8 +1744,22 @@ def inicializar_aplicacion():
     UsuarioService().asegurar_usuario_admin_inicial()
 
 
+# Ventana de mantenimiento (app/core/mantenimiento.py). Desde la hora de inicio la app
+# muestra solo la pantalla de cierre, antes de tocar la BD y sin menú ni login.
+# Una página única con navegación oculta evita que Streamlit liste app/pages/.
+_estado_mantenimiento = mantenimiento.estado()
+if _estado_mantenimiento == "cerrado":
+    st.navigation(
+        [st.Page(mantenimiento.pantalla_cierre, title="Mantenimiento", url_path="mantenimiento", default=True)],
+        position="hidden",
+    ).run()
+    st.stop()
+
 # Inicializar la aplicación (usará caché si ya se ejecutó)
 inicializar_aplicacion()
+
+if _estado_mantenimiento == "aviso":
+    mantenimiento.mostrar_aviso()
 
 
 if not sesion_activa():

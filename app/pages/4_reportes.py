@@ -10,6 +10,7 @@ from app.core.autorizacion import validar_permiso, ValidacionAutorizacion
 from app.core.sesion import obtener_sesion
 from app.services.pdf_report_service import PDFReportService
 from app.services.excel_report_service import ExcelReportService
+from app.services.reporte_saldos_service import ReporteSaldosService
 
 sesion = obtener_sesion()
 
@@ -51,6 +52,7 @@ with col_btn:
         st.session_state.pop("show_conglomerado_persona_download", None)
         st.session_state.pop("conglomerado_persona_buffer", None)
         st.session_state.pop("conglomerado_persona_name", None)
+        st.session_state.pop("reporte_saldos", None)
         st.session_state.pop("pdf_pqrd", None)
         st.session_state.pop("pdf_conglomerado", None)
         st.session_state.pop("pdf_total", None)
@@ -410,6 +412,60 @@ with col_r3_2:
                     width="stretch",
                     key="dl_conglomerado_persona"
                 )
+
+
+# --- Fila 4: Saldos de Contratistas (solo admin) ---
+if es_admin:
+    st.write("")
+    col_r4_1, _ = st.columns(2)
+    with col_r4_1:
+        with st.container(border=True):
+            st.markdown("### 💰 Saldos de Contratistas (Excel)")
+            st.write(
+                "Genera la base de contratos de todos los contratistas con nombre, cédula, número "
+                "de contrato, valor total (incluye adiciones), pagos y saldo a liberar. Trae una "
+                "hoja resumen y otra con el detalle de cada pago."
+            )
+
+            try:
+                saldos_service = ReporteSaldosService()
+                anios_saldos = saldos_service.anios_disponibles(sesion.get("roles", []))
+            except Exception as e:
+                st.error(f"No se pudieron consultar los contratos: {e}")
+            else:
+                anio_saldos = st.selectbox(
+                    "Año del contrato",
+                    options=[None] + anios_saldos,
+                    format_func=lambda a: "Todos" if a is None else str(a),
+                    key="anio_saldos_sel",
+                )
+
+                if st.button("Generar Reporte de Saldos", width="stretch", key="gen_saldos", type="primary"):
+                    with st.spinner("Calculando saldos de los contratos..."):
+                        try:
+                            reporte = saldos_service.generar_excel(sesion.get("roles", []), anio_saldos)
+                            st.session_state["reporte_saldos"] = {**reporte, "anio": anio_saldos}
+                            st.success("¡Reporte de saldos generado con éxito!")
+                        except Exception as e:
+                            st.error(f"Error generando el reporte de saldos: {e}")
+
+                # Solo se ofrece la descarga del año seleccionado, no la de una generación anterior.
+                reporte = st.session_state.get("reporte_saldos")
+                if reporte and reporte["anio"] == anio_saldos:
+                    st.caption(f"{reporte['contratos']} contratos y {reporte['pagos']} pagos.")
+                    if reporte["sin_fecha"]:
+                        st.warning(
+                            f"{reporte['sin_fecha']} contrato(s) sin fecha de firma ni de inicio no "
+                            "aparecen en el filtro por año. Selecciona 'Todos' para incluirlos."
+                        )
+                    st.download_button(
+                        label="⬇️ Descargar Saldos de Contratistas (Excel)",
+                        data=reporte["buffer"].getvalue(),
+                        file_name=reporte["nombre"],
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        width="stretch",
+                        key="dl_saldos",
+                    )
 
 
 # --- Visualizador de PDF Incrustado ---
